@@ -170,6 +170,49 @@ class AutoMediaPipeline
         return null;
     }
 
+    public static function classifyAllBySubType(string $fileName, array $subTypes): array
+    {
+        $base = pathinfo($fileName, PATHINFO_FILENAME);
+        $baseClean = strtolower(self::stripAccents($base));
+        $matches = [];
+
+        // 1. Pass 1: Strict prefix match using regex
+        foreach ($subTypes as $subKey => $cfg) {
+            if (preg_match($cfg['regex'], $base)) {
+                $matches[] = $subKey;
+            }
+        }
+
+        // 2. Pass 2: Smart substring/keyword match
+        foreach ($subTypes as $subKey => $cfg) {
+            if (in_array($subKey, $matches, true)) continue;
+            
+            $candidates = $cfg['candidates'] ?? [$subKey];
+            foreach ($candidates as $c) {
+                $c = strtolower(self::stripAccents($c));
+                if ($c === '') continue;
+
+                $matched = false;
+                if (strlen($c) > 3) {
+                    if (str_contains($baseClean, $c)) {
+                        $matched = true;
+                    }
+                } else {
+                    $words = preg_split('/[^a-z0-9]/', $baseClean);
+                    if (in_array($c, $words, true)) {
+                        $matched = true;
+                    }
+                }
+                if ($matched) {
+                    $matches[] = $subKey;
+                    break;
+                }
+            }
+        }
+
+        return array_unique($matches);
+    }
+
     public static function loadTypeKeysFromConfig(string $projectPath, string $mainKey): array
     {
         $filePath = self::normalizePath($projectPath . '/config/' . $mainKey . '.php');
@@ -367,8 +410,8 @@ class AutoMediaPipeline
         $allText = implode(' ', $extra);
 
         $synonyms = [
-            'social' => ['mxh', 'mangxahoi', 'mang-xa-hoi', 'social'],
-            'mangxahoi' => ['mxh', 'mangxahoi', 'mang-xa-hoi', 'social'],
+            'social' => ['mxh', 'mangxahoi', 'mang-xa-hoi', 'social', 'facebook', 'fb', 'zalo', 'youtube', 'yt', 'instagram', 'tiktok', 'twitter', 'messenger', 'google', 'pinterest'],
+            'mangxahoi' => ['mxh', 'mangxahoi', 'mang-xa-hoi', 'social', 'facebook', 'fb', 'zalo', 'youtube', 'yt', 'instagram', 'tiktok', 'twitter', 'messenger', 'google', 'pinterest'],
             'slideshow' => ['slide', 'slideshow', 'slider', 'silde', 'silder'],
             'slide' => ['slide', 'slideshow', 'slider', 'silde', 'silder'],
             'gioithieu' => ['gt', 'gioithieu', 'gioi-thieu', 'about'],

@@ -76,29 +76,61 @@ try {
         $matchedSubTypes = []; // Array of ['sub_type' => ..., 'match_source' => ...]
 
         // Check name match first
-        $detectedSubType = AutoMediaPipeline::classifyBySubType($f, $subTypes);
-        if ($detectedSubType !== null) {
+        $detectedSubTypes = AutoMediaPipeline::classifyAllBySubType($f, $subTypes);
+        $nameMatches = [];
+        foreach ($detectedSubTypes as $detectedSubType) {
             // Check if this subtype has defined ratio/dimensions
             $isAlbumOrGallery = (str_contains($detectedSubType, 'album') || str_contains($detectedSubType, 'gallery'));
             $rr = $isAlbumOrGallery ? null : ($subTypeRatios[$detectedSubType] ?? null);
             $ratioOk = true;
             if (is_array($rr) && (int)$rr['width'] > 0 && (int)$rr['height'] > 0) {
-                // For small icons (<= 50x50), we don't enforce strict ratio checking
-                if ((int)$rr['width'] > 50 || (int)$rr['height'] > 50) {
-                    $exactMatch = ($w === (int)$rr['width'] && $h === (int)$rr['height']);
-                    $ratioMatch = AutoMediaPipeline::isRatioMatch($w, $h, (int)$rr['width'], (int)$rr['height'], 12);
-                    if (!$exactMatch && !$ratioMatch) {
+                // Check if the size is within reasonable bounds (40% to 500% of target)
+                $minW = (int)$rr['width'] * 0.4;
+                $maxW = (int)$rr['width'] * 5.0;
+                // For very small targets (<= 50), cap max size to 150px to prevent large banners matching small types
+                if ((int)$rr['width'] <= 50) {
+                    $maxW = 150;
+                }
+                
+                if ($w < $minW || $w > $maxW) {
+                    $ratioOk = false;
+                } else {
+                    // For small icons (<= 50x50), we don't enforce strict ratio checking, but still check if it is roughly square if target is square
+                    $isTargetSquare = (abs((int)$rr['width'] - (int)$rr['height']) <= 5);
+                    $isImageSquare = ($w > 0 && $h > 0 && abs($w - $h) <= max(10, $w * 0.2));
+                    
+                    if ((int)$rr['width'] > 50 || (int)$rr['height'] > 50) {
+                        $exactMatch = ($w === (int)$rr['width'] && $h === (int)$rr['height']);
+                        $ratioMatch = AutoMediaPipeline::isRatioMatch($w, $h, (int)$rr['width'], (int)$rr['height'], 12);
+                        if (!$exactMatch && !$ratioMatch) {
+                            $ratioOk = false;
+                        }
+                    } elseif ($isTargetSquare && !$isImageSquare) {
                         $ratioOk = false;
                     }
                 }
             }
 
             if ($ratioOk) {
-                $matchedSubTypes[] = [
-                    'sub_type' => $detectedSubType,
-                    'match_source' => 'name',
-                ];
+                $nameMatches[] = $detectedSubType;
             }
+        }
+
+        if (!empty($nameMatches)) {
+            if (count($nameMatches) > 1) {
+                usort($nameMatches, function($a, $b) use ($subTypeRatios, $w) {
+                    $rrA = $subTypeRatios[$a] ?? null;
+                    $rrB = $subTypeRatios[$b] ?? null;
+                    $diffA = $rrA ? abs($w - (int)$rrA['width']) : 9999;
+                    $diffB = $rrB ? abs($w - (int)$rrB['width']) : 9999;
+                    return $diffA <=> $diffB;
+                });
+            }
+            
+            $matchedSubTypes[] = [
+                'sub_type' => $nameMatches[0],
+                'match_source' => 'name',
+            ];
         }
 
         // If not matched by name, check by ratio match with size-based bounds (50% - 500%)
