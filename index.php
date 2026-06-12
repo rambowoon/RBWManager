@@ -1199,7 +1199,6 @@ Pass: password123..." style="height:200px;"></textarea>
                         <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                         <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                         <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                        <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
                     </select>
                 </div>
             </div>
