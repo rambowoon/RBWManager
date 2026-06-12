@@ -241,7 +241,7 @@ const SeedManager = {
 	},
 
 	// ─── Run seed ───
-	async runSeed() {
+	async runSeed(useAi = false) {
 		const subKeys = Object.keys(this.selectedImages).filter((k) => this.selectedImages[k].length > 0);
 		if (subKeys.length === 0) {
 			UI.notify('Vui lòng chọn ít nhất 1 sub-type và ảnh', 'error');
@@ -250,7 +250,13 @@ const SeedManager = {
 
 		const seedCount = parseInt(document.getElementById('seed-count-input')?.value || '5', 10);
 		const seedCatCount = parseInt(document.getElementById('seed-cat-count-input')?.value || '3', 10);
-		const btn = document.getElementById('btn-seed-run');
+		const aiModel = document.getElementById('seed-ai-model')?.value || 'gemini-1.5-flash';
+		const aiPrompt = document.getElementById('seed-ai-prompt')?.value || '';
+
+		let btn = document.getElementById('btn-seed-run');
+		if (useAi) {
+			btn = document.getElementById('seed-ai-confirm-btn');
+		}
 		const origHTML = btn.innerHTML;
 		btn.disabled = true;
 		btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Đang tạo...`;
@@ -269,6 +275,9 @@ const SeedManager = {
 			seed_count: seedCount,
 			seed_cat_count: seedCatCount,
 			sub_types: Object.fromEntries(subKeys.map((k) => [k, this.selectedImages[k]])),
+			use_ai: useAi,
+			ai_model: aiModel,
+			ai_prompt: aiPrompt,
 		};
 
 		try {
@@ -285,6 +294,10 @@ const SeedManager = {
 
 			if (res.errors?.length) {
 				res.errors.forEach((e) => UI.notify('⚠️ ' + e, 'error'));
+			}
+
+			if (useAi) {
+				UI.hideModal('seed-ai-modal');
 			}
 
 			// Reload type counts

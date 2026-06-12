@@ -295,6 +295,68 @@ try {
             return $text;
         };
 
+        // Helper function to fetch from Gemini
+        $getAiContentFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, int $count) {
+            $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . urlencode($apiKey);
+            
+            $promptText = "Hãy tạo một JSON array chứa đúng $count phần tử dữ liệu mẫu tiếng Việt phù hợp với ngành nghề/mô tả sau: '$prompt' (dành cho loại danh mục: '$subTypeTitle').
+Mỗi phần tử trong mảng phải chứa đúng 2 thuộc tính:
+- 'name': tiêu đề/tên ngắn gọn của sản phẩm/bài viết/hình ảnh (ví dụ: 'Nồi chiên không dầu Philips HD9252', 'Dịch vụ chuẩn bị tang lễ trọn gói'). Tên phải mang tính thực tế, đa dạng, KHÔNG trùng lặp.
+- 'desc': đoạn mô tả ngắn gọn, chi tiết và hấp dẫn dài từ 2 đến 3 câu (dùng làm mô tả tóm tắt hoặc nội dung chính).
+
+YÊU CẦU QUAN TRỌNG:
+1. Bạn CHỈ phản hồi nội dung là một chuỗi JSON array hợp lệ.
+2. KHÔNG giải thích, KHÔNG viết bất kỳ chữ nào khác ngoài JSON array. KHÔNG đặt trong block ```json ... ``` nếu có thể, hoặc nếu có thì đảm bảo cú pháp JSON hoàn toàn chính xác.";
+
+            $payload = json_encode([
+                "contents" => [
+                    ["parts" => [["text" => $promptText]]]
+                ],
+                "generationConfig" => [
+                    "responseMimeType" => "application/json"
+                ]
+            ]);
+
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            curl_close($ch);
+
+            if ($err) {
+                throw new Exception("Lỗi kết nối cURL tới Gemini: " . $err);
+            }
+
+            if ($httpCode !== 200) {
+                $resObj = json_decode($response, true);
+                $errMsg = $resObj['error']['message'] ?? "HTTP Code $httpCode";
+                throw new Exception("Lỗi từ Gemini API ($model): " . $errMsg);
+            }
+
+            $resObj = json_decode($response, true);
+            $text = $resObj['candidates'][0]['content']['parts'][0]['text'] ?? '';
+            $text = trim($text);
+            
+            if (str_starts_with($text, '```')) {
+                $text = preg_replace('/^```(?:json)?\s+|\s+```$/', '', $text);
+                $text = trim($text);
+            }
+            
+            $data = json_decode($text, true);
+            if (!is_array($data)) {
+                throw new Exception("Phản hồi từ Gemini không phải là JSON array hợp lệ.");
+            }
+            
+            return $data;
+        };
+
         $pdo->beginTransaction();
         try {
             foreach ($selectedSubs as $subKey => $imageFiles) {
@@ -311,6 +373,22 @@ try {
                 $kind = $raw['kind'] ?? 'dynamic';
                 $count = ($kind === 'static') ? 1 : $seedCount;
                 if (isset($raw['number'])) $count = (int)$raw['number'];
+
+                $aiData = [];
+                if ($useAiText) {
+                    $apiKey = trim($globalConfig['gemini_key'] ?? '');
+                    if ($apiKey === '' || $apiKey === 'YOUR_GEMINI_API_KEY') {
+                        throw new Exception("Vui lòng cấu hình Gemini API Key chính xác trong Cài đặt (demo_config.json).");
+                    }
+                    $prompt = $aiPromptExtra !== '' ? $aiPromptExtra : ($raw['title_main'] ?? $subKey);
+                    $subTypeTitle = $raw['title_main'] ?? $subKey;
+                    
+                    try {
+                        $aiData = $getAiContentFromGemini($apiKey, $aiModel, $prompt, $subTypeTitle, $count);
+                    } catch (\Throwable $aiErr) {
+                        throw new Exception("Lỗi tạo dữ liệu bằng AI cho loại '{$subTypeTitle}': " . $aiErr->getMessage());
+                    }
+                }
 
                 // Check table exists
                 $stCheck = $pdo->query("SHOW TABLES LIKE '$table'");
@@ -345,15 +423,73 @@ try {
                         continue;
                     }
 
+                    $catColumns = array_column($pdo->query("SHOW COLUMNS FROM `$catTable`")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+
                     // Lấy danh sách ID đã có hoặc tạo mới
                     $stExist = $pdo->prepare("SELECT id FROM `$catTable` WHERE `$typeCol` = ?");
                     $stExist->execute([$typeVal]);
                     $existingIds = $stExist->fetchAll(PDO::FETCH_COLUMN);
 
+                    // Đảm bảo slug cho các categories đã tồn tại trong table_slug
+                    $stSlugCheckTable = $pdo->query("SHOW TABLES LIKE 'table_slug'");
+                    $hasSlugTable = ($stSlugCheckTable->rowCount() > 0);
+
+                    if ($hasSlugTable && in_array('slugvi', $catColumns)) {
+                        $nameCol = in_array('namevi', $catColumns) ? 'namevi' : (in_array('name', $catColumns) ? 'name' : '');
+                        $slugCol = 'slugvi';
+
+                        if ($nameCol && !empty($existingIds)) {
+                            $stExistRows = $pdo->prepare("SELECT id, `$nameCol` as name_val, `$slugCol` as slug_val FROM `$catTable` WHERE id IN (" . implode(',', array_map('intval', $existingIds)) . ")");
+                            $stExistRows->execute();
+                            $existRows = $stExistRows->fetchAll(PDO::FETCH_ASSOC);
+
+                            foreach ($existRows as $row) {
+                                $cId = $row['id'];
+                                $cName = $row['name_val'];
+                                $cSlug = $row['slug_val'];
+
+                                if (!empty($cSlug)) {
+                                    $stSlugCheck = $pdo->prepare("SELECT COUNT(*) FROM `table_slug` WHERE `id_parent` = ? AND `type` = ? AND `act` = ?");
+                                    $stSlugCheck->execute([$cId, $typeVal, $level]);
+                                    $slugExists = (int)$stSlugCheck->fetchColumn();
+
+                                    if (!$slugExists) {
+                                        $controller = '\\NASANICORE\\Controllers\\Web\\NewsController';
+                                        $model = '\\NASANICORE\\Models\\News' . ucfirst($level) . 'Model';
+                                        $prefix = 'news';
+                                        if ($mainKey === 'type-products') {
+                                            $controller = '\\NASANICORE\\Controllers\\Web\\ProductController';
+                                            $model = '\\NASANICORE\\Models\\Product' . ucfirst($level) . 'Model';
+                                            $prefix = 'product';
+                                        } elseif ($mainKey === 'type-photo') {
+                                            $controller = '\\NASANICORE\\Controllers\\Web\\PhotoController';
+                                            $model = '\\NASANICORE\\Models\\Photo' . ucfirst($level) . 'Model';
+                                            $prefix = 'photo';
+                                        }
+                                        $comVal = $prefix . '-' . $level;
+
+                                        $stSlug = $pdo->prepare("INSERT INTO `table_slug` (`slugvi`, `namevi`, `controller`, `model`, `id_parent`, `com`, `act`, `type`, `created_at`, `updated_at`) VALUES (:slugvi, :namevi, :controller, :model, :id_parent, :com, :act, :type, :created_at, :updated_at)");
+                                        $stSlug->execute([
+                                            ':slugvi' => $cSlug,
+                                            ':namevi' => $cName ?: $cSlug,
+                                            ':controller' => $controller,
+                                            ':model' => $model,
+                                            ':id_parent' => $cId,
+                                            ':com' => $comVal,
+                                            ':act' => 'save',
+                                            ':type' => $typeVal,
+                                            ':created_at' => date('Y-m-d H:i:s'),
+                                            ':updated_at' => date('Y-m-d H:i:s'),
+                                        ]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     if (count($existingIds) >= $seedCatCount) {
                         $generated[$level] = $existingIds;
                     } else {
-                        $catColumns = array_column($pdo->query("SHOW COLUMNS FROM `$catTable`")->fetchAll(PDO::FETCH_ASSOC), 'Field');
                         $newIds = [];
 
                         $parentLevel = $lvlIdx > 0 ? $categoryLevels[$lvlIdx - 1] : null;
@@ -364,7 +500,8 @@ try {
                         for ($cIdx = 0; $cIdx < $needed; $cIdx++) {
                             $parentVal = !empty($parents) ? $parents[$cIdx % count($parents)] : 0;
                             
-                            $nameVal = ($raw['title_main'] ?? $subKey) . ' Danh Mục ' . ucfirst($level) . ' ' . (count($existingIds) + $cIdx + 1);
+                            $catPrompt = ($useAiText && $aiPromptExtra !== '') ? $aiPromptExtra : ($raw['title_main'] ?? $subKey);
+                            $nameVal = $catPrompt . ' Danh Mục ' . ucfirst($level) . ' ' . (count($existingIds) + $cIdx + 1);
                             $slugVal = $makeSlug($nameVal);
 
                             $cols = [$typeCol];
@@ -411,15 +548,21 @@ try {
                             $newIds[] = $newId;
 
                             if (in_array('slugvi', $catColumns) && $newId && !empty($slugVal)) {
-                                $stSlugCheck = $pdo->query("SHOW TABLES LIKE 'table_slug'");
-                                if ($stSlugCheck->rowCount() > 0) {
-                                    $controller = ($mainKey === 'type-products') 
-                                        ? '\\NASANICORE\\Controllers\\Web\\ProductController' 
-                                        : '\\NASANICORE\\Controllers\\Web\\NewsController';
-                                    $model = ($mainKey === 'type-products') 
-                                        ? '\\NASANICORE\\Models\\ProductModel' 
-                                        : '\\NASANICORE\\Models\\NewsModel';
+                                if ($hasSlugTable) {
+                                    $controller = '\\NASANICORE\\Controllers\\Web\\NewsController';
+                                    $model = '\\NASANICORE\\Models\\News' . ucfirst($level) . 'Model';
+                                    $prefix = 'news';
+                                    if ($mainKey === 'type-products') {
+                                        $controller = '\\NASANICORE\\Controllers\\Web\\ProductController';
+                                        $model = '\\NASANICORE\\Models\\Product' . ucfirst($level) . 'Model';
+                                        $prefix = 'product';
+                                    } elseif ($mainKey === 'type-photo') {
+                                        $controller = '\\NASANICORE\\Controllers\\Web\\PhotoController';
+                                        $model = '\\NASANICORE\\Models\\Photo' . ucfirst($level) . 'Model';
+                                        $prefix = 'photo';
+                                    }
 
+                                    $comVal = $prefix . '-' . $level;
                                     $stSlug = $pdo->prepare("INSERT INTO `table_slug` (`slugvi`, `namevi`, `controller`, `model`, `id_parent`, `com`, `act`, `type`, `created_at`, `updated_at`) VALUES (:slugvi, :namevi, :controller, :model, :id_parent, :com, :act, :type, :created_at, :updated_at)");
                                     $stSlug->execute([
                                         ':slugvi' => $slugVal,
@@ -427,8 +570,8 @@ try {
                                         ':controller' => $controller,
                                         ':model' => $model,
                                         ':id_parent' => $newId,
-                                        ':com' => ($mainKey === 'type-products') ? 'product' : 'news',
-                                        ':act' => $level,
+                                        ':com' => $comVal,
+                                        ':act' => 'save',
                                         ':type' => $typeVal,
                                         ':created_at' => date('Y-m-d H:i:s'),
                                         ':updated_at' => date('Y-m-d H:i:s'),
@@ -439,6 +582,13 @@ try {
                         $generated[$level] = array_merge($existingIds, $newIds);
                     }
                 }
+
+                $existingCount = 0;
+                try {
+                    $stCount = $pdo->prepare("SELECT COUNT(*) FROM `$table` WHERE `$typeCol` = ?");
+                    $stCount->execute([$typeVal]);
+                    $existingCount = (int)$stCount->fetchColumn();
+                } catch (\Throwable $e) {}
 
                 $inserted = 0;
                 for ($i = 0; $i < $count; $i++) {
@@ -541,8 +691,17 @@ try {
                     $slugViVal = '';
                     $hasSlug = !empty($raw['slug']);
 
+                    $aiItem = null;
+                    if (!empty($aiData)) {
+                        $aiItem = $aiData[$i % count($aiData)];
+                    }
+                    $aiName = ($aiItem && !empty($aiItem['name'])) ? trim($aiItem['name']) : '';
+                    if ($aiName !== '') {
+                        $aiName .= ' ' . ($existingCount + $i + 1);
+                    }
+
                     if (!empty($raw['name'])) {
-                        $nameVal = $randomTitle(2);
+                        $nameVal = ($aiName !== '') ? $aiName : ($randomTitle(2) . ' ' . ($existingCount + $i + 1));
                         $nameViVal = $nameVal;
                         if (in_array('namevi', $columns)) { $cols[] = 'namevi'; $vals[] = $nameVal; }
                         if (in_array('nameen', $columns)) { $cols[] = 'nameen'; $vals[] = $nameVal; }
@@ -550,7 +709,7 @@ try {
                     }
 
                     if (!empty($raw['title'])) {
-                        $titleVal = $randomTitle(3 + ($i % 3));
+                        $titleVal = ($aiName !== '') ? $aiName : ($randomTitle(3 + ($i % 3)) . ' ' . ($existingCount + $i + 1));
                         if ($nameViVal === '') {
                             $nameViVal = $titleVal;
                         }
@@ -567,10 +726,17 @@ try {
 
                     // desc & desc_cke
                     $descVal = '';
-                    if (!empty($raw['desc'])) {
-                        $descVal = $randomDesc();
-                    } elseif (!empty($raw['desc_cke'])) {
-                        $descVal = '<p>' . $randomDesc() . '</p>';
+                    if ($aiItem && !empty($aiItem['desc'])) {
+                        $descVal = trim($aiItem['desc']);
+                        if (!empty($raw['desc_cke']) && !str_starts_with($descVal, '<p>')) {
+                            $descVal = '<p>' . $descVal . '</p>';
+                        }
+                    } else {
+                        if (!empty($raw['desc'])) {
+                            $descVal = $randomDesc();
+                        } elseif (!empty($raw['desc_cke'])) {
+                            $descVal = '<p>' . $randomDesc() . '</p>';
+                        }
                     }
 
                     if ($descVal !== '') {
@@ -593,11 +759,8 @@ try {
                         if (in_array('phone', $columns)) { $cols[] = 'phone'; $vals[] = $phoneVal; }
                     }
 
-                    if (array_key_exists('status', $raw)) {
-                        $statusOptions = is_array($raw['status']) ? array_keys($raw['status']) : ['hienthi'];
-                        if (in_array('status', $columns)) {
-                            $cols[] = 'status'; $vals[] = $statusOptions[0];
-                        }
+                    if (in_array('status', $columns)) {
+                        $cols[] = 'status'; $vals[] = 'hienthi';
                     }
 
                     if (in_array('stt', $columns)) {
@@ -649,9 +812,15 @@ try {
                             // Determine controller/model by checking main_key or com or type
                             $controller = '\\NASANICORE\\Controllers\\Web\\NewsController';
                             $model = '\\NASANICORE\\Models\\NewsModel';
+                            $com = 'news';
                             if ($mainKey === 'type-photo') {
                                 $controller = '\\NASANICORE\\Controllers\\Web\\PhotoController';
                                 $model = '\\NASANICORE\\Models\\PhotoModel';
+                                $com = 'photo';
+                            } elseif ($mainKey === 'type-products') {
+                                $controller = '\\NASANICORE\\Controllers\\Web\\ProductController';
+                                $model = '\\NASANICORE\\Models\\ProductModel';
+                                $com = 'product';
                             }
                             // Delete old slug first if exists
                             $stDelSlug = $pdo->prepare("DELETE FROM `table_slug` WHERE `id_parent` = ? AND `type` = ?");
@@ -664,7 +833,7 @@ try {
                                 ':controller' => $controller,
                                 ':model' => $model,
                                 ':id_parent' => $lastId,
-                                ':com' => ($mainKey === 'type-photo') ? 'photo' : 'news',
+                                ':com' => $com,
                                 ':act' => 'save',
                                 ':type' => $typeVal,
                                 ':created_at' => date('Y-m-d H:i:s'),

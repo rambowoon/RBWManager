@@ -510,6 +510,10 @@
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                                     Ảnh được copy vào thư mục public của dự án, DB được ghi bản ghi ngẫu nhiên
                                 </div>
+                                <button id="btn-seed-run-ai" class="seed-run-btn" style="background: var(--primary); margin-right: 10px;" onclick="UI.showModal('seed-ai-modal')">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    <span>Tạo bằng AI (Gemini)</span>
+                                </button>
                                 <button id="btn-seed-run" class="seed-run-btn">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                                     <span>Tạo dữ liệu mẫu</span>
@@ -1171,6 +1175,40 @@ Pass: password123..." style="height:200px;"></textarea>
         </div>
     </div>
 
+
+    <!-- MODAL: AI SEED PROMPT -->
+    <div id="seed-ai-modal" class="modal-overlay">
+        <div class="modal" style="max-width: 450px;">
+            <div class="modal-header-flex">
+                <h2>Tạo bằng AI (Gemini)</h2>
+                <button class="btn-close-circle" onclick="UI.hideModal('seed-ai-modal')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 20px 0;">
+                <p style="font-size:0.85rem; color:var(--muted); margin-bottom:15px; line-height:1.4;">
+                    Nhập mô tả thông tin ngành nghề/lĩnh vực (ví dụ: Dịch vụ mai táng, Sản phẩm đồ gia dụng...). AI sẽ tự động tạo tên tiêu đề và mô tả phù hợp cho các bản ghi dữ liệu mẫu.
+                </p>
+                <div class="form-group">
+                    <label>Mô tả ngành nghề/lĩnh vực</label>
+                    <input type="text" id="seed-ai-prompt" placeholder="Ví dụ: Thiết bị nhà bếp thông minh" class="form-control" style="width:100%; height:40px; margin-top:5px;">
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Chọn model AI (Gemini)</label>
+                    <select id="seed-ai-model" class="form-control" style="width:100%; height:40px; margin-top:5px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:#fff; border-radius:8px; padding:0 12px;">
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                        <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer-actions">
+                <button class="btn btn-ghost" onclick="UI.hideModal('seed-ai-modal')">Hủy</button>
+                <button id="seed-ai-confirm-btn" class="btn btn-primary" onclick="SeedManager.runSeed(true)">🚀 Bắt đầu tạo bằng AI</button>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
