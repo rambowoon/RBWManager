@@ -1196,9 +1196,10 @@ Pass: password123..." style="height:200px;"></textarea>
                 <div class="form-group" style="margin-top: 15px;">
                     <label>Chọn model AI (Gemini)</label>
                     <select id="seed-ai-model" class="form-control" style="width:100%; height:40px; margin-top:5px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:#fff; border-radius:8px; padding:0 12px;">
+                        <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                         <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                         <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                     </select>
                 </div>
             </div>

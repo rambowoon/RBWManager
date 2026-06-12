@@ -228,7 +228,7 @@ try {
         $seedCatCount = max(1, min(50, (int)($payload['seed_cat_count'] ?? 3)));
         $useAiText   = !empty($payload['use_ai']);
         $aiPromptExtra = trim($payload['ai_prompt'] ?? '');
-        $aiModel     = trim($payload['ai_model'] ?? 'gemini-1.5-flash');
+        $aiModel     = trim($payload['ai_model'] ?? 'gemini-3.5-flash');
 
         if ($projectName === '' || $mainKey === '') throw new Exception('Thiếu project_name hoặc main_key');
         if (empty($selectedSubs)) throw new Exception('Chưa chọn sub-type và ảnh');
