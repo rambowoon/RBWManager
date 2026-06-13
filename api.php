@@ -1919,6 +1919,13 @@ switch ($action) {
             $cssContent .= "  font-weight: $weight;\n";
             $cssContent .= "  font-display: swap;\n";
             
+            // Sort to ensure woff2 is prioritized
+            usort($vFiles, function($a, $b) {
+                if ($a['ext'] === 'woff2') return -1;
+                if ($b['ext'] === 'woff2') return 1;
+                return 0;
+            });
+
             $srcs = [];
             foreach ($vFiles as $vf) {
                 $srcs[] = "url('../fonts/" . $cleanFolderName . "/{$vf['file']}') format('{$vf['ext']}')";
