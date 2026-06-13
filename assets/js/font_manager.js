@@ -372,8 +372,11 @@ const FontManager = {
             item.style.border = '1px solid var(--border)';
             item.style.textTransform = 'none';
             item.innerHTML = `
-                <span style="color:#fff; font-weight:600;">${font}</span>
-                <span style="font-size:0.6rem; color:var(--muted);">Installed</span>
+                <span style="color:#fff; font-weight:600; margin-right:10px;">${font}</span>
+                <span style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:0.6rem; color:var(--muted);">Installed</span>
+                    <button class="btn btn-ghost" style="padding:2px; height:auto; color:var(--danger); font-size:0.75rem; border:none; background:none; cursor:pointer;" onclick="FontManager.remove('${font.replace(/'/g, "\\'")}')" title="Gỡ bỏ font">❌</button>
+                </span>
             `;
             listContainer.appendChild(item);
 
@@ -385,6 +388,30 @@ const FontManager = {
                 document.head.appendChild(link);
             }
         });
+    },
+
+    async remove(fontName) {
+        const projectName = document.getElementById('d_current-project')?.value || document.getElementById('current-project')?.value;
+        if (!projectName) return UI.notify('Vui lòng mở một dự án trước!', 'error');
+
+        if (!confirm(`Bạn có chắc chắn muốn gỡ bỏ font "${fontName}" ra khỏi dự án "${projectName}" không?`)) return;
+
+        try {
+            const res = await (await fetch(`api.php?action=removeFont`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: projectName, fontName })
+            })).json();
+
+            if (res.status === 'success') {
+                UI.notify(`Đã gỡ bỏ font ${fontName} thành công!`, 'success');
+                this.loadCssPreview();
+            } else {
+                UI.notify(res.message, 'error');
+            }
+        } catch (err) {
+            UI.notify('Lỗi kết nối API', 'error');
+        }
     },
 
     toggleAllConvert(fontId, status) {

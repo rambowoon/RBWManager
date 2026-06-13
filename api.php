@@ -1739,6 +1739,61 @@ switch ($action) {
         echo json_encode(['status' => 'success', 'data' => $content]);
         break;
 
+    case 'removeFont':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $projectName = $data['name'] ?? '';
+        $fontName = $data['fontName'] ?? '';
+
+        $project = $scanner->getProjectByName($projectName);
+        if (!$project || empty($fontName)) {
+            echo json_encode(['status' => 'error', 'message' => 'Thiếu thông tin dự án hoặc tên font']);
+            break;
+        }
+
+        $fontsCssPath = $project['path'] . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'css' . DIRECTORY_SEPARATOR . 'fonts.css';
+        if (file_exists($fontsCssPath)) {
+            $cssContent = file_get_contents($fontsCssPath);
+
+            // 1. Remove @font-face blocks
+            $escaped = preg_quote($fontName, '/');
+            $pattern = '/@font-face\s*\{[^}]*font-family:\s*[\'"]' . $escaped . '[\'"][^}]*\}/i';
+            $cssContent = preg_replace($pattern, '', $cssContent);
+
+            // 2. Remove @import Google Fonts
+            $cleanFamily = str_replace(' ', '+', $fontName);
+            $lines = explode("\n", $cssContent);
+            $newLines = [];
+            foreach ($lines as $line) {
+                if (stripos($line, "family=" . $cleanFamily) !== false || 
+                    stripos($line, "family=" . urlencode($fontName)) !== false) {
+                    continue;
+                }
+                $newLines[] = $line;
+            }
+            $cssContent = implode("\n", $newLines);
+            $cssContent = preg_replace("/^\s*[\r\n]/m", "", $cssContent); // remove empty lines
+
+            file_put_contents($fontsCssPath, trim($cssContent) . "\n");
+        }
+
+        // 3. Delete directory under assets/fonts/fontName
+        $cleanFolderName = removeVietnameseDiacritics($fontName);
+        $destDir = $project['path'] . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'fonts' . DIRECTORY_SEPARATOR . $cleanFolderName;
+        if (is_dir($destDir)) {
+            $files = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($destDir, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::CHILD_FIRST
+            );
+            foreach ($files as $fileinfo) {
+                $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
+                @$todo($fileinfo->getRealPath());
+            }
+            @rmdir($destDir);
+        }
+
+        echo json_encode(['status' => 'success', 'message' => "Đã gỡ bỏ font $fontName ra khỏi dự án"]);
+        break;
+
     case 'addGoogleFont':
         $data = json_decode(file_get_contents('php://input'), true);
         $projectName = $data['name'] ?? '';
