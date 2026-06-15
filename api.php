@@ -117,13 +117,13 @@ function parseFontFilename($filename) {
     elseif (preg_match('/(light|300)/i', $f)) $weight = '300';
     elseif (preg_match('/(medium|500)/i', $f)) $weight = '500';
     elseif (preg_match('/(semibold|600)/i', $f)) $weight = '600';
+    elseif (preg_match('/(extrabold|800|heavy)/i', $f)) $weight = '800';
     elseif (preg_match('/(bold|700)/i', $f)) $weight = '700';
-    elseif (preg_match('/(extrabold|800)/i', $f)) $weight = '800';
     elseif (preg_match('/(black|900)/i', $f)) $weight = '900';
     
     $style = preg_match('/italic/i', $f) ? 'italic' : 'normal';
     
-    $cleanFamily = preg_replace('/[-_]?(thin|100|extralight|200|light|300|medium|500|semibold|demibold|600|bold|700|extrabold|800|black|heavy|900|regular|italic|normal|it|rg)/i', '', $f);
+    $cleanFamily = preg_replace('/[-_]?(extrabold|800|semibold|demibold|600|bold|700|extralight|200|light|300|thin|100|medium|500|black|heavy|900|regular|italic|normal|it|rg)/i', '', $f);
     $cleanFamily = trim($cleanFamily, '-_ ');
     if (empty($cleanFamily)) {
         $cleanFamily = $f;
@@ -1664,16 +1664,8 @@ switch ($action) {
 
                 $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
                 if ($ext === 'woff' || $ext === 'woff2') {
-                    $weight = '400';
-                    if (preg_match('/(thin|100)/i', $f)) $weight = '100';
-                    elseif (preg_match('/(extralight|200)/i', $f)) $weight = '200';
-                    elseif (preg_match('/(light|300)/i', $f)) $weight = '300';
-                    elseif (preg_match('/(medium|500)/i', $f)) $weight = '500';
-                    elseif (preg_match('/(semibold|600)/i', $f)) $weight = '600';
-                    elseif (preg_match('/(bold|700)/i', $f)) $weight = '700';
-                    elseif (preg_match('/(extrabold|800)/i', $f)) $weight = '800';
-                    elseif (preg_match('/(black|900)/i', $f)) $weight = '900';
-                    $style = preg_match('/italic/i', $f) ? 'italic' : 'normal';
+                    $weight = $parsed['weight'];
+                    $style = $parsed['style'];
                     $vKey = $weight . ($style === 'italic' ? 'i' : '');
 
                     if (in_array($vKey, $selectedVariants)) {
@@ -1887,16 +1879,8 @@ switch ($action) {
 
                 $fExt = strtolower(pathinfo($f, PATHINFO_EXTENSION));
                 if ($fExt === strtolower($ext)) {
-                    $weight = '400';
-                    if (preg_match('/(thin|100)/i', $f)) $weight = '100';
-                    elseif (preg_match('/(extralight|200)/i', $f)) $weight = '200';
-                    elseif (preg_match('/(light|300)/i', $f)) $weight = '300';
-                    elseif (preg_match('/(medium|500)/i', $f)) $weight = '500';
-                    elseif (preg_match('/(semibold|600)/i', $f)) $weight = '600';
-                    elseif (preg_match('/(bold|700)/i', $f)) $weight = '700';
-                    elseif (preg_match('/(extrabold|800)/i', $f)) $weight = '800';
-                    elseif (preg_match('/(black|900)/i', $f)) $weight = '900';
-                    $style = preg_match('/italic/i', $f) ? 'italic' : 'normal';
+                    $weight = $parsed['weight'];
+                    $style = $parsed['style'];
                     $vKey = $weight . ($style === 'italic' ? 'i' : '');
                     
                     if ($vKey === $variant) {
