@@ -777,29 +777,39 @@ const App = {
 				}
 			}
 
-			// Khi request chính hoàn tất, đợi thêm 1 chút để polling lấy nốt log cuối
-			setTimeout(async () => {
-				if (isFinished) return;
-				isFinished = true;
-				
-				await cleanUpJob();
-				
-				if (result && result.status === 'error') {
-					UI.updateDeployStatus('Lỗi!', progress, `<span style="color:var(--danger)">❌ ${result.message || 'Thực thi thất bại'}</span>`);
-				} else if (!response.ok) {
-					UI.updateDeployStatus('Lỗi hệ thống!', 0, `API trả về HTTP code: ${response.status}`);
-				} else {
-					confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-				}
-			}, 1500);
+			const isBackgroundAction = (action === 'deploy' || action === 'deployDemo' || action === 'downloadPackage');
+
+			if (!isBackgroundAction || (result && result.status === 'error')) {
+				// Khi request chính hoàn tất, đợi thêm 1 chút để polling lấy nốt log cuối
+				setTimeout(async () => {
+					if (isFinished) return;
+					isFinished = true;
+					
+					await cleanUpJob();
+					
+					if (result && result.status === 'error') {
+						UI.updateDeployStatus('Lỗi!', progress, `<span style="color:var(--danger)">❌ ${result.message || 'Thực thi thất bại'}</span>`);
+					} else if (!response.ok) {
+						UI.updateDeployStatus('Lỗi hệ thống!', 0, `API trả về HTTP code: ${response.status}`);
+					} else {
+						confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+					}
+				}, 1500);
+			}
 
 		} catch (err) {
-			setTimeout(async () => {
-				if (isFinished) return;
-				isFinished = true;
-				await cleanUpJob();
-				UI.updateDeployStatus('Lỗi kết nối!', 0, 'Kết nối API thất bại hoặc bị quá thời hạn (Timeout) nhưng tiến trình vẫn có thể chạy ngầm.');
-			}, 2000);
+			const isBackgroundAction = (action === 'deploy' || action === 'deployDemo' || action === 'downloadPackage');
+			if (!isBackgroundAction) {
+				setTimeout(async () => {
+					if (isFinished) return;
+					isFinished = true;
+					await cleanUpJob();
+					UI.updateDeployStatus('Lỗi kết nối!', 0, 'Kết nối API thất bại.');
+				}, 2000);
+			} else {
+				console.warn("Fetch failed/timed out for background action, continuing polling...", err);
+				UI.updateDeployStatus('Đang xử lý...', progress, '> ⚠️ Mất kết nối HTTP tạm thời với server. Đang tiếp tục theo dõi tiến trình chạy ngầm...');
+			}
 		}
 	},
 	async cleanupTools(name, category, type = 'demo') {
