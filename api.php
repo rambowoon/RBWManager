@@ -400,11 +400,7 @@ switch ($action) {
             break;
         }
 
-        $projectConfig = $configManager->getForProject($projectName);
-        if (!$projectConfig) {
-            echo json_encode(['status' => 'error', 'message' => 'Dự án chưa cấu hình']);
-            break;
-        }
+        $projectConfig = $configManager->getForProject($projectName) ?: [];
 
         $config = file_exists(__DIR__ . '/data/demo_config.json') ? json_decode(file_get_contents(__DIR__ . '/data/demo_config.json'), true) : null;
         if (!$config) {
