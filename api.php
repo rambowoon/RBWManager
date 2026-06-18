@@ -161,6 +161,39 @@ function removeVietnameseDiacritics($str) {
     return $str;
 }
 
+function cleanAllOldBackups($dir, $ttl = 86400) {
+    if (!is_dir($dir)) return;
+    try {
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($files as $fileinfo) {
+            if ($fileinfo->isFile()) {
+                $path = $fileinfo->getRealPath();
+                // Avoid unlinking the tracking file itself
+                if (basename($path) === '.last_clean') continue;
+                if (time() - filemtime($path) > $ttl) {
+                    @unlink($path);
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // Fail silently to prevent interrupting API requests
+    }
+}
+
+// Auto clean backups older than 24 hours (run at most once per hour)
+$backupsRootDir = __DIR__ . DIRECTORY_SEPARATOR . 'backups';
+if (!is_dir($backupsRootDir)) {
+    @mkdir($backupsRootDir, 0777, true);
+}
+$lastCleanFile = $backupsRootDir . DIRECTORY_SEPARATOR . '.last_clean';
+if (!file_exists($lastCleanFile) || (time() - filemtime($lastCleanFile) > 3600)) {
+    cleanAllOldBackups($backupsRootDir);
+    @touch($lastCleanFile);
+}
+
 require_once __DIR__ . '/core/ProjectScanner.php';
 require_once __DIR__ . '/core/ConfigManager.php';
 require_once __DIR__ . '/core/DeploymentService.php';
