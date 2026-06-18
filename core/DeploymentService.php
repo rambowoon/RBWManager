@@ -14,8 +14,35 @@ class DeploymentService
     public function generateDemoDbName($category, $projectName, $manualSuffix = null)
     {
         // Category suffix: Extract YYMM or similar numbers
-        $cat = str_replace(['2026_', '2025_', '_'], '', $category); // "05"
-        $prefix_cat = '6' . str_pad($cat, 2, '0', STR_PAD_LEFT); // "605"
+        // e.g. "2026_06" -> year 2026, month 06
+        // e.g. "2026/thang6" -> year 2026, month 06
+        // e.g. "2026/26t6" -> year 2026, month 06
+        $categoryNormalized = str_replace('\\', '/', $category);
+        $year = '2026';
+        $month = '06';
+
+        if (preg_match('/^(\d{4})_(\d{2})$/', $categoryNormalized, $m)) {
+            $year = $m[1];
+            $month = $m[2];
+        } elseif (preg_match('/^(\d{4})\/thang(\d{1,2})$/i', $categoryNormalized, $m)) {
+            $year = $m[1];
+            $month = str_pad($m[2], 2, '0', STR_PAD_LEFT);
+        } elseif (preg_match('/^(\d{4})\/(\d{2})t(\d{1,2})$/i', $categoryNormalized, $m)) {
+            $year = $m[1];
+            $month = str_pad($m[3], 2, '0', STR_PAD_LEFT);
+        } else {
+            // Fallback: extract any digits
+            $clean = preg_replace('/[^0-9]/', '', $categoryNormalized);
+            if (strlen($clean) >= 6) {
+                $year = substr($clean, 0, 4);
+                $month = substr($clean, 4, 2);
+            } elseif (strlen($clean) >= 2) {
+                $month = substr($clean, -2);
+            }
+        }
+
+        $yearDigit = substr($year, -1);
+        $prefix_cat = $yearDigit . $month;
 
         if (!empty($manualSuffix)) {
             $name = preg_replace('/[^a-z0-9]/', '', strtolower($manualSuffix));

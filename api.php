@@ -279,7 +279,7 @@ switch ($action) {
         
         // Final DB Name: category + project name (e.g. 2026_05_ranzilla_0765526w)
         $cleanProjectName = preg_replace('/[^a-z0-9_]/', '', strtolower($projectName));
-        $dbName = $category . '_' . $cleanProjectName;
+        $dbName = str_replace('/', '_', $category) . '_' . $cleanProjectName;
 
         try {
             writeJobLog($jobId, ['status' => 'info', 'log' => "Bắt đầu triển khai dự án: $projectName"]);
