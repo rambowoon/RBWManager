@@ -29,14 +29,14 @@ Hệ thống hoạt động theo mô hình **Manager - Client/Bridge**:
 
 ### Thư mục `core/` (Các Engine Cốt Lõi)
 
-#### 1. [`ProjectScanner.php`](file:///f:/RBWStack/www/rambowoon_manager/core/ProjectScanner.php)
+#### 1. [`ProjectScanner.php`](file:///f:/RBWStack/www/RBWManager/core/ProjectScanner.php)
 - **Chức năng**: Quét thư mục gốc để tìm các thư mục dự án.
 - **Chi tiết**:
   - Quét cấu trúc phân cấp dạng tháng năm `YYYY_MM` (ví dụ: `2026_05/`).
   - Lọc và loại bỏ các thư mục hệ thống như `.git`, `node_modules`, `vendor`, `logs`, `backups`.
   - Phân loại danh mục dự án dựa theo thời gian tạo để hiển thị lên UI bản mới nhất trước.
 
-#### 2. [`AutoMediaPipeline.php`](file:///f:/RBWStack/www/rambowoon_manager/core/AutoMediaPipeline.php)
+#### 2. [`AutoMediaPipeline.php`](file:///f:/RBWStack/www/RBWManager/core/AutoMediaPipeline.php)
 - **Chức năng**: Pipeline phân tích ảnh và kết nối DB dự án.
 - **Chi tiết**:
   - Tự động parse file `.env` của Laravel để lấy thông tin Database local và thiết lập kết nối PDO.
@@ -44,14 +44,14 @@ Hệ thống hoạt động theo mô hình **Manager - Client/Bridge**:
   - Tạo biểu thức Regex tự động từ các key cấu hình để phân loại file ảnh.
   - Kiểm tra xem tỷ lệ ảnh thực tế có khớp tỷ lệ quy định (`isRatioMatch`) với sai số cho phép không.
 
-#### 3. [`ConfigManager.php`](file:///f:/RBWStack/www/rambowoon_manager/core/ConfigManager.php)
-- **Chức năng**: Quản lý tệp lưu trữ trạng thái các dự án [`projects.json`](file:///f:/RBWStack/www/rambowoon_manager/projects.json).
+#### 3. [`ConfigManager.php`](file:///f:/RBWStack/www/RBWManager/core/ConfigManager.php)
+- **Chức năng**: Quản lý tệp lưu trữ trạng thái các dự án [`projects.json`](file:///f:/RBWStack/www/RBWManager/projects.json).
 - **Chi tiết**:
   - Lưu cấu hình triển khai riêng của từng dự án (Thông tin FTP, DB Prod, Domain).
   - Ghi lịch sử hoạt động (Deploy Demo, Publish Production, Sync Tools) tối đa 50 log gần nhất.
   - Lưu trạng thái khóa/mở khóa thao tác (`lock_demo`, `lock_production`).
 
-#### 4. [`DeploymentService.php`](file:///f:/RBWStack/www/rambowoon_manager/core/DeploymentService.php)
+#### 4. [`DeploymentService.php`](file:///f:/RBWStack/www/RBWManager/core/DeploymentService.php)
 - **Chức năng**: Điều phối các tác vụ Deploy ở mức độ dịch vụ.
 - **Chi tiết**:
   - **`generateDemoDbName`**: Tạo hậu tố tên Database tự động từ tháng và tên dự án, khống chế độ dài tối đa 13 ký tự để tránh vượt giới hạn 24 ký tự của DirectAdmin (11 ký tự username + 13 ký tự suffix).
@@ -60,14 +60,14 @@ Hệ thống hoạt động theo mô hình **Manager - Client/Bridge**:
   - Tích hợp các hàm gọi DirectAdmin API để tạo DB/User/Password, tạo Email `noreply`, kích hoạt SSL Let's Encrypt và đổi phiên bản PHP.
   - Hỗ trợ gọi API Cloudflare để tạo Widget Turnstile bảo mật tự động.
 
-#### 5. [`PackagingService.php`](file:///f:/RBWStack/www/rambowoon_manager/core/PackagingService.php)
+#### 5. [`PackagingService.php`](file:///f:/RBWStack/www/RBWManager/core/PackagingService.php)
 - **Chức năng**: Đóng gói và tải mã nguồn từ Demo về Local.
 - **Chi tiết**:
   - Đồng bộ `bridge.php` mới nhất lên Demo.
   - Gọi action `package` trên Bridge từ xa để nén toàn bộ mã nguồn + kết xuất database mẫu.
   - Tải gói nén ZIP về thư mục `download/` ở local an toàn thông qua streaming kết nối.
 
-#### 6. [`SchemaManager.php`](file:///f:/RBWStack/www/rambowoon_manager/core/SchemaManager.php)
+#### 6. [`SchemaManager.php`](file:///f:/RBWStack/www/RBWManager/core/SchemaManager.php)
 - **Chức năng**: Trình quản lý cấu hình các file config type của dự án.
 - **Chi tiết**:
   - Đọc và ghi các file cấu hình php dạng mảng ngắn `[]` (`var_export` kết hợp thay thế regex).
@@ -75,14 +75,14 @@ Hệ thống hoạt động theo mô hình **Manager - Client/Bridge**:
   - Có các logic đặc thù cho dự án News/Static: tự động loại bỏ cấu hình `brand`, kích hoạt mặc định các thuộc tính cho `tin-tuc`.
   - Tự động tiêm (inject) logic hình thức thanh toán động phụ thuộc vào biến `$configSetting['order']`.
 
-#### 7. [`RemoteClient.php`](file:///f:/RBWStack/www/rambowoon_manager/core/RemoteClient.php)
+#### 7. [`RemoteClient.php`](file:///f:/RBWStack/www/RBWManager/core/RemoteClient.php)
 - **Chức năng**: Client HTTP/FTP chuyên dụng tương tác trực tiếp với API bên ngoài.
 - **Chi tiết**:
   - Chứa các hàm cURL hỗ trợ POST/GET có giữ session, theo dõi chuyển hướng (redirect), timeout dài 10 phút cho các tệp tin lớn.
   - FTP Client: Hỗ trợ tự động tạo thư mục bị thiếu (`CURLOPT_FTP_CREATE_MISSING_DIRS`).
   - DirectAdmin Client: Thực thi các lệnh qua API File Manager (mkdir, chmod 755, upload file, delete file), API SSL Let's Encrypt, Selector PHP.
 
-#### 8. [`ProjectDeployer.php`](file:///f:/RBWStack/www/rambowoon_manager/core/ProjectDeployer.php)
+#### 8. [`ProjectDeployer.php`](file:///f:/RBWStack/www/RBWManager/core/ProjectDeployer.php)
 - **Chức năng**: Đảm nhận tốc độ thực thi tại local dựa trên công nghệ gốc của OS Windows.
 - **Chi tiết**:
   - Sao chép thư mục cực nhanh bằng lệnh hệ thống `xcopy /E /I /H /Y`.
@@ -90,7 +90,7 @@ Hệ thống hoạt động theo mô hình **Manager - Client/Bridge**:
   - Khởi tạo cơ sở dữ liệu MySQL local qua mysqli.
   - **Import SQL tối ưu**: Đọc tệp SQL local, lọc bỏ các lệnh hệ thống dễ gây lỗi (`SET`, `START TRANSACTION`, `COMMIT`, `CREATE DATABASE`, `USE`), thực thi lệnh gộp đa tầng (`multi_query`) kết hợp tắt kiểm tra khóa ngoại (`SET FOREIGN_KEY_CHECKS=0`) cho tốc độ vượt trội.
 
-#### 9. [`ImageTrimService.php`](file:///f:/RBWStack/www/rambowoon_manager/core/ImageTrimService.php)
+#### 9. [`ImageTrimService.php`](file:///f:/RBWStack/www/RBWManager/core/ImageTrimService.php)
 - **Chức năng**: Cắt bỏ viền trắng/viền trong suốt thừa thãi của hình ảnh.
 - **Chi tiết**:
   - Hỗ trợ các định dạng PNG, JPG, GIF, WEBP thông qua thư viện GD.
@@ -101,14 +101,14 @@ Hệ thống hoạt động theo mô hình **Manager - Client/Bridge**:
 
 ### Các File Điều Hướng & Tiện Ích Ở Thư Mục Gốc
 
-#### 10. [`api.php`](file:///f:/RBWStack/www/rambowoon_manager/api.php)
+#### 10. [`api.php`](file:///f:/RBWStack/www/RBWManager/api.php)
 - **Chức năng**: Bộ định tuyến API chính (Router) tiếp nhận yêu cầu từ giao diện frontend `index.php`.
 - **Đặc điểm nổi bật**:
   - **Chế độ Chạy nền (Background Jobs)**: Khi deploy hoặc tải mã nguồn (tác vụ tốn nhiều thời gian), `api.php` sẽ ghi payload ra tệp JSON tạm và dùng lệnh dòng lệnh `start "" /B php.exe api.php --action=...` (trên Windows) hoặc `exec("php api.php ... &")` (trên Linux) để chạy ngầm, phản hồi ngay trạng thái `queued` về cho client để tránh bị quá hạn kết nối (timeout).
   - Quản lý nhật ký tiến trình (Log Jobs) ghi vào thư mục `logs/` theo thời gian thực để UI polling cập nhật tiến độ cho người dùng.
   - Đầy đủ các case xử lý: Deploy, Publish, Đồng bộ, Chuyển đổi WebP/Trimming hình ảnh, Cài đặt Font chữ, Đổi phiên bản PHP, Cài đặt Let's Encrypt.
 
-#### 11. [`bridge.php`](file:///f:/RBWStack/www/rambowoon_manager/bridge.php) (v6.3 Platinum)
+#### 11. [`bridge.php`](file:///f:/RBWStack/www/RBWManager/bridge.php) (v6.3 Platinum)
 - **Chức năng**: Tệp tin cầu nối triển khai chạy trực tiếp trên máy chủ Demo & Production.
 - **Tính năng độc quyền**:
   - **Tự động nhận diện cấu hình DB**: Đọc và giải mã trực tiếp file `.env` Laravel để tự cấu hình Database local mà không cần phụ thuộc vào dữ liệu Manager truyền qua.
@@ -117,18 +117,18 @@ Hệ thống hoạt động theo mô hình **Manager - Client/Bridge**:
   - **Cơ chế Khóa tự động (Auto-Lock UI)**: Đổi tên thư mục Demo thành `[folder]_old` ngay sau khi tải mã nguồn bàn giao thành công để khóa quyền sử dụng của khách hàng.
   - **Cơ chế lock.php**: Tự động chèn tệp tin khóa `lock.php` vào `.htaccess` (DirectoryIndex) để khóa trang web Production khi chưa bàn giao.
 
-#### 12. [`seed_images.php`](file:///f:/RBWStack/www/rambowoon_manager/seed_images.php) & [`scan_images.php`](file:///f:/RBWStack/www/rambowoon_manager/scan_images.php)
+#### 12. [`seed_images.php`](file:///f:/RBWStack/www/RBWManager/seed_images.php) & [`scan_images.php`](file:///f:/RBWStack/www/RBWManager/scan_images.php)
 - **Chức năng**: Quản lý kho ảnh mẫu và tự động tạo dữ liệu mẫu cho dự án.
 - **Chi tiết**:
   - `scan_images.php`: Quét thư mục ảnh dự án, dùng Regex và so khớp kích thước/tỷ lệ để phân loại ảnh vào đúng các subtype thích hợp.
   - `seed_images.php`: Đọc cấu hình categories (list, cat, item, sub) trong dự án, tự động tạo cấu trúc danh mục đa cấp, copy và phân bổ ảnh mẫu, tự động tạo văn bản tiếng Việt ngẫu nhiên, sinh slug tương thích hoàn toàn với bảng `table_slug`.
 
-#### 13. [`auto_update.php`](file:///f:/RBWStack/www/rambowoon_manager/auto_update.php)
+#### 13. [`auto_update.php`](file:///f:/RBWStack/www/RBWManager/auto_update.php)
 - **Chức năng**: Pipeline tự động xoay vòng ảnh mẫu và dọn dẹp rác.
 - **Chi tiết**:
   - Tự động thay thế ảnh cũ trong Database bằng cách copy ảnh mẫu mới từ assets, đổi tên ngẫu nhiên kết hợp timestamp, cập nhật đường dẫn vào Database và thực hiện **unlink xóa bỏ ảnh cũ thực tế trên đĩa cứng** để giải phóng dung lượng đĩa của host.
 
-#### 14. [`converter.php`](file:///f:/RBWStack/www/rambowoon_manager/converter.php) & [`ai_checker.php`](file:///f:/RBWStack/www/rambowoon_manager/ai_checker.php)
+#### 14. [`converter.php`](file:///f:/RBWStack/www/RBWManager/converter.php) & [`ai_checker.php`](file:///f:/RBWStack/www/RBWManager/ai_checker.php)
 - **Chức năng**: Tiện ích phụ trợ độc lập.
 - **Chi tiết**:
   - `converter.php`: Tiếp nhận ảnh upload trực tiếp từ trình duyệt, chuyển đổi hàng loạt sang định dạng WebP/JPG chất lượng cao, đóng gói ZIP phản hồi tải về, tự động quét dọn tệp tạm cũ sau 1 tiếng.
