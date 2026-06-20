@@ -30,6 +30,18 @@ class DeploymentService
         } elseif (preg_match('/^(\d{4})\/(\d{2})t(\d{1,2})$/i', $categoryNormalized, $m)) {
             $year = $m[1];
             $month = str_pad($m[3], 2, '0', STR_PAD_LEFT);
+        } elseif (preg_match('/^(\d{4})\/(\d{1,2})$/', $categoryNormalized, $m)) {
+            $year = $m[1];
+            $month = str_pad($m[2], 2, '0', STR_PAD_LEFT);
+        } elseif (preg_match('/^thang(\d{1,2})$/i', $categoryNormalized, $m)) {
+            $year = date('Y');
+            $month = str_pad($m[1], 2, '0', STR_PAD_LEFT);
+        } elseif (preg_match('/^(\d{2})t(\d{1,2})$/i', $categoryNormalized, $m)) {
+            $year = '20' . $m[1];
+            $month = str_pad($m[2], 2, '0', STR_PAD_LEFT);
+        } elseif (preg_match('/^(\d{1,2})$/', $categoryNormalized, $m)) {
+            $year = date('Y');
+            $month = str_pad($m[1], 2, '0', STR_PAD_LEFT);
         } else {
             // Fallback: extract any digits
             $clean = preg_replace('/[^0-9]/', '', $categoryNormalized);

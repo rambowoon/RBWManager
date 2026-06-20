@@ -16,8 +16,8 @@ class ProjectScanner {
             if ($item == '.' || $item == '..') continue;
             $path = $this->baseDir . DIRECTORY_SEPARATOR . $item;
             if (is_dir($path)) {
-                // 1. Match YYYY_MM folders (e.g. 2026_06), thangX, or XXtX directly in root
-                if (preg_match('/^\d{4}_\d{2}$/', $item) || preg_match('/^(thang\d{1,2}|\d{2}t\d{1,2})$/i', $item)) {
+                // 1. Match YYYY_MM folders (e.g. 2026_06), thangX, XXtX, or digit month directly in root
+                if (preg_match('/^\d{4}_\d{2}$/', $item) || preg_match('/^(thang\d{1,2}|\d{2}t\d{1,2}|\d{1,2})$/i', $item)) {
                     $categories[] = $item;
                 }
                 // 2. Check if it is a year folder (e.g. 2026)
@@ -28,8 +28,8 @@ class ProjectScanner {
                         if ($subItem == '.' || $subItem == '..') continue;
                         $subPath = $path . DIRECTORY_SEPARATOR . $subItem;
                         if (is_dir($subPath)) {
-                            // Match thang6, thang12, 26t6, 26t12, etc.
-                            if (preg_match('/^(thang\d{1,2}|\d{2}t\d{1,2})$/i', $subItem)) {
+                            // Match thang6, thang12, 26t6, 26t12, 6, 12, etc.
+                            if (preg_match('/^(thang\d{1,2}|\d{2}t\d{1,2}|\d{1,2})$/i', $subItem)) {
                                 $categories[] = $item . '/' . $subItem;
                                 $hasMonthSubdirs = true;
                             }
@@ -62,11 +62,17 @@ class ProjectScanner {
                 if (preg_match('/^(\d{4})\/(\d{2})t(\d{1,2})$/i', $cat, $m)) {
                     return $m[1] . '_' . str_pad($m[3], 2, '0', STR_PAD_LEFT);
                 }
+                if (preg_match('/^(\d{4})\/(\d{1,2})$/', $cat, $m)) {
+                    return $m[1] . '_' . str_pad($m[2], 2, '0', STR_PAD_LEFT);
+                }
                 if (preg_match('/^thang(\d{1,2})$/i', $cat, $m)) {
                     return date('Y') . '_' . str_pad($m[1], 2, '0', STR_PAD_LEFT);
                 }
                 if (preg_match('/^(\d{2})t(\d{1,2})$/i', $cat, $m)) {
                     return '20' . $m[1] . '_' . str_pad($m[2], 2, '0', STR_PAD_LEFT);
+                }
+                if (preg_match('/^(\d{1,2})$/', $cat, $m)) {
+                    return date('Y') . '_' . str_pad($m[1], 2, '0', STR_PAD_LEFT);
                 }
                 return preg_replace('/[^a-zA-Z0-9]/', '_', $cat);
             };
@@ -123,7 +129,7 @@ class ProjectScanner {
                     if ($nameLower === strtolower($managerName)) {
                         continue;
                     }
-                    if (preg_match('/^\d{4}_\d{2}$/', $item) || preg_match('/^\d{4}$/', $item) || preg_match('/^(thang\d{1,2}|\d{2}t\d{1,2})$/i', $item)) {
+                    if (preg_match('/^\d{4}_\d{2}$/', $item) || preg_match('/^\d{4}$/', $item) || preg_match('/^(thang\d{1,2}|\d{2}t\d{1,2}|\d{1,2})$/i', $item)) {
                         continue;
                     }
                     
