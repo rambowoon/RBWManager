@@ -351,16 +351,18 @@ class DeploymentService
 
                     // Auto-create directory if not exists
                     if (!in_array($dirName, $existingItems)) {
-                        $daRes = RemoteClient::makeDirViaDA($config, $dirName, $currentParent);
-                        if (strpos($daRes, 'error=1') !== false) {
+                        $daRes = RemoteClient::makeDirViaFTP($config, $currentParent . '/' . $dirName);
+                        $isError = (strpos($daRes, 'error') !== false || strpos($daRes, '"status":"error"') !== false);
+                        if ($isError) {
                             throw new \Exception("Không thể tạo thư mục dự án mới: " . $daRes);
                         }
                     }
                 } else {
                     // Ensure intermediate directory exists
                     if (!in_array($part, $existingItems)) {
-                        $daRes = RemoteClient::makeDirViaDA($config, $part, $currentParent);
-                        if (strpos($daRes, 'error=1') !== false) {
+                        $daRes = RemoteClient::makeDirViaFTP($config, $currentParent . '/' . $part);
+                        $isError = (strpos($daRes, 'error') !== false || strpos($daRes, '"status":"error"') !== false);
+                        if ($isError) {
                             throw new \Exception("Không thể tạo thư mục trung gian: " . $daRes);
                         }
                     }

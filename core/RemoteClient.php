@@ -174,6 +174,20 @@ class RemoteClient
 
     private static function executeDA($config, $path, $data = null, $isPost = true)
     {
+        // Automatically resolve relative paths (like /public_html) to absolute DirectAdmin paths
+        if (is_array($data) && isset($data['path'])) {
+            $domain = !empty($config['web_domain'])
+                ? str_replace(['https://', 'http://', '/'], '', $config['web_domain'])
+                : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
+            
+            $srvPath = $data['path'];
+            if (strpos($srvPath, '/public_html') === 0) {
+                $data['path'] = '/domains/' . $domain . $srvPath;
+            } elseif (strpos($srvPath, 'public_html') === 0) {
+                $data['path'] = '/domains/' . $domain . '/' . $srvPath;
+            }
+        }
+
         $host = $config['ftp_host'];
         $port = $config['da_port'] ?? '1111';
         $user = !empty($config['da_user']) ? $config['da_user'] : $config['ftp_user'];
@@ -387,5 +401,38 @@ class RemoteClient
             'status' => 'error',
             'message' => 'Không tìm thấy bộ chọn phiên bản PHP của DirectAdmin trên trang này. Có thể tài khoản không được cấp quyền đổi PHP hoặc giao diện DirectAdmin đã thay đổi.'
         ];
+    }
+
+    public static function makeDirViaFTP($config, $dirPath)
+    {
+        $relativeDir = ltrim(rtrim($dirPath, '/'), '/');
+        
+        // URL must end with a slash for cURL to treat it as a directory
+        $url = "ftp://{$config['ftp_host']}/" . $relativeDir . "/";
+        $userPwd = "{$config['ftp_user']}:{$config['ftp_pass']}";
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_USERPWD, $userPwd);
+        curl_setopt($ch, CURLOPT_FTP_CREATE_MISSING_DIRS, 2);
+        curl_setopt($ch, CURLOPT_NOBODY, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        if (defined('CURLOPT_USE_SSL')) curl_setopt($ch, CURLOPT_USE_SSL, 3);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        
+        $res = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($res === false) {
+            return json_encode([
+                'status' => 'error',
+                'message' => "FTP Mkdir Error: " . $error . " (HTTP Code: $httpCode)"
+            ]);
+        }
+        return json_encode(['status' => 'success']);
     }
 }
