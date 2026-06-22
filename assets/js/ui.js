@@ -424,7 +424,10 @@ const UI = {
 		// Tự động dựng Demo URL nếu thiếu
 		let demoUrl = config.demo_url || '';
 		if (!demoUrl && hasDemo && project) {
-			demoUrl = `demo92.nasanivietnam.info/${project.relPath.replace(/\\/g, '/')}/`;
+			const demoDomain = (App.globalConfig && App.globalConfig.web_domain) 
+				? App.globalConfig.web_domain.replace(/https?:\/\//i, '').replace(/\/$/, '')
+				: 'demo92.nasanivietnam.info';
+			demoUrl = `${demoDomain}/${project.relPath.replace(/\\/g, '/')}/`;
 		}
 
 		const prodUrl = prod.web_domain || '';

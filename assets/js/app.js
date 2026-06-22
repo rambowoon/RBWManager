@@ -1,9 +1,21 @@
 const App = {
 	projects: [],
 	currentCategory: null,
+	globalConfig: null,
 
 	async init() {
 		this.bindEvents();
+		
+		// Load global config
+		try {
+			const gRes = await fetch('api.php?action=getGlobalConfig');
+			const gData = await gRes.json();
+			if (gData.status === 'success') {
+				this.globalConfig = gData.data;
+			}
+		} catch (e) {
+			console.error("Error loading global config:", e);
+		}
 		
 		// 1. Tải danh mục vào sidebar (mặc định ban đầu lọc theo tháng)
 		const data = await Api.getCategories(true);
