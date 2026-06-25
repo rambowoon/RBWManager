@@ -131,11 +131,19 @@ const WebpManager = {
 					`;
 				}
 			} else {
-				actionsHtml = `
-					<div style="display:flex; justify-content:center;">
-						<button class="btn btn-sm btn-primary" onclick="WebpManager.convertSingle('${safeName}', this)" style="padding: 4px 10px; font-size: 0.7rem; border-radius: 4px;">🖼️ Sang WebP</button>
-					</div>
-				`;
+				if (img.name.toLowerCase().includes('favicon')) {
+					actionsHtml = `
+						<div style="display:flex; justify-content:center; color: var(--muted); font-size: 0.7rem; font-style: italic;">
+							Giữ nguyên favicon
+						</div>
+					`;
+				} else {
+					actionsHtml = `
+						<div style="display:flex; justify-content:center;">
+							<button class="btn btn-sm btn-primary" onclick="WebpManager.convertSingle('${safeName}', this)" style="padding: 4px 10px; font-size: 0.7rem; border-radius: 4px;">🖼️ Sang WebP</button>
+						</div>
+					`;
+				}
 			}
 
 			row.innerHTML = `

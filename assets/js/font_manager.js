@@ -225,7 +225,7 @@ const FontManager = {
             }
         }
 
-        const importUrl = `@import url(https://fonts.googleapis.com/css2?family=${family.replace(/ /g, '+')}${urlParams}&display=swap);`;
+        const importUrl = `@import url('https://fonts.googleapis.com/css2?family=${family.replace(/ /g, '+')}${urlParams}&display=swap');`;
         this.executeAddGoogle(family, importUrl);
     },
 

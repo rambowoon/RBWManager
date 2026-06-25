@@ -862,6 +862,12 @@ Yêu cầu:
                         $cols[] = 'updated_at'; $vals[] = date('Y-m-d H:i:s');
                     }
 
+                    if ($mainKey === 'type-photo' && in_array('com', $columns)) {
+                        $kind = $raw['kind'] ?? 'static';
+                        $cols[] = 'com';
+                        $vals[] = ($kind === 'album') ? 'photo-album' : 'photo-static';
+                    }
+
                     // Insert/Update logic
                     $lastId = 0;
                     if ($kind === 'static') {
@@ -899,7 +905,8 @@ Yêu cầu:
                             if ($mainKey === 'type-photo') {
                                 $controller = '\\NASANICORE\\Controllers\\Web\\PhotoController';
                                 $model = '\\NASANICORE\\Models\\PhotoModel';
-                                $com = 'photo';
+                                $kind = $raw['kind'] ?? 'static';
+                                $com = ($kind === 'album') ? 'photo-album' : 'photo-static';
                             } elseif ($mainKey === 'type-products') {
                                 $controller = '\\NASANICORE\\Controllers\\Web\\ProductController';
                                 $model = '\\NASANICORE\\Models\\ProductModel';

@@ -1823,9 +1823,9 @@ switch ($action) {
         if (!empty($importUrl)) {
             if (preg_match('/url\s*\(\s*[\'"]?([^\'"\)]+)[\'"]?\s*\)/i', $importUrl, $urlMatch)) {
                 $rawUrl = trim($urlMatch[1]);
-                $importUrl = "@import url(" . $rawUrl . ");";
+                $importUrl = "@import url('" . $rawUrl . "');";
             } else if (strpos($importUrl, 'http') === 0) {
-                $importUrl = "@import url(" . $importUrl . ");";
+                $importUrl = "@import url('" . $importUrl . "');";
             }
         }
 
@@ -1856,9 +1856,8 @@ switch ($action) {
         }
 
         $existing = file_exists($globalCssPath) ? file_get_contents($globalCssPath) : '';
-        $prefix = (empty($existing) || substr($existing, -1) === "\n") ? "" : "\n";
-        $cssContent = $prefix . $importUrl . "\n";
-        file_put_contents($globalCssPath, $cssContent, FILE_APPEND);
+        $cssContent = $importUrl . "\n" . $existing;
+        file_put_contents($globalCssPath, $cssContent);
 
         echo json_encode(['status' => 'success', 'message' => "Đã thêm Google Font vào assets/css/fonts.css"]);
         break;
@@ -2132,8 +2131,13 @@ switch ($action) {
             $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
             if (!in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp'])) continue;
 
-            // If already WebP, do nothing
-            if ($ext === 'webp') continue;
+            $isLogo = (stripos($file, 'logo') !== false);
+            $isFavicon = (stripos($file, 'favicon') !== false);
+
+            if ($isFavicon) continue;
+
+            // If already WebP and not a logo, do nothing
+            if ($ext === 'webp' && !$isLogo) continue;
 
             $nameOnly = pathinfo($file, PATHINFO_FILENAME);
             $webpName = $nameOnly . '.webp';
@@ -2167,6 +2171,37 @@ switch ($action) {
             }
 
             if ($img) {
+                if ($isLogo) {
+                    $src_w = $info[0];
+                    $src_h = $info[1];
+                    $target_size = min(180, max($src_w, $src_h));
+                    if ($target_size <= 0) $target_size = 180;
+
+                    $squareImg = imagecreatetruecolor($target_size, $target_size);
+                    imagealphablending($squareImg, false);
+                    imagesavealpha($squareImg, true);
+
+                    $transparent = imagecolorallocatealpha($squareImg, 0, 0, 0, 127);
+                    imagefill($squareImg, 0, 0, $transparent);
+
+                    $ratio = $src_w / $src_h;
+                    if ($src_w > $src_h) {
+                        $dst_w = $target_size;
+                        $dst_h = (int)round($target_size / $ratio);
+                    } else {
+                        $dst_h = $target_size;
+                        $dst_w = (int)round($target_size * $ratio);
+                    }
+                    $dst_x = (int)floor(($target_size - $dst_w) / 2);
+                    $dst_y = (int)floor(($target_size - $dst_h) / 2);
+
+                    imagecopyresampled($squareImg, $img, $dst_x, $dst_y, 0, 0, $dst_w, $dst_h, $src_w, $src_h);
+                    
+                    $faviconPngPath = $imagesDir . DIRECTORY_SEPARATOR . 'favicon.png';
+                    @imagepng($squareImg, $faviconPngPath);
+                    imagedestroy($squareImg);
+                }
+
                 if ($deep) {
                     @imagefilter($img, IMG_FILTER_SMOOTH, 5);
                 }
@@ -2182,7 +2217,7 @@ switch ($action) {
                     imagedestroy($img);
 
                     // Move original to backups directory
-                    $isKeep = (stripos($file, 'logo') !== false || stripos($file, 'favicon') !== false);
+                    $isKeep = $isFavicon || ($ext === 'webp');
                     if (!$isKeep) {
                         $backupPath = $backupsDir . DIRECTORY_SEPARATOR . $file;
                         if (@rename($filePath, $backupPath)) {
@@ -2242,7 +2277,15 @@ switch ($action) {
         $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
         $nameOnly = pathinfo($fileName, PATHINFO_FILENAME);
 
-        if ($ext === 'webp') {
+        $isLogo = (stripos($fileName, 'logo') !== false);
+        $isFavicon = (stripos($fileName, 'favicon') !== false);
+
+        if ($isFavicon) {
+            echo json_encode(['status' => 'error', 'message' => 'Tệp favicon không được phép chuyển đổi sang WebP']);
+            break;
+        }
+
+        if ($ext === 'webp' && !$isLogo) {
             echo json_encode(['status' => 'error', 'message' => 'Tệp đã ở định dạng WebP']);
             break;
         }
@@ -2284,6 +2327,37 @@ switch ($action) {
 
         $webpName = $nameOnly . '.webp';
         $webpPath = $imagesDir . DIRECTORY_SEPARATOR . $webpName;
+
+        if ($isLogo) {
+            $src_w = $info[0];
+            $src_h = $info[1];
+            $target_size = min(180, max($src_w, $src_h));
+            if ($target_size <= 0) $target_size = 180;
+
+            $squareImg = imagecreatetruecolor($target_size, $target_size);
+            imagealphablending($squareImg, false);
+            imagesavealpha($squareImg, true);
+
+            $transparent = imagecolorallocatealpha($squareImg, 0, 0, 0, 127);
+            imagefill($squareImg, 0, 0, $transparent);
+
+            $ratio = $src_w / $src_h;
+            if ($src_w > $src_h) {
+                $dst_w = $target_size;
+                $dst_h = (int)round($target_size / $ratio);
+            } else {
+                $dst_h = $target_size;
+                $dst_w = (int)round($target_size * $ratio);
+            }
+            $dst_x = (int)floor(($target_size - $dst_w) / 2);
+            $dst_y = (int)floor(($target_size - $dst_h) / 2);
+
+            imagecopyresampled($squareImg, $img, $dst_x, $dst_y, 0, 0, $dst_w, $dst_h, $src_w, $src_h);
+            
+            $faviconPngPath = $imagesDir . DIRECTORY_SEPARATOR . 'favicon.png';
+            @imagepng($squareImg, $faviconPngPath);
+            imagedestroy($squareImg);
+        }
         
         if ($deep) {
             @imagefilter($img, IMG_FILTER_SMOOTH, 5);
@@ -2300,7 +2374,7 @@ switch ($action) {
         imagedestroy($img);
 
         if ($success) {
-            $isKeep = (stripos($fileName, 'logo') !== false || stripos($fileName, 'favicon') !== false);
+            $isKeep = $isFavicon || ($ext === 'webp');
             if (!$isKeep) {
                 $backupsDir = __DIR__ . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . $projectName;
                 if (!is_dir($backupsDir)) {
