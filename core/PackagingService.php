@@ -72,7 +72,8 @@ class PackagingService {
 
         writeJobLog($jobId, ['status' => 'info', 'log' => '☁️ Đang yêu cầu Demo đóng gói Source + Database...']);
         $res = RemoteClient::post($demoBridgeUrl, [
-            'db_config' => json_encode($dbConfig)
+            'db_config' => json_encode($dbConfig),
+            'project_name' => $projectName
         ]);
 
         $decoded = json_decode($res, true);
@@ -116,10 +117,11 @@ class PackagingService {
                 return ['status' => 'error', 'message' => $msg];
             }
 
+            $webPath = '../' . ($category ? str_replace('\\', '/', $category) . '/' : '') . 'download/' . $zipName;
             writeJobLog($jobId, ['status' => 'info', 'log' => '🚚 Đã tải xong Package về Local: ' . realpath($localFilePath)]);
-            writeJobLog($jobId, ['status' => 'success', 'message' => 'Tải package thành công. File lưu tại: ' . realpath($localFilePath)]);
+            writeJobLog($jobId, ['status' => 'success', 'message' => 'Tải package thành công. File lưu tại: ' . realpath($localFilePath), 'url' => $webPath]);
 
-            return ['status' => 'success', 'message' => 'Tải package thành công. File lưu tại: ' . realpath($localFilePath)];
+            return ['status' => 'success', 'message' => 'Tải package thành công. File lưu tại: ' . realpath($localFilePath), 'url' => $webPath];
         }
 
         $err = $decoded['message'] ?? 'Invalid response from Demo host: ' . $res;

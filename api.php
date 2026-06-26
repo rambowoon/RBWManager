@@ -307,19 +307,20 @@ switch ($action) {
         }
         $sourceDbName = $gConfig['source_db_name'] ?? 'source_nasani_2026';
         
-        // Fix: Use $baseDir directly to place categories inside it
-        $targetDir = $baseDir . DIRECTORY_SEPARATOR . $category . DIRECTORY_SEPARATOR . $projectName;
+        // Normalize category path for filesystem
+        $categoryPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $category);
+        $targetDir = $baseDir . DIRECTORY_SEPARATOR . $categoryPath . DIRECTORY_SEPARATOR . $projectName;
         
         // Final DB Name: category + project name (e.g. 2026_05_ranzilla_0765526w)
         $cleanProjectName = preg_replace('/[^a-z0-9_]/', '', strtolower($projectName));
-        $dbName = str_replace('/', '_', $category) . '_' . $cleanProjectName;
+        $dbName = str_replace(['/', '\\'], '_', $category) . '_' . $cleanProjectName;
 
         try {
             writeJobLog($jobId, ['status' => 'info', 'log' => "Bắt đầu triển khai dự án: $projectName"]);
             writeJobLog($jobId, ['status' => 'info', 'log' => "Đường dẫn đích: $targetDir"]);
             
             // 1. Determine Source & Target Paths
-            $parentDir = $baseDir . DIRECTORY_SEPARATOR . $category;
+            $parentDir = $baseDir . DIRECTORY_SEPARATOR . $categoryPath;
             if (!is_dir($parentDir)) @mkdir($parentDir, 0777, true);
 
             $finalSourceFolder = null;
@@ -404,7 +405,7 @@ switch ($action) {
             // 5. Update .env
             writeJobLog($jobId, ['status' => 'info', 'log' => "Đang cấu hình file .env..."]);
             $envUpdates = [
-                'SITE_PATH' => '/' . $category . '/' . $projectName . '/', // e.g. 2026_05/ranzilla_0765526w
+                'SITE_PATH' => '/' . str_replace('\\', '/', $category) . '/' . $projectName . '/', // e.g. 2026_05/ranzilla_0765526w
                 'DB_DATABASE' => $dbName,
                 'DB_USERNAME' => 'root',
                 'DB_PASSWORD' => ''
@@ -904,6 +905,9 @@ switch ($action) {
             writeJobLog($jobId, ['status' => 'info', 'log' => '🔄 Đã tạo mật khẩu Database mới mạnh hơn.']);
         }
         $prodConfig['db_pass'] = $dbPass;
+        $mainUser = $prodConfig['da_user'] ?? $prodConfig['ftp_user'] ?? 'user';
+        $prodConfig['db_name'] = $mainUser . '_nasani';
+        $prodConfig['db_user'] = $mainUser . '_nasani';
 
         // 2. Email Password (Lấy từ cấu hình cũ hoặc tạo mới riêng biệt nếu chưa có)
         $emailPass = $prodConfig['email_pass'] ?? '';

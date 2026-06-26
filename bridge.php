@@ -45,6 +45,15 @@ class RamboWoonBridge
             case 'cleanup':
                 $this->cleanup();
                 break;
+            case 'package':
+                $this->package();
+                break;
+            case 'cloudDeploy':
+                $this->cloudDeploy();
+                break;
+            case 'downloadTemp':
+                $this->downloadTemp();
+                break;
             default:
                 echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
                 break;
@@ -97,6 +106,24 @@ class RamboWoonBridge
 
         $dbConfig = json_decode($dbRaw, true);
         $appConfig = json_decode($appRaw, true);
+
+        // Download package if URLs are provided (Cloud Transfer mode)
+        if (!empty($appConfig['zip_url'])) {
+            $results[] = "Downloading ZIP from Demo: " . $appConfig['zip_url'];
+            if ($this->downloadFile($appConfig['zip_url'], 'dist.zip')) {
+                $results[] = "ZIP download SUCCESS (" . filesize('dist.zip') . " bytes)";
+            } else {
+                die(json_encode(['status' => 'error', 'message' => 'Lỗi: Không thể tải dist.zip từ Demo server.', 'logs' => $results]));
+            }
+        }
+        if (!empty($appConfig['sql_url'])) {
+            $results[] = "Downloading SQL from Demo: " . $appConfig['sql_url'];
+            if ($this->downloadFile($appConfig['sql_url'], 'dist.sql')) {
+                $results[] = "SQL download SUCCESS (" . filesize('dist.sql') . " bytes)";
+            } else {
+                die(json_encode(['status' => 'error', 'message' => 'Lỗi: Không thể tải dist.sql từ Demo server.', 'logs' => $results]));
+            }
+        }
 
         if (empty($dbConfig) || empty($dbConfig['name'])) {
             $dbConfig = $this->getDbConfigFromEnv();
@@ -306,6 +333,15 @@ class RamboWoonBridge
                     if ($isSqlSuccess && !empty($appConfig['email_host'])) {
                         $pdo = $this->getPdoConnection($dbConfig);
                         $this->updateSettingTable($pdo, $appConfig);
+                    }
+                    if ($isSqlSuccess) {
+                        try {
+                            $pdo = $this->getPdoConnection($dbConfig);
+                            $this->normalizeDatabaseCollation($pdo);
+                            $results[] = "Normalized database collation to utf8mb4_unicode_ci";
+                        } catch (\Exception $e) {
+                            $results[] = "Failed to normalize collation: " . $e->getMessage();
+                        }
                     }
                     $results[] = "Database Import SUCCESS.";
                 } catch (\Exception $e) {
@@ -684,6 +720,11 @@ class RamboWoonBridge
         }
 
         if ($isSqlSuccess) {
+            try {
+                $pdo = $this->getPdoConnection($dbConfig);
+                $this->normalizeDatabaseCollation($pdo);
+                $results[] = "Normalized database collation to utf8mb4_unicode_ci";
+            } catch (\Exception $e) {}
             @unlink($sqlFile);
             echo json_encode(['status' => 'success', 'logs' => $results]);
         } else {
@@ -780,6 +821,21 @@ class RamboWoonBridge
         return true;
     }
 
+    private function normalizeDatabaseCollation($pdo)
+    {
+        try {
+            $dbName = $pdo->query("SELECT DATABASE()")->fetchColumn();
+            if (!$dbName) return;
+            $pdo->exec("ALTER DATABASE `$dbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($tables as $table) {
+                $pdo->exec("ALTER TABLE `$table` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            }
+        } catch (\Exception $e) {
+            // Fail silently
+        }
+    }
+
     private function clearFolderContent($dir)
     {
         if (!is_dir($dir)) return;
@@ -795,6 +851,399 @@ class RamboWoonBridge
                 }
             }
         }
+    }
+
+    private function downloadFile($url, $dest)
+    {
+        if (function_exists('curl_init')) {
+            $fp = fopen($dest, 'w+');
+            if ($fp) {
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_FILE, $fp);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 300);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                $res = curl_exec($ch);
+                curl_close($ch);
+                fclose($fp);
+                if ($res && file_exists($dest) && filesize($dest) > 0) {
+                    return true;
+                }
+            }
+        }
+
+        $opts = [
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false
+            ]
+        ];
+        $context = stream_context_create($opts);
+        $content = @file_get_contents($url, false, $context);
+        if ($content !== false) {
+            file_put_contents($dest, $content);
+            return file_exists($dest) && filesize($dest) > 0;
+        }
+        return false;
+    }
+
+    private function postRequest($url, $data)
+    {
+        $postData = http_build_query($data);
+        if (function_exists('curl_init')) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 600);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            $res = curl_exec($ch);
+            curl_close($ch);
+            if ($res !== false) return $res;
+        }
+
+        $opts = [
+            'http' => [
+                'method'  => 'POST',
+                'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+                'content' => $postData,
+                'timeout' => 600
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false
+            ]
+        ];
+        $context = stream_context_create($opts);
+        return @file_get_contents($url, false, $context);
+    }
+
+    private function isSystemTable($tableName)
+    {
+        $name = strtolower($tableName);
+        $systemKeywords = ['setting', 'user', 'member', 'role', 'permission', 'city', 'district', 'ward', 'province', 'country', 'lang', 'translation'];
+        foreach ($systemKeywords as $kw) {
+            if (strpos($name, $kw) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function exportDatabase($dbConfig, $outputFile, $clean = false)
+    {
+        $host = $dbConfig['host'] ?? 'localhost';
+        $dbname = $dbConfig['name'] ?? '';
+        $user = $dbConfig['user'] ?? '';
+        $pass = $dbConfig['pass'] ?? '';
+
+        if (empty($dbname)) return false;
+
+        if (!$clean && function_exists('exec')) {
+            $passPart = !empty($pass) ? "-p\"$pass\"" : "";
+            $cmd = "mysqldump --host={$host} --user={$user} {$passPart} --default-character-set=utf8mb4 --result-file=\"{$outputFile}\" {$dbname} 2>&1";
+            $output = [];
+            $returnVar = -1;
+            @exec($cmd, $output, $returnVar);
+            if ($returnVar === 0) {
+                return true;
+            }
+        }
+
+        try {
+            $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+            $pdo = new PDO($dsn, $user, $pass, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'"
+            ]);
+
+            $outputSql = "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n";
+            $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($tables as $table) {
+                $outputSql .= "DROP TABLE IF EXISTS `$table`;\n";
+                $create = $pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_ASSOC);
+                $outputSql .= $create['Create Table'] . ";\n\n";
+
+                if (!$clean || $this->isSystemTable($table)) {
+                    $rows = $pdo->query("SELECT * FROM `$table`")->fetchAll(PDO::FETCH_ASSOC);
+                    foreach ($rows as $row) {
+                        $outputSql .= "INSERT INTO `$table` VALUES (";
+                        $vals = array_map(function ($v) use ($pdo) {
+                            return is_null($v) ? "NULL" : $pdo->quote($v);
+                        }, array_values($row));
+                        $outputSql .= implode(', ', $vals) . ");\n";
+                    }
+                    $outputSql .= "\n";
+                }
+            }
+            $outputSql .= "SET FOREIGN_KEY_CHECKS=1;\n";
+            file_put_contents($outputFile, $outputSql);
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function packageSource($zipFile, $clean = false)
+    {
+        $excludes = ['.agents', 'dist.zip', 'vite.config.js', 'README.md', '.gitignore', 'package_temp.zip', basename($zipFile)];
+        $mediaExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'pdf', 'zip', 'rar', 'docx', 'xlsx'];
+        $alwaysEmptyFolders = ['thumbs', 'watermarks', 'caches', 'compiled'];
+        
+        if (!$clean && function_exists('exec')) {
+            $excludeStr = '';
+            foreach ($excludes as $ex) {
+                $excludeStr .= " -x \"$ex*\" -x \"*/$ex*\"";
+            }
+            foreach ($alwaysEmptyFolders as $f) {
+                $excludeStr .= " -x \"$f/*\" -x \"*/$f/*\"";
+            }
+            $cmd = "zip -r $zipFile . $excludeStr";
+            @exec($cmd, $output, $returnVar);
+            if ($returnVar === 0 && file_exists($zipFile) && filesize($zipFile) > 0) {
+                return true;
+            }
+        }
+
+        if (class_exists('ZipArchive')) {
+            $zip = new ZipArchive();
+            if ($zip->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
+                $files = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator('.', RecursiveDirectoryIterator::SKIP_DOTS),
+                    RecursiveIteratorIterator::SELF_FIRST
+                );
+                foreach ($files as $name => $file) {
+                    $filePath = $file->getRealPath();
+                    $relativePath = substr($filePath, strlen(realpath('.')) + 1);
+                    $relativePathNormalized = str_replace('\\', '/', $relativePath);
+                    
+                    $skip = false;
+                    foreach ($excludes as $ex) {
+                        if (strpos($relativePathNormalized, $ex) === 0 || strpos($relativePathNormalized, '/' . $ex) !== false) {
+                            $skip = true;
+                            break;
+                        }
+                    }
+                    if ($skip) continue;
+
+                    $isAlwaysEmpty = false;
+                    foreach ($alwaysEmptyFolders as $f) {
+                        if (strpos($relativePathNormalized, $f . '/') !== false || strpos($relativePathNormalized, $f) === 0) {
+                            $isAlwaysEmpty = true;
+                            break;
+                        }
+                    }
+
+                    if ($isAlwaysEmpty) {
+                        if ($file->isDir()) {
+                            $zip->addEmptyDir($relativePathNormalized);
+                        }
+                        continue;
+                    }
+
+                    $isUploadFolder = (strpos($relativePathNormalized, 'upload/') !== false || strpos($relativePathNormalized, 'uploads/') !== false || strpos($relativePathNormalized, 'upload') === 0 || strpos($relativePathNormalized, 'uploads') === 0);
+                    if ($file->isDir()) {
+                        if ($isUploadFolder) {
+                            $zip->addEmptyDir($relativePathNormalized);
+                        }
+                    } else {
+                        if ($clean && $isUploadFolder) {
+                            $ext = strtolower(pathinfo($relativePathNormalized, PATHINFO_EXTENSION));
+                            if (in_array($ext, $mediaExtensions)) {
+                                continue;
+                            }
+                        }
+                        $zip->addFile($filePath, $relativePathNormalized);
+                    }
+                }
+                $zip->close();
+                return file_exists($zipFile) && filesize($zipFile) > 0;
+            }
+        }
+        return false;
+    }
+
+    public function package()
+    {
+        header('Content-Type: application/json');
+        $dbRaw = $_POST['db_config'] ?? null;
+        $projectName = $_POST['project_name'] ?? 'package';
+        $projectName = preg_replace('/[^a-zA-Z0-9_-]/', '', $projectName);
+
+        if (!$dbRaw) {
+            $rawInput = file_get_contents('php://input');
+            if (!empty($rawInput)) {
+                parse_str($rawInput, $inputData);
+                $dbRaw = $inputData['db_config'] ?? null;
+                if (empty($projectName) && !empty($inputData['project_name'])) {
+                    $projectName = preg_replace('/[^a-zA-Z0-9_-]/', '', $inputData['project_name']);
+                }
+            }
+        }
+        $dbConfig = json_decode($dbRaw ?? '', true);
+        if (empty($dbConfig) || empty($dbConfig['name'])) {
+            $dbConfig = $this->getDbConfigFromEnv();
+        }
+
+        $sqlFile = 'dist.sql';
+        if (!$this->exportDatabase($dbConfig, $sqlFile, true)) {
+            echo json_encode(['status' => 'error', 'message' => 'Không thể export database trên Demo.']);
+            exit;
+        }
+
+        $zipFile = $projectName . '_' . time() . '.zip';
+        @unlink($zipFile);
+
+        if (!$this->packageSource($zipFile, true)) {
+            @unlink($sqlFile);
+            echo json_encode(['status' => 'error', 'message' => 'Không thể nén mã nguồn trên Demo.']);
+            exit;
+        }
+
+        @unlink($sqlFile);
+
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+        $host = $_SERVER['HTTP_HOST'];
+        $uri = $_SERVER['REQUEST_URI'];
+        $pos = strpos($uri, 'bridge.php');
+        $baseUri = substr($uri, 0, $pos);
+        $demoBaseUrl = $scheme . $host . $baseUri;
+
+        $downloadUrl = $demoBaseUrl . 'bridge.php?action=downloadTemp&file=' . urlencode($zipFile);
+
+        echo json_encode([
+            'status' => 'success',
+            'url' => $downloadUrl
+        ]);
+        exit;
+    }
+
+    public function downloadTemp()
+    {
+        $file = $_GET['file'] ?? '';
+        $file = basename($file);
+        if (preg_match('/^[a-zA-Z0-9_-]+_\d+\.zip$/', $file) && file_exists($file)) {
+            header('Content-Type: application/zip');
+            header('Content-Disposition: attachment; filename="' . $file . '"');
+            header('Content-Length: ' . filesize($file));
+            readfile($file);
+            @unlink($file);
+
+            // Lock the project directory after successful download
+            $currentDir = __DIR__;
+            $dirName = basename($currentDir);
+            if (strpos($dirName, '_old') === false) {
+                @rename($currentDir, $currentDir . '_old');
+            }
+            exit;
+        }
+        http_response_code(404);
+        echo "File not found";
+        exit;
+    }
+
+    public function cloudDeploy()
+    {
+        header('Content-Type: application/json');
+        $prodConfigRaw = $_POST['prod_config_b64'] ?? '';
+        if (empty($prodConfigRaw)) {
+            $rawInput = file_get_contents('php://input');
+            if (!empty($rawInput)) {
+                parse_str($rawInput, $inputData);
+                $prodConfigRaw = $inputData['prod_config_b64'] ?? '';
+            }
+        }
+        if (empty($prodConfigRaw)) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing prod_config_b64']);
+            exit;
+        }
+        $prodConfig = json_decode(base64_decode($prodConfigRaw), true);
+        if (empty($prodConfig)) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid prod_config payload']);
+            exit;
+        }
+
+        $dbConfig = $this->getDbConfigFromEnv();
+
+        $sqlFile = 'dist.sql';
+        if (!$this->exportDatabase($dbConfig, $sqlFile, false)) {
+            echo json_encode(['status' => 'error', 'message' => 'Bridge Demo: Không thể export database để chuyển giao.']);
+            exit;
+        }
+
+        $zipFile = 'dist.zip';
+        @unlink($zipFile);
+
+        if (!$this->packageSource($zipFile, false)) {
+            @unlink($sqlFile);
+            echo json_encode(['status' => 'error', 'message' => 'Bridge Demo: Không thể nén mã nguồn để chuyển giao.']);
+            exit;
+        }
+
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+        $host = $_SERVER['HTTP_HOST'];
+        $uri = $_SERVER['REQUEST_URI'];
+        $pos = strpos($uri, 'bridge.php');
+        $baseUri = substr($uri, 0, $pos);
+        $demoBaseUrl = $scheme . $host . $baseUri;
+
+        $zipUrl = $demoBaseUrl . 'dist.zip';
+        $sqlUrl = $demoBaseUrl . 'dist.sql';
+
+        $prodDbConfig = [
+            'host' => 'localhost',
+            'name' => $prodConfig['db_name'] ?? '',
+            'user' => $prodConfig['db_user'] ?? '',
+            'pass' => $prodConfig['db_pass'] ?? ''
+        ];
+        
+        $prodAppConfig = [
+            'app_url' => $prodConfig['app_url'] ?? '',
+            'ssl' => !empty($prodConfig['ssl']),
+            'skip_lock' => !empty($prodConfig['skip_lock']),
+            'is_production' => true,
+            'turnstile_sitekey' => $prodConfig['turnstile_sitekey'] ?? '',
+            'turnstile_secretkey' => $prodConfig['turnstile_secretkey'] ?? '',
+            'email_user' => $prodConfig['email_user'] ?? '',
+            'email_pass' => $prodConfig['email_pass'] ?? '',
+            'demo_domain' => $prodConfig['demo_domain'] ?? '',
+            'prod_domain' => $prodConfig['prod_domain'] ?? '',
+            'random_key' => $prodConfig['random_key'] ?? '',
+            'zip_url' => $zipUrl,
+            'sql_url' => $sqlUrl
+        ];
+
+        $prodBridgeUrl = $prodConfig['app_url'] . "/bridge.php?action=deploy";
+        $prodRes = $this->postRequest($prodBridgeUrl, [
+            'db_config' => json_encode($prodDbConfig),
+            'app_config' => json_encode($prodAppConfig),
+            'clear_db' => 1
+        ]);
+
+        @unlink($zipFile);
+        @unlink($sqlFile);
+
+        $decodedProd = json_decode($prodRes, true);
+        if ($decodedProd && isset($decodedProd['status']) && $decodedProd['status'] === 'success') {
+            echo json_encode([
+                'status' => 'success',
+                'logs' => ['Đóng gói sạch mã nguồn tại Demo thành công.', 'Đồng bộ dữ liệu sang Production thành công.'],
+                'final' => $decodedProd
+            ]);
+        } else {
+            $msg = $decodedProd['message'] ?? $prodRes;
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Lỗi tại máy chủ Production: ' . $msg,
+                'logs' => ['Đóng gói sạch mã nguồn tại Demo thành công.'],
+                'final' => $decodedProd
+            ]);
+        }
+        exit;
     }
 
     public function cleanup()

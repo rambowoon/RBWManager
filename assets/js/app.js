@@ -552,49 +552,13 @@ const App = {
 	},
 
 	async downloadPackage(name, category) {
-		document.getElementById('deploy-project-name').innerText =
-			name + ' (Packaging...)';
-		document.getElementById('log-output').innerHTML = '';
-		UI.showModal('deploy-modal');
-		UI.updateDeployStatus(
-			'Đang chuẩn bị...',
-			10,
-			'Yêu cầu đóng gói bản sạch từ Demo host...',
+		await this._deployFlow(
+			name,
+			'downloadPackage',
+			category,
+			{},
+			'Đang chuẩn bị đóng gói và tải mã nguồn từ Demo...',
 		);
-
-		try {
-			const res = await (
-				await fetch(`api.php?action=downloadPackage`, {
-					method: 'POST',
-					body: JSON.stringify({ name, category }),
-				})
-			).json();
-
-			if (res.status === 'success') {
-				UI.updateDeployStatus(
-					'Đóng gói thành công!',
-					100,
-					(res.logs || []).join('<br>') + '<br><br><span style="color:var(--success); font-weight:bold;">' + res.message + '</span>',
-				);
-
-				confetti({
-					particleCount: 150,
-					spread: 70,
-					origin: { y: 0.6 },
-				});
-				document.getElementById('deploy-footer').style.display = 'flex';
-			} else {
-				UI.updateDeployStatus(
-					'Lỗi!',
-					50,
-					`<span style="color:var(--error)">${res.message}</span>`,
-				);
-				document.getElementById('deploy-footer').style.display = 'flex';
-			}
-		} catch (err) {
-			UI.updateDeployStatus('Lỗi hệ thống!', 0, 'Kết nối API thất bại.');
-			document.getElementById('deploy-footer').style.display = 'flex';
-		}
 	},
 
 	async installSSL(name) {
@@ -761,6 +725,17 @@ const App = {
 							UI.updateDeployStatus('Thành công!', 100, `✅ ${item.message || item.log}`);
 							if (item.logs) item.logs.forEach(l => UI.updateDeployStatus('Thành công!', 100, `> ${l}`));
 							confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+							
+							if (item.url) {
+								const downloadLink = document.createElement('a');
+								downloadLink.href = item.url;
+								downloadLink.download = item.url.split('/').pop();
+								document.body.appendChild(downloadLink);
+								downloadLink.click();
+								document.body.removeChild(downloadLink);
+								UI.updateDeployStatus('Thành công!', 100, `> 📥 Đã tự động kích hoạt tải xuống: <a href="${item.url}" target="_blank" style="color:var(--primary); text-decoration:underline;">Tải thủ công tại đây</a>`);
+							}
+							
 							cleanUpJob();
 						} else if (item.status === 'error') {
 							isFinished = true;
