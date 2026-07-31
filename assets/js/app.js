@@ -254,6 +254,8 @@ const App = {
 					config.claude_key || '';
 				document.getElementById('g_source_path').value =
 					config.source_path || '';
+				document.getElementById('g_source_folder_name').value =
+					config.source_folder_name || '';
 				document.getElementById('g_source_db_name').value =
 					config.source_db_name || '';
 				document.getElementById('g_editor_path').value =
@@ -282,6 +284,7 @@ const App = {
 			gemini_key: document.getElementById('g_gemini_key').value,
 			claude_key: document.getElementById('g_claude_key').value,
 			source_path: document.getElementById('g_source_path').value,
+			source_folder_name: document.getElementById('g_source_folder_name').value,
 			source_db_name: document.getElementById('g_source_db_name').value,
 			editor_path: document.getElementById('g_editor_path').value,
 			font_source_path: document.getElementById('g_font_source_path').value,
@@ -428,6 +431,7 @@ const App = {
 		document.getElementById('pre-deploy-project-desc').innerText =
 			`Dự án: ${name} (${category})`;
 		document.getElementById('manual_db_suffix').value = '';
+		if (document.getElementById('custom_demo_domain')) document.getElementById('custom_demo_domain').value = '';
 		document.getElementById('pre_deploy_ssl').checked = false;
 		document.getElementById('pre_deploy_pack_upload').checked = true;
 		if (document.getElementById('pre_deploy_use_7zip')) {
@@ -446,10 +450,12 @@ const App = {
 			const exportUpload = document.getElementById('pre_deploy_export_upload').checked;
 			const createDb = document.getElementById('pre_deploy_create_db').checked;
 			const extractSetup = document.getElementById('pre_deploy_extract_setup').checked;
+			const customDomain = document.getElementById('custom_demo_domain') ? document.getElementById('custom_demo_domain').value.trim() : '';
 			
 			UI.hideModal('pre-deploy-modal');
 			await this.handleDeployDemo(name, category, {
 				manual_db_suffix: manualSuffix,
+				custom_domain: customDomain,
 				use_ssl: useSSL,
 				use_7zip: use7zip,
 				pack_upload: packUpload,
@@ -464,6 +470,7 @@ const App = {
 		document.getElementById('pre-deploy-project-desc').innerText =
 			`Dự án: ${name} (${category}) - Chỉ Deploy Database`;
 		document.getElementById('manual_db_suffix').value = '';
+		if (document.getElementById('custom_demo_domain')) document.getElementById('custom_demo_domain').value = '';
 		document.getElementById('pre_deploy_ssl').checked = false;
 		document.getElementById('pre_deploy_pack_upload').checked = false;
 		if (document.getElementById('pre_deploy_use_7zip')) {
@@ -482,10 +489,12 @@ const App = {
 			const exportUpload = document.getElementById('pre_deploy_export_upload').checked;
 			const createDb = document.getElementById('pre_deploy_create_db').checked;
 			const extractSetup = document.getElementById('pre_deploy_extract_setup').checked;
+			const customDomain = document.getElementById('custom_demo_domain') ? document.getElementById('custom_demo_domain').value.trim() : '';
 			
 			UI.hideModal('pre-deploy-modal');
 			await this.handleDeployDemo(name, category, {
 				manual_db_suffix: manualSuffix,
+				custom_domain: customDomain,
 				use_ssl: useSSL,
 				use_7zip: use7zip,
 				pack_upload: packUpload,

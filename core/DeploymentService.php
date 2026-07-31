@@ -72,14 +72,17 @@ class DeploymentService
 
     public function pack($projectPath, $zipFile, $use7zip = false, $jobId = null)
     {
+        if (substr($projectPath, 0, 4) === '\\\\.\\' || substr($projectPath, 0, 4) === '\\\\?\\') $projectPath = substr($projectPath, 4);
+        if (substr($zipFile, 0, 4) === '\\\\.\\' || substr($zipFile, 0, 4) === '\\\\?\\') $zipFile = substr($zipFile, 4);
+
         if (file_exists($zipFile)) @unlink($zipFile);
 
         if ($use7zip) {
             $exe7z = $this->get7zExecutable();
             if ($exe7z) {
                 $exclude = '-xr!".agents" -xr!"thumbs" -xr!"watermarks" -xr!"caches" -xr!"dist.zip" -xr!"dist.sql" -xr!"vite.config.js" -xr!"README.md" -xr!".gitignore"';
-                $cmd = "cd /d \"$projectPath\" && $exe7z a -tzip -mx=9 -bsp1 \"$zipFile\" $exclude .";
-                $returnVar = $this->runCommandWithProgress($cmd, $zipFile, $jobId);
+                $cmd = "$exe7z a -tzip -mx=3 -bsp1 -y -ssw \"$zipFile\" $exclude .";
+                $returnVar = $this->runCommandWithProgress($cmd, $zipFile, $jobId, $projectPath);
                 if ($returnVar === 0 && is_file($zipFile) && filesize($zipFile) > 0) {
                     $finalSize = $this->formatBytes(filesize($zipFile));
                     if ($jobId && function_exists('writeJobLog')) {
@@ -158,96 +161,59 @@ class DeploymentService
         return round($bytes, $precision) . ' ' . $units[$pow];
     }
 
-    private function runCommandWithProgress($cmd, $zipFile, $jobId)
+    private function runCommandWithProgress($cmd, $zipFile, $jobId, $cwd = null)
     {
-        $stdoutFile = tempnam(sys_get_temp_dir(), 'cmd_out_');
-        $stderrFile = tempnam(sys_get_temp_dir(), 'cmd_err_');
-
-        $descriptors = [
+        $descriptorspec = [
             0 => ["pipe", "r"],
-            1 => ["file", $stdoutFile, "w"],
-            2 => ["file", $stderrFile, "w"]
+            1 => ["pipe", "w"],
+            2 => ["pipe", "w"]
         ];
 
-        $process = proc_open($cmd, $descriptors, $pipes);
+        $process = proc_open($cmd, $descriptorspec, $pipes, $cwd);
 
         if (is_resource($process)) {
-            $terminated = false;
-            register_shutdown_function(function() use ($process, &$terminated) {
-                if (!$terminated) {
-                    $status = proc_get_status($process);
-                    if ($status && $status['running']) {
-                        @proc_terminate($process);
-                    }
-                }
-            });
-
-            $lastSize = 0;
-            $lastLogTime = 0;
-            $lastPercent = '';
+            fclose($pipes[0]);
+            
+            stream_set_blocking($pipes[1], false);
+            stream_set_blocking($pipes[2], false);
+            
             $stdout = '';
             $stderr = '';
+            $lastReportedPercent = -1;
 
-            while (true) {
-                $status = proc_get_status($process);
-
-                if (file_exists($stdoutFile)) {
-                    $stdout = (string)file_get_contents($stdoutFile);
-                }
-                if (file_exists($stderrFile)) {
-                    $stderr = (string)file_get_contents($stderrFile);
-                }
-
-                if (!$status['running']) {
-                    break;
-                }
-
-                $now = time();
+            while (!feof($pipes[1]) || !feof($pipes[2])) {
+                $read = [$pipes[1], $pipes[2]];
+                $write = null;
+                $except = null;
                 
-                // 1. Try to get progress from 7z stdout
-                $progressPercent = null;
-                if (preg_match_all('/([0-9]{1,3})%/', $stdout, $matches)) {
-                    $progressPercent = end($matches[1]) . '%';
-                }
-
-                if ($progressPercent !== null) {
-                    if ($progressPercent !== $lastPercent && ($now - $lastLogTime) >= 1) {
-                        if ($jobId && function_exists('writeJobLog')) {
-                            writeJobLog($jobId, ['status' => 'info', 'log' => "📦 Đang nén... Tiến trình: $progressPercent"]);
-                        }
-                        $lastPercent = $progressPercent;
-                        $lastLogTime = $now;
-                    }
-                } else {
-                    // 2. Fallback to file size (e.g. for tar)
-                    clearstatcache(true, $zipFile);
-                    if (file_exists($zipFile)) {
-                        $currentSize = filesize($zipFile);
-                        if ($currentSize !== $lastSize && ($now - $lastLogTime) >= 1) {
-                            $sizeStr = $this->formatBytes($currentSize);
-                            if ($jobId && function_exists('writeJobLog')) {
-                                writeJobLog($jobId, ['status' => 'info', 'log' => "📦 Đang nén... Dung lượng hiện tại: $sizeStr"]);
+                if (stream_select($read, $write, $except, 1) > 0) {
+                    foreach ($read as $pipe) {
+                        $content = fread($pipe, 8192);
+                        if ($content === false || $content === '') continue;
+                        
+                        if ($pipe === $pipes[1]) {
+                            $stdout .= $content;
+                            
+                            // Parse 7-zip progress e.g. " 45% "
+                            if ($jobId && function_exists('writeJobLog') && preg_match_all('/\b([0-9]{1,3})%/', $stdout, $matches)) {
+                                $latestPercent = (int)end($matches[1]);
+                                // Report every 10% to avoid spamming the log
+                                if ($latestPercent > $lastReportedPercent && $latestPercent % 10 === 0 && $latestPercent <= 100 && $latestPercent > 0) {
+                                    writeJobLog($jobId, ['status' => 'info', 'log' => "⏳ Tiến trình nén: $latestPercent%..."]);
+                                    $lastReportedPercent = $latestPercent;
+                                }
                             }
-                            $lastSize = $currentSize;
-                            $lastLogTime = $now;
+                        } else {
+                            $stderr .= $content;
                         }
                     }
                 }
-                usleep(200000); // 0.2 seconds
             }
-
-            fclose($pipes[0]);
-            $terminated = true;
+            
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            
             $exitCode = proc_close($process);
-
-            if (file_exists($stdoutFile)) {
-                $stdout = (string)file_get_contents($stdoutFile);
-                @unlink($stdoutFile);
-            }
-            if (file_exists($stderrFile)) {
-                $stderr = (string)file_get_contents($stderrFile);
-                @unlink($stderrFile);
-            }
 
             if ($exitCode !== 0 && $jobId && function_exists('writeJobLog')) {
                 writeJobLog($jobId, ['status' => 'info', 'log' => "❌ Lệnh lỗi (Exit Code: $exitCode). Cmd: $cmd"]);
@@ -261,16 +227,11 @@ class DeploymentService
             return $exitCode;
         }
 
-        @unlink($stdoutFile);
-        @unlink($stderrFile);
-        return -1;
+        return 1;
     }
 
     private function get7zExecutable()
     {
-        @exec("7z --help", $out, $res);
-        if ($res === 0) return "7z";
-
         $paths = [
             'C:\\Program Files\\7-Zip\\7z.exe',
             'C:\\Program Files (x86)\\7-Zip\\7z.exe'
@@ -527,7 +488,7 @@ class DeploymentService
         $useSSL = !empty($config['ssl']) || (isset($config['web_domain']) && strpos($config['web_domain'], 'https://') === 0);
         $schemes = $useSSL ? ['https://', 'http://'] : ['http://', 'https://'];
         $res = null;
-        $webSub = (isset($config['ftp_root']) && strpos($config['ftp_root'], '/public_html') !== false) ? str_replace('/public_html', '', $config['ftp_root']) : '';
+        $webSub = $this->getWebSubPath($config['ftp_root'] ?? '');
         $fullSubPath = rtrim($webSub, '/') . '/' . trim($subPath, '/');
 
         foreach ($schemes as $scheme) {
@@ -571,7 +532,7 @@ class DeploymentService
         $demoDomain = !empty($demoConfig['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $demoConfig['web_domain']) : str_replace(['ftp.', 'www.'], '', $demoConfig['ftp_host']);
         $prodDomain = !empty($prodConfig['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $prodConfig['web_domain']) : str_replace(['ftp.', 'www.'], '', $prodConfig['ftp_host']);
 
-        $prodWebSub = ltrim(str_replace('/public_html', '', $prodConfig['ftp_root'] ?? ''), '/');
+        $prodWebSub = ltrim($this->getWebSubPath($prodConfig['ftp_root'] ?? ''), '/');
         $prodConfig['app_url'] = ($prodConfig['ssl'] ? 'https://' : 'http://') . $prodDomain . ($prodWebSub ? '/' . $prodWebSub : '');
 
         $demoSSL = !empty($demoConfig['ssl']) || (isset($demoConfig['web_domain']) && strpos($demoConfig['web_domain'], 'https://') === 0);
@@ -694,7 +655,7 @@ class DeploymentService
         return $errorMsg;
     }
 
-    public function cleanupBridge($config, $subPath = '')
+    public function cleanupBridge($config, $subPath = '', $clearImages = false)
     {
         $ftpHost = $config['ftp_host'] ?? '';
         $ftpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
@@ -709,12 +670,12 @@ class DeploymentService
         $useSSL = !empty($config['ssl']) || (isset($config['web_domain']) && strpos($config['web_domain'], 'https://') === 0);
         $schemes = $useSSL ? ['https://', 'http://'] : ['http://', 'https://'];
         $res = null;
-        $webSub = (strpos($ftpRoot, '/public_html') !== false) ? str_replace('/public_html', '', $ftpRoot) : '';
+        $webSub = $this->getWebSubPath($ftpRoot);
         $fullSubPath = rtrim($webSub, '/') . '/' . trim($subPath, '/');
 
         foreach ($schemes as $scheme) {
             $pathPart = trim($fullSubPath, '/');
-            $url = $scheme . $cleanHost . ($pathPart ? '/' . $pathPart : '') . "/bridge.php?action=cleanup";
+            $url = $scheme . $cleanHost . ($pathPart ? '/' . $pathPart : '') . "/bridge.php?action=cleanup" . ($clearImages ? '&clear_images=1' : '');
             $raw = RemoteClient::get($url);
             $decoded = json_decode($raw, true);
             if ($decoded && isset($decoded['status'])) {
@@ -849,7 +810,7 @@ class DeploymentService
         $useSSL = !empty($config['ssl']) || (isset($config['web_domain']) && strpos($config['web_domain'], 'https://') === 0);
         $schemes = $useSSL ? ['https://', 'http://'] : ['http://', 'https://'];
         $res = null;
-        $webSub = (isset($config['ftp_root']) && strpos($config['ftp_root'], '/public_html') !== false) ? str_replace('/public_html', '', $config['ftp_root']) : '';
+        $webSub = $this->getWebSubPath($config['ftp_root'] ?? '');
         $fullSubPath = rtrim($webSub, '/') . '/' . trim($subPath, '/');
 
         foreach ($schemes as $scheme) {
@@ -871,5 +832,15 @@ class DeploymentService
             if ($decoded && isset($decoded['status'])) return $decoded;
         }
         return ['status' => 'error', 'message' => 'Không thể kết nối tới Bridge hoặc phản hồi không hợp lệ: ' . strip_tags((string)$res)];
+    }
+
+    public function getWebSubPath($ftpRoot)
+    {
+        if (empty($ftpRoot)) return '';
+        $parts = explode('/public_html', $ftpRoot);
+        if (count($parts) > 1) {
+            return $parts[1]; // Return whatever is AFTER /public_html
+        }
+        return '';
     }
 }

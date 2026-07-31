@@ -33,6 +33,9 @@ class RamboWoonBridge
             case 'ping':
                 $this->ping();
                 break;
+            case 'clearImages':
+                $this->clearImages();
+                break;
             case 'deploy':
                 $this->deploy();
                 break;
@@ -1248,13 +1251,70 @@ class RamboWoonBridge
 
     public function cleanup()
     {
-        echo json_encode(['status' => 'success', 'message' => 'Bridge self-destructed successfully.']);
+        $clearImages = isset($_GET['clear_images']) && $_GET['clear_images'] == '1';
+        $imagesCleared = '';
+        if ($clearImages) {
+            $imagesDir = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'images';
+            if (is_dir($imagesDir)) {
+                $files = scandir($imagesDir);
+                $deletedCount = 0;
+                foreach ($files as $file) {
+                    if ($file === '.' || $file === '..') continue;
+                    $filePath = $imagesDir . DIRECTORY_SEPARATOR . $file;
+                    if (is_file($filePath)) {
+                        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                        if (in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico'])) {
+                            @unlink($filePath);
+                            $deletedCount++;
+                        }
+                    }
+                }
+                $imagesCleared = " Đã dọn dẹp $deletedCount hình ảnh demo.";
+            }
+        }
+
+        echo json_encode(['status' => 'success', 'message' => 'Bridge self-destructed successfully.' . $imagesCleared]);
         $zipFile = 'dist.zip';
         $sqlFile = 'dist.sql';
         @unlink($zipFile);
         @unlink($sqlFile);
         @unlink(__FILE__);
         exit;
+    }
+
+    private function clearImages()
+    {
+        header('Content-Type: application/json');
+        $imagesDir = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'images';
+        
+        if (!is_dir($imagesDir)) {
+            die(json_encode(['status' => 'error', 'message' => 'Thư mục hình ảnh không tồn tại trên demo server.']));
+        }
+
+        $files = scandir($imagesDir);
+        $deletedCount = 0;
+        $errors = [];
+
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') continue;
+            $filePath = $imagesDir . DIRECTORY_SEPARATOR . $file;
+            if (is_file($filePath)) {
+                $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                if (in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico'])) {
+                    if (@unlink($filePath)) {
+                        $deletedCount++;
+                    } else {
+                        $errors[] = "Không thể xóa: " . $file;
+                    }
+                }
+            }
+        }
+
+        die(json_encode([
+            'status' => 'success',
+            'message' => "Đã dọn dẹp thành công $deletedCount hình ảnh trong thư mục assets/images/images trên demo server.",
+            'errors' => $errors
+        ]));
     }
 }
 

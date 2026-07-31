@@ -27,11 +27,42 @@ class ProjectDeployer
         $srcPath = str_replace('/', DIRECTORY_SEPARATOR, $src);
         $dstPath = str_replace('/', DIRECTORY_SEPARATOR, $dst);
         
-        $cmd = "xcopy \"$srcPath\" \"$dstPath\" /E /I /H /Y 2>&1";
-        exec($cmd, $output, $returnVar);
+        // Remove Windows Device Namespace prefix (\\.\) which breaks xcopy/tar
+        if (substr($srcPath, 0, 4) === '\\\\.\\') $srcPath = substr($srcPath, 4);
+        if (substr($dstPath, 0, 4) === '\\\\.\\') $dstPath = substr($dstPath, 4);
         
-        if ($returnVar !== 0) {
-            throw new \Exception("Lỗi xcopy (Code $returnVar): " . implode("\n", $output));
+        $srcPath = rtrim($srcPath, '\\/');
+        $dstPath = rtrim($dstPath, '\\/');
+        
+        // Use proc_open to explicitly pass standard handles to robocopy.
+        // This completely bypasses the Windows bug where console apps instantly fail in detached headless environments.
+        $cmd = "robocopy \"$srcPath\" \"$dstPath\" /E /NFL /NDL /NJH /NJS /nc /ns /np";
+        
+        $descriptorspec = [
+           0 => ["pipe", "r"],  // stdin
+           1 => ["pipe", "w"],  // stdout
+           2 => ["pipe", "w"]   // stderr
+        ];
+        
+        $process = proc_open($cmd, $descriptorspec, $pipes);
+        
+        if (is_resource($process)) {
+            fclose($pipes[0]); // close stdin immediately
+            
+            $stdout = stream_get_contents($pipes[1]);
+            $stderr = stream_get_contents($pipes[2]);
+            
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            
+            $returnVar = proc_close($process);
+            
+            // robocopy exit codes < 8 mean success
+            if ($returnVar >= 8 || $returnVar === 0) {
+                throw new \Exception("Lỗi robocopy (Code $returnVar). Lệnh: $cmd\nLog: $stdout\nErr: $stderr");
+            }
+        } else {
+            throw new \Exception("Không thể khởi chạy tiến trình robocopy qua proc_open.");
         }
         
         return true;
@@ -47,6 +78,10 @@ class ProjectDeployer
 
         $zipPath = str_replace('/', DIRECTORY_SEPARATOR, $zipPath);
         $dstPath = str_replace('/', DIRECTORY_SEPARATOR, $dst);
+
+        // Remove Windows Device Namespace prefix (\\.\) which breaks xcopy/tar
+        if (substr($zipPath, 0, 4) === '\\\\.\\') $zipPath = substr($zipPath, 4);
+        if (substr($dstPath, 0, 4) === '\\\\.\\') $dstPath = substr($dstPath, 4);
 
         // Windows 10+ has tar command built-in that handles .zip
         $cmd = "tar -xf \"$zipPath\" -C \"$dstPath\" 2>&1";

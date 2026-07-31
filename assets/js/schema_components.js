@@ -109,12 +109,60 @@ const SchemaComponents = {
 
 		const div = document.createElement('div');
 		div.className = 'sb-nested';
-		div.innerHTML = `<div class="sb-section-title"><span>${key.toUpperCase()}</span></div>`;
+		div.innerHTML = `<div class="sb-section-title" style="justify-content:space-between; align-items:center;">
+            <span>${key.toUpperCase()}</span>
+            <button class="btn-del-opt" onclick="SchemaBuilder.deleteOption('${path.join('.')}')">×</button>
+        </div>`;
+
+		if (key === 'website') {
+			const btnGroup = document.createElement('div');
+			btnGroup.style.display = 'flex';
+			btnGroup.style.gap = '5px';
+			btnGroup.style.marginBottom = '10px';
+			
+			if (data.amp === undefined) {
+				const btnAmp = document.createElement('button');
+				btnAmp.className = 'btn btn-ghost btn-sm';
+				btnAmp.innerText = '+ AMP';
+				btnAmp.onclick = () => {
+					SchemaBuilder.updateData(path.join('.') + '.amp', true);
+					SchemaBuilder.renderForm();
+				};
+				btnGroup.appendChild(btnAmp);
+			}
+			
+			if (data.route === undefined) {
+				const btnRoute = document.createElement('button');
+				btnRoute.className = 'btn btn-ghost btn-sm';
+				btnRoute.innerText = '+ Route';
+				btnRoute.onclick = () => {
+					SchemaBuilder.updateData(path.join('.') + '.route', {
+						controller: 'Controller@index',
+						name: 'route_name',
+						method: 'get',
+						slugs: { vi: 'slug-vi' }
+					});
+					SchemaBuilder.renderForm();
+				};
+				btnGroup.appendChild(btnRoute);
+			}
+			
+			if (btnGroup.children.length > 0) {
+				div.appendChild(btnGroup);
+			}
+		}
 
 		const subGrid = document.createElement('div');
 		subGrid.className = 'sb-grid';
 		const subNested = document.createElement('div');
 		subNested.className = 'sb-nested-container';
+		
+		if (key === 'website') {
+		    subNested.style.display = 'grid';
+		    subNested.style.gridTemplateColumns = '1fr 1fr';
+		    subNested.style.gap = '15px';
+		    subNested.style.alignItems = 'start';
+		}
 
 		for (const [fieldKey, fieldValue] of Object.entries(data)) {
 			const el = this.renderField(fieldKey, fieldValue, [
@@ -640,6 +688,7 @@ const SchemaComponents = {
                     <th style="padding:5px;">Key</th>
                     <th style="padding:5px;">Title</th>
                     <th style="padding:5px;">Type</th>
+                    <th style="padding:5px;">Lang</th>
                     <th style="padding:5px; text-align:right;">Action</th>
                 </tr>
             </thead>
@@ -655,6 +704,12 @@ const SchemaComponents = {
                 <td style="padding:5px;"><code>${optKey}</code></td>
                 <td style="padding:5px;">${optVal.title}</td>
                 <td style="padding:5px;"><span class="sb-type-badge">${optVal.type}</span></td>
+                <td style="padding:5px;">
+                    <label class="sb-switch" style="transform: scale(0.7); margin: 0;">
+                        <input type="checkbox" onchange="SchemaBuilder.updateData('${path.join('.')}.${optKey}.lang', this.checked)" ${optVal.lang ? 'checked' : ''}>
+                        <span class="sb-slider"></span>
+                    </label>
+                </td>
                 <td style="padding:5px; text-align:right;">
                     <button class="btn btn-ghost" style="padding:2px 5px; color:var(--danger);" onclick="SchemaBuilder.deleteOption('${path.join('.')}.${optKey}')">Delete</button>
                 </td>
@@ -665,7 +720,7 @@ const SchemaComponents = {
 
 		const addRow = document.createElement('div');
 		addRow.style.display = 'grid';
-		addRow.style.gridTemplateColumns = '1fr 1fr 1fr auto';
+		addRow.style.gridTemplateColumns = '1.2fr 1.5fr 1fr auto auto';
 		addRow.style.gap = '5px';
 		addRow.style.marginTop = '10px';
 		addRow.innerHTML = `
@@ -683,6 +738,7 @@ const SchemaComponents = {
                 <option value="datetime">Date Time</option>
                 <option value="localdatetime">Local Date Time</option>
             </select>
+            <label style="display:flex; align-items:center; font-size:0.7rem; color:var(--muted);"><input type="checkbox" class="opt-lang" style="margin-right:5px;"> Lang</label>
             <button class="btn btn-primary" style="height:28px; padding:0 10px;">+</button>
         `;
 
@@ -690,11 +746,11 @@ const SchemaComponents = {
 			const k = addRow.querySelector('.opt-key').value.trim();
 			const t = addRow.querySelector('.opt-title').value.trim();
 			const ty = addRow.querySelector('.opt-type').value;
+			const langChecked = addRow.querySelector('.opt-lang').checked;
 			if (k && t) {
-				this.updateData(path.join('.') + '.' + k, {
-					title: t,
-					type: ty,
-				});
+			    const newData = { title: t, type: ty };
+			    if (langChecked) newData.lang = true;
+				this.updateData(path.join('.') + '.' + k, newData);
 				this.renderForm();
 			}
 		};

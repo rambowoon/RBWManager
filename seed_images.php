@@ -297,17 +297,19 @@ try {
         };
 
         // Helper function to fetch from Gemini
-        $getAiContentFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, int $count) {
+        $getAiContentFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, int $count, bool $needsContent = false) {
             $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . urlencode($apiKey);
             
+            $contentRequirement = $needsContent ? "\n- 'content': bài viết chi tiết, dài khoảng 2-3 đoạn văn, mô tả đầy đủ thông tin. Có thể dùng thẻ HTML cơ bản (ví dụ <br>, <strong>)." : "";
+
             $promptText = "Hãy tạo một JSON array chứa đúng $count phần tử dữ liệu mẫu tiếng Việt phù hợp với ngành nghề/mô tả sau: '$prompt' (dành cho loại danh mục: '$subTypeTitle').
-Mỗi phần tử trong mảng phải chứa đúng 2 thuộc tính:
-- 'name': tiêu đề/tên ngắn gọn của sản phẩm/bài viết/hình ảnh (ví dụ: 'Nồi chiên không dầu Philips HD9252', 'Dịch vụ chuẩn bị tang lễ trọn gói'). Tên phải mang tính thực tế, đa dạng, KHÔNG trùng lặp.
-- 'desc': đoạn mô tả ngắn gọn, chi tiết và hấp dẫn dài từ 2 đến 3 câu (dùng làm mô tả tóm tắt hoặc nội dung chính).
+Mỗi phần tử trong mảng phải chứa các thuộc tính sau:
+- 'name': tiêu đề/tên ngắn gọn của sản phẩm/bài viết/hình ảnh (ví dụ: 'Nồi chiên không dầu Philips HD9252'). Tên phải mang tính thực tế, đa dạng, KHÔNG trùng lặp.
+- 'desc': đoạn mô tả ngắn gọn, chi tiết và hấp dẫn dài từ 2 đến 3 câu.{$contentRequirement}
 
 YÊU CẦU QUAN TRỌNG:
 1. Bạn CHỈ phản hồi nội dung là một chuỗi JSON array hợp lệ.
-2. KHÔNG giải thích, KHÔNG viết bất kỳ chữ nào khác ngoài JSON array. KHÔNG đặt trong block ```json ... ``` nếu có thể, hoặc nếu có thì đảm bảo cú pháp JSON hoàn toàn chính xác.";
+2. KHÔNG giải thích, KHÔNG viết bất kỳ chữ nào khác ngoài JSON array. KHÔNG đặt trong block ```json ... ``` nếu có thể.";
 
             $payload = json_encode([
                 "contents" => [
@@ -359,14 +361,20 @@ YÊU CẦU QUAN TRỌNG:
         };
 
         // Helper function to fetch category names from Gemini
-        $getAiCategoriesFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, string $level, int $count) {
+        $getAiCategoriesFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, string $level, int $count, array $excludeNames = []) {
             $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . urlencode($apiKey);
             
+            $excludeStr = '';
+            if (!empty($excludeNames)) {
+                $excludeStr = "\n5. TUYỆT ĐỐI KHÔNG sử dụng các tên sau (vì đã bị trùng): " . implode(', ', array_slice($excludeNames, 0, 50));
+            }
+
             $promptText = "Hãy tạo một JSON array chứa đúng $count tên danh mục cấp '$level' bằng tiếng Việt, phù hợp với ngành nghề/mô tả sau: '$prompt' (dành cho loại đối tượng: '$subTypeTitle').
 Yêu cầu:
-1. Các tên danh mục phải thực tế, đa dạng, ngắn gọn (2-5 từ) và KHÔNG trùng lặp.
-2. Chỉ phản hồi nội dung là một chuỗi JSON array các chuỗi (string) đại diện cho tên danh mục. Ví dụ: [\"Tên danh mục 1\", \"Tên danh mục 2\"]
-3. KHÔNG giải thích, KHÔNG viết bất kỳ chữ nào khác ngoài JSON array.";
+1. Các tên danh mục phải là TỪ KHÓA BAO QUÁT, mang tính phân loại chung (Ví dụ: 'Điện thoại', 'Tin thể thao', 'Dịch vụ tư vấn').
+2. TUYỆT ĐỐI KHÔNG đặt tên danh mục giống với tên sản phẩm/bài viết cụ thể (Ví dụ: KHÔNG dùng 'iPhone 14 Pro', KHÔNG dùng 'Tư vấn pháp luật lao động ngày 14/2').
+3. Ngắn gọn (2-5 từ), đa dạng và KHÔNG trùng lặp.
+4. Chỉ phản hồi nội dung là một chuỗi JSON array các chuỗi. Ví dụ: [\"Danh mục A\", \"Danh mục B\"]. KHÔNG giải thích thêm.{$excludeStr}";
 
             $payload = json_encode([
                 "contents" => [
@@ -444,7 +452,8 @@ Yêu cầu:
                     $subTypeTitle = $raw['title_main'] ?? $subKey;
                     
                     try {
-                        $aiData = $getAiContentFromGemini($apiKey, $aiModel, $prompt, $subTypeTitle, $count);
+                        $needsContent = !empty($raw['content']) || !empty($raw['content_cke']);
+                        $aiData = $getAiContentFromGemini($apiKey, $aiModel, $prompt, $subTypeTitle, $count, $needsContent);
                     } catch (\Throwable $aiErr) {
                         throw new Exception("Lỗi tạo dữ liệu bằng AI cho loại '{$subTypeTitle}': " . $aiErr->getMessage());
                     }
@@ -472,6 +481,13 @@ Yêu cầu:
                 ];
                 $categoryLevels = ['list', 'cat', 'item', 'sub'];
                 $categoriesConfig = $raw['categories'] ?? [];
+
+                $allGeneratedNames = [];
+                if (!empty($aiData)) {
+                    foreach ($aiData as $aiItem) {
+                        if (!empty($aiItem['name'])) $allGeneratedNames[] = trim($aiItem['name']);
+                    }
+                }
 
                 foreach ($categoryLevels as $lvlIdx => $level) {
                     if (!isset($categoriesConfig[$level])) {
@@ -547,24 +563,39 @@ Yêu cầu:
                         }
                     }
 
-                    if (count($existingIds) >= $seedCatCount) {
+                    $parentLevel = $lvlIdx > 0 ? $categoryLevels[$lvlIdx - 1] : null;
+                    $parents = $parentLevel ? $generated[$parentLevel] : [0];
+
+                    $targetCount = 0;
+                    if ($level === 'list') {
+                        $targetCount = $seedCatCount;
+                    } elseif ($level === 'cat') {
+                        $targetCount = count($parents) * 4;
+                    } else { // item or sub
+                        $targetCount = count($parents) * 2;
+                    }
+
+                    if (count($existingIds) >= $targetCount) {
                         $generated[$level] = $existingIds;
                     } else {
                         $newIds = [];
-
-                        $parentLevel = $lvlIdx > 0 ? $categoryLevels[$lvlIdx - 1] : null;
-                        $parents = $parentLevel ? $generated[$parentLevel] : [0];
-
-                        $needed = $seedCatCount - count($existingIds);
+                        $needed = $targetCount - count($existingIds);
 
                         $aiCatData = [];
-                        if ($useAiText) {
+                        if ($useAiText && $needed > 0) {
                             $apiKey = trim($globalConfig['gemini_key'] ?? '');
                             if ($apiKey !== '' && $apiKey !== 'YOUR_GEMINI_API_KEY') {
                                 $prompt = $aiPromptExtra !== '' ? $aiPromptExtra : ($raw['title_main'] ?? $subKey);
                                 $subTypeTitle = $raw['title_main'] ?? $subKey;
+                                // Giới hạn gọi AI tối đa 40 để tránh đứt gãy JSON
+                                $aiNeeded = min($needed, 40);
                                 try {
-                                    $aiCatData = $getAiCategoriesFromGemini($apiKey, $aiModel, $prompt, $subTypeTitle, $level, $needed);
+                                    $aiCatData = $getAiCategoriesFromGemini($apiKey, $aiModel, $prompt, $subTypeTitle, $level, $aiNeeded, $allGeneratedNames);
+                                    if (is_array($aiCatData)) {
+                                        foreach ($aiCatData as $catName) {
+                                            $allGeneratedNames[] = trim($catName);
+                                        }
+                                    }
                                 } catch (\Throwable $catErr) {
                                     $report['errors'][] = "Lỗi sinh danh mục AI cấp {$level}: " . $catErr->getMessage();
                                 }
@@ -840,6 +871,68 @@ Yêu cầu:
                     if (!empty($raw['phone'])) {
                         $phoneVal = $randomPhone();
                         if (in_array('phone', $columns)) { $cols[] = 'phone'; $vals[] = $phoneVal; }
+                    }
+
+                    // content & content_cke
+                    $contentVal = '';
+                    if (!empty($raw['content']) || !empty($raw['content_cke'])) {
+                        $paragraphs = [];
+                        for ($p = 0; $p < rand(3, 5); $p++) {
+                            $paragraphs[] = $randomDesc() . ' ' . $randomDesc();
+                        }
+                        
+                        if (!empty($raw['content_cke'])) {
+                            $contentVal = '<p>' . implode('</p><p>', $paragraphs) . '</p>';
+                        } else {
+                            $contentVal = implode("\n\n", $paragraphs);
+                        }
+                        
+                        if ($aiItem && !empty($aiItem['content'])) {
+                            $contentVal = trim($aiItem['content']);
+                            if (!empty($raw['content_cke']) && !str_starts_with($contentVal, '<p>') && !str_contains($contentVal, '<br>')) {
+                                $contentVal = '<p>' . str_replace("\n\n", '</p><p>', $contentVal) . '</p>';
+                            }
+                        }
+                        
+                        $contentCols = ['contentvi', 'contenten', 'content', 'noidung', 'noidungvi', 'noidungen'];
+                        foreach ($contentCols as $cc) {
+                            if (in_array($cc, $columns)) {
+                                $cols[] = $cc;
+                                $vals[] = $contentVal;
+                            }
+                        }
+                    }
+
+                    // code
+                    if (!empty($raw['code'])) {
+                        $codeVal = 'SP' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+                        if (in_array('code', $columns)) { $cols[] = 'code'; $vals[] = $codeVal; }
+                    }
+
+                    // prices and discount
+                    if (!empty($raw['regular_price']) || !empty($raw['sale_price']) || !empty($raw['discount'])) {
+                        $regularPrice = rand(10, 500) * 10000; // 100k đến 5tr
+                        $discount = 0;
+                        if (!empty($raw['discount'])) {
+                            $discounts = [0, 5, 10, 15, 20, 25, 30, 40, 50];
+                            $discount = $discounts[array_rand($discounts)];
+                        }
+                        $salePrice = 0;
+                        if (!empty($raw['sale_price']) && $discount > 0) {
+                            $salePrice = $regularPrice - ($regularPrice * $discount / 100);
+                        } elseif (!empty($raw['sale_price']) && $discount == 0) {
+                            $salePrice = $regularPrice;
+                        }
+                        
+                        if (in_array('regular_price', $columns)) { $cols[] = 'regular_price'; $vals[] = $regularPrice; }
+                        if (in_array('sale_price', $columns)) { $cols[] = 'sale_price'; $vals[] = $salePrice; }
+                        if (in_array('discount', $columns)) { $cols[] = 'discount'; $vals[] = $discount; }
+                    }
+                    
+                    // options2
+                    if (!empty($raw['options2'])) {
+                        $optionsVal = json_encode(['mau_sac' => 'Màu ' . rand(1, 10), 'kich_thuoc' => 'Size ' . rand(35, 45)]);
+                        if (in_array('options2', $columns)) { $cols[] = 'options2'; $vals[] = $optionsVal; }
                     }
 
                     if (in_array('status', $columns)) {

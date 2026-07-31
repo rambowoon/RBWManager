@@ -7,9 +7,9 @@ const SchemaBuilder = {
 
 	async init(projectName) {
 		this.currentProject = projectName;
-		document.getElementById('sb-project-name').innerText =
+		document.getElementById("sb-project-name").innerText =
 			`Project: ${projectName}`;
-		UI.showModal('schema-builder-modal');
+		UI.showModal("schema-builder-modal");
 
 		if (!this.presets) {
 			await this.loadPresets();
@@ -17,71 +17,71 @@ const SchemaBuilder = {
 
 		// Load file list
 		const res = await Api.getProjectSchemaList(projectName);
-		if (res.status === 'success') {
-			const select = document.getElementById('sb-file-select');
+		if (res.status === "success") {
+			const select = document.getElementById("sb-file-select");
 			select.innerHTML = res.data
 				.map((f) => `<option value="${f}">${f}</option>`)
-				.join('');
+				.join("");
 			if (res.data.length > 0) {
 				const defaultFile =
-					res.data.find((f) => f === 'type-products.php') ||
+					res.data.find((f) => f === "type-products.php") ||
 					res.data[0];
 				select.value = defaultFile;
 				this.loadSelectedFile();
 			}
 		} else {
-			UI.notify(res.message, 'error');
+			UI.notify(res.message, "error");
 		}
 	},
 
 	async loadPresets() {
 		try {
 			const res = await (
-				await fetch('api.php?action=getSchemaPresets')
+				await fetch("api.php?action=getSchemaPresets")
 			).json();
-			if (res.status === 'success') {
+			if (res.status === "success") {
 				this.presets = res.data;
 			}
 		} catch (e) {
-			console.error('Failed to load presets', e);
+			console.error("Failed to load presets", e);
 		}
 	},
 
 	async loadSelectedFile() {
-		const file = document.getElementById('sb-file-select').value;
+		const file = document.getElementById("sb-file-select").value;
 		this.currentFile = file;
-		const container = document.getElementById('sb-form-container');
+		const container = document.getElementById("sb-form-container");
 		container.innerHTML =
 			'<div style="text-align:center; padding:50px; color:var(--muted);">Đang tải cấu hình...</div>';
 
 		const res = await Api.loadModuleSchema(this.currentProject, file);
-		if (res.status === 'success') {
+		if (res.status === "success") {
 			this.currentData = res.data;
 			this.currentActiveModule = null; // Reset to blank state initially
 			this.renderForm();
 		} else {
-			UI.notify(res.message, 'error');
+			UI.notify(res.message, "error");
 		}
 	},
 
 	renderForm() {
-		const container = document.getElementById('sb-form-container');
-		container.innerHTML = '';
+		const container = document.getElementById("sb-form-container");
+		container.innerHTML = "";
 
 		if (!this.currentData) return;
 
 		const allKeys = Object.keys(this.currentData);
 
 		// --- Render Module Toolbar (Only Thêm Mới) ---
-		const toolbar = document.createElement('div');
-		toolbar.style.display = 'flex';
-		toolbar.style.padding = '15px';
-		toolbar.style.background = 'rgba(255,255,255,0.02)';
-		toolbar.style.border = '1px solid var(--border)';
-		toolbar.style.borderRadius = '12px';
-		toolbar.style.marginBottom = '20px';
-		toolbar.style.alignItems = 'center';
-		toolbar.style.justifyContent = 'space-between';
+		const toolbar = document.createElement("div");
+		toolbar.style.display = "flex";
+		toolbar.style.padding = "15px";
+		toolbar.style.background = "rgba(255,255,255,0.02)";
+		toolbar.style.border = "1px solid var(--border)";
+		toolbar.style.borderRadius = "12px";
+		toolbar.style.marginBottom = "20px";
+		toolbar.style.alignItems = "center";
+		toolbar.style.justifyContent = "space-between";
 
 		let presetOptions = '<option value="">-- Trống --</option>';
 		if (this.presets) {
@@ -97,7 +97,7 @@ const SchemaBuilder = {
 			presetOptions += `<optgroup label="Copy từ file hiện tại">`;
 			presetOptions += allKeys
 				.map((k) => `<option value="clone:${k}">Copy: ${k}</option>`)
-				.join('');
+				.join("");
 			presetOptions += `</optgroup>`;
 		}
 
@@ -119,7 +119,7 @@ const SchemaBuilder = {
 		container.appendChild(toolbar);
 
 		// --- Render Quick Summary List ---
-		const summary = document.createElement('div');
+		const summary = document.createElement("div");
 		summary.style.cssText = `
             display: flex;
             align-items: center;
@@ -140,7 +140,7 @@ const SchemaBuilder = {
                 ${k}
             </span>`,
 			)
-			.join('');
+			.join("");
 
 		summary.innerHTML = `
             <div style="font-size:0.8rem; color:var(--primary); font-weight:bold; white-space:nowrap;">
@@ -153,38 +153,38 @@ const SchemaBuilder = {
 		container.appendChild(summary);
 
 		// Bind Toolbar Events
-		toolbar.querySelector('#sb-type-add').onclick = () => {
+		toolbar.querySelector("#sb-type-add").onclick = () => {
 			const val = toolbar
-				.querySelector('#sb-type-new')
+				.querySelector("#sb-type-new")
 				.value.trim()
 				.toLowerCase()
-				.replace(/[^a-z0-9-]/g, '-');
+				.replace(/[^a-z0-9-]/g, "-");
 			const titleVal = toolbar
-				.querySelector('#sb-type-title')
+				.querySelector("#sb-type-title")
 				.value.trim();
-			const presetVal = toolbar.querySelector('#sb-type-preset').value;
+			const presetVal = toolbar.querySelector("#sb-type-preset").value;
 
 			if (!val) {
-				UI.notify('Vui lòng nhập tên Type (ví dụ: tin-tuc)', 'error');
+				UI.notify("Vui lòng nhập tên Type (ví dụ: tin-tuc)", "error");
 				return;
 			}
 			if (this.currentData[val]) {
-				UI.notify('Type này đã tồn tại trong file!', 'error');
+				UI.notify("Type này đã tồn tại trong file!", "error");
 				return;
 			}
 
-			if (presetVal.startsWith('clone:')) {
-				const cloneKey = presetVal.replace('clone:', '');
+			if (presetVal.startsWith("clone:")) {
+				const cloneKey = presetVal.replace("clone:", "");
 				this.currentData[val] = JSON.parse(
 					JSON.stringify(this.currentData[cloneKey]),
 				);
 				this.currentData[val].title_main =
 					titleVal ||
-					'Copy of ' + this.currentData[cloneKey].title_main;
-			} else if (presetVal.startsWith('preset:')) {
+					"Copy of " + this.currentData[cloneKey].title_main;
+			} else if (presetVal.startsWith("preset:")) {
 				const [gKey, pKey] = presetVal
-					.replace('preset:', '')
-					.split('.');
+					.replace("preset:", "")
+					.split(".");
 				const presetObj = this.presets[gKey][pKey];
 				if (presetObj) {
 					const configData = presetObj.data || presetObj.config;
@@ -196,14 +196,17 @@ const SchemaBuilder = {
 							titleVal || presetObj.name || val;
 					} else {
 						UI.notify(
-							'Không tìm thấy dữ liệu cấu hình trong Preset này!',
-							'error',
+							"Không tìm thấy dữ liệu cấu hình trong Preset này!",
+							"error",
 						);
 						return;
 					}
 				}
 			} else {
-				const isNewsOrStatic = this.currentFile && (this.currentFile.includes('news') || this.currentFile.includes('static'));
+				const isNewsOrStatic =
+					this.currentFile &&
+					(this.currentFile.includes("news") ||
+						this.currentFile.includes("static"));
 				this.currentData[val] = {
 					title_main: titleVal || val,
 					slug: true,
@@ -212,28 +215,28 @@ const SchemaBuilder = {
 					view: true,
 					comment: true,
 					datePublish: true,
-					status: { noibat: 'noibat', hienthi: 'hienthi' },
+					status: { noibat: "noibat", hienthi: "hienthi" },
 					images: {
 						photo: {
-							title: 'anhdaidien',
+							title: "anhdaidien",
 							width: 800,
 							height: 800,
-							thumb: '400x400x1',
+							thumb: "400x400x1",
 						},
 					},
 					show_images: true,
 					gallery: {
 						[val]: {
-							title_main_photo: 'hinhanh',
-							title_sub_photo: 'hinhanh',
-							status_photo: { hienthi: 'hienthi' },
+							title_main_photo: "hinhanh",
+							title_sub_photo: "hinhanh",
+							status_photo: { hienthi: "hienthi" },
 							number_photo: 3,
 							images_photo: true,
 							avatar_photo: true,
 							name_photo: true,
 							photo_width: 800,
 							photo_height: 800,
-							photo_thumb: '800x800x1',
+							photo_thumb: "800x800x1",
 							sync_with_main: true,
 						},
 					},
@@ -250,19 +253,19 @@ const SchemaBuilder = {
 					schema: true,
 					categories: {
 						list: {
-							title_main_categories: 'danhmuccap1',
+							title_main_categories: "danhmuccap1",
 							copy_categories: true,
 							show_images_categories: true,
 							images: {
 								photo: {
-									title: 'anhdaidien',
-									width: '500',
-									height: '500',
-									thumb: '500x500x1',
+									title: "anhdaidien",
+									width: "500",
+									height: "500",
+									thumb: "500x500x1",
 								},
 							},
 							slug_categories: true,
-							status_categories: { hienthi: 'hienthi' },
+							status_categories: { hienthi: "hienthi" },
 							name_categories: true,
 							desc_categories: false,
 							content_categories: true,
@@ -274,18 +277,18 @@ const SchemaBuilder = {
 
 				if (!isNewsOrStatic) {
 					this.currentData[val].brand = {
-						title_main_brand: 'danhmuchang',
+						title_main_brand: "danhmuchang",
 						show_images_brand: true,
 						images: {
 							photo: {
-								title: 'anhdaidien',
-								width: '500',
-								height: '500',
-								thumb: '500x500x1',
+								title: "anhdaidien",
+								width: "500",
+								height: "500",
+								thumb: "500x500x1",
 							},
 						},
 						slug_brand: true,
-						status_brand: { hienthi: 'hienthi' },
+						status_brand: { hienthi: "hienthi" },
 						name_brand: true,
 						seo_brand: true,
 					};
@@ -297,18 +300,18 @@ const SchemaBuilder = {
 		};
 
 		if (allKeys.length === 0) {
-			const blankState = document.createElement('div');
-			blankState.style.padding = '50px';
-			blankState.style.textAlign = 'center';
-			blankState.style.color = 'var(--muted)';
+			const blankState = document.createElement("div");
+			blankState.style.padding = "50px";
+			blankState.style.textAlign = "center";
+			blankState.style.color = "var(--muted)";
 			let blankHtml =
-				'<h2>👆</h2><p>File cấu hình đang trống. Vui lòng <b>Thêm mới</b> một type để bắt đầu.</p>';
+				"<h2>👆</h2><p>File cấu hình đang trống. Vui lòng <b>Thêm mới</b> một type để bắt đầu.</p>";
 
-			if (this.currentFile.includes('news')) {
+			if (this.currentFile.includes("news")) {
 				blankHtml += `<button class="btn btn-outline-primary btn-sm" onclick="SchemaBuilder.initNewsSkeleton()">✨ Khởi tạo bộ khung Tin tức chuẩn</button>`;
-			} else if (this.currentFile.includes('static')) {
+			} else if (this.currentFile.includes("static")) {
 				blankHtml += `<button class="btn btn-outline-info btn-sm" onclick="SchemaBuilder.initStaticSkeleton()">✨ Khởi tạo bộ khung Trang tĩnh chuẩn</button>`;
-			} else if (this.currentFile.includes('newsletters')) {
+			} else if (this.currentFile.includes("newsletters")) {
 				blankHtml += `<button class="btn btn-outline-warning btn-sm" onclick="SchemaBuilder.initNewslettersSkeleton()">✨ Khởi tạo bộ khung Newsletters chuẩn</button>`;
 			}
 
@@ -321,97 +324,98 @@ const SchemaBuilder = {
 		// Initial Master order for keys (if not already set)
 		if (!this.masterOrder) {
 			this.masterOrder = [
-				'title_main',
-				'website',
-				'status',
-				'slug',
-				'seo',
-				'schema',
-				'copy',
-				'tags',
-				'view',
-				'comment',
-				'datePublish',
-				'code',
-				'regular_price',
-				'sale_price',
-				'discount',
-				'name',
-				'desc',
-				'desc_cke',
-				'content',
-				'content_cke',
-				'properties',
-				'options2',
-				'show_images',
-				'images',
-				'gallery',
-				'group',
-				'brand',
-				'categories',
+				"title_main",
+				"website",
+				"status",
+				"slug",
+				"seo",
+				"schema",
+				"copy",
+				"tags",
+				"view",
+				"comment",
+				"datePublish",
+				"code",
+				"regular_price",
+				"sale_price",
+				"discount",
+				"name",
+				"desc",
+				"desc_cke",
+				"content",
+				"content_cke",
+				"properties",
+				"options2",
+				"show_images",
+				"images",
+				"gallery",
+				"group",
+				"brand",
+				"categories",
 			];
 		}
 
 		// Definitions for grouping
 		this.groups = {
 			logic: [
-				'slug',
-				'slug_categories',
-				'slug_brand',
-				'view',
-				'datePublish',
-				'schema',
-				'seo',
-				'seo_categories',
-				'seo_brand',
-				'copy',
-				'copy_categories',
-				'copy_brand',
+				"website",
+				"slug",
+				"slug_categories",
+				"slug_brand",
+				"view",
+				"datePublish",
+				"schema",
+				"seo",
+				"seo_categories",
+				"seo_brand",
+				"copy",
+				"copy_categories",
+				"copy_brand",
 			],
 			standard: [
-				'title_main',
-				'title_main_categories',
-				'title_main_brand',
-				'name',
-				'name_categories',
-				'name_brand',
-				'desc',
-				'desc_categories',
-				'desc_brand',
-				'desc_cke',
-				'desc_categories_cke',
-				'desc_brand_cke',
-				'content',
-				'content_categories',
-				'content_brand',
-				'content_cke',
-				'content_categories_cke',
-				'content_brand_cke',
-				'tags',
-				'comment',
-				'properties',
-				'code',
-				'regular_price',
-				'sale_price',
-				'discount',
-				'options2',
-				'file',
-				'send_email',
+				"title_main",
+				"title_main_categories",
+				"title_main_brand",
+				"name",
+				"name_categories",
+				"name_brand",
+				"desc",
+				"desc_categories",
+				"desc_brand",
+				"desc_cke",
+				"desc_categories_cke",
+				"desc_brand_cke",
+				"content",
+				"content_categories",
+				"content_brand",
+				"content_cke",
+				"content_categories_cke",
+				"content_brand_cke",
+				"tags",
+				"comment",
+				"properties",
+				"code",
+				"regular_price",
+				"sale_price",
+				"discount",
+				"options2",
+				"file",
+				"send_email",
 			],
 			images: [
-				'show_images',
-				'show_images_categories',
-				'show_images_brand',
-				'images',
-				'gallery',
-				'gallery_categories',
+				"show_images",
+				"show_images_categories",
+				"show_images_brand",
+				"images",
+				"gallery",
+				"gallery_categories",
 			],
-			categories: ['categories', 'brand'],
-			hidden: ['website', 'admin_lang', 'group', 'dropdown'],
+			categories: ["categories", "brand"],
+			hidden: ["admin_lang", "group", "dropdown"],
 		};
 
 		this.MASTER_DEFAULTS = {
-			title_main: 'Tên module',
+			title_main: "Tên module",
 			slug: false,
 			copy: false,
 			tags: false,
@@ -431,28 +435,47 @@ const SchemaBuilder = {
 			properties: false,
 			brand: false,
 			file: false,
+			website: {
+				type: {
+					index: "object",
+					detail: "article"
+				},
+				title: "tentype",
+				amp: true,
+				route: {
+					controller: "Controller@index",
+					name: "tentype",
+					method: "get",
+					slugs: {
+						vi: "ten-type"
+					}
+				}
+			}
 		};
 
 		// Render ALL modules stacked vertically
 		// Sort keys to ensure 'hinh-thuc-thanh-toan' is always last
 		const sortedKeys = Object.keys(this.currentData).sort((a, b) => {
-			if (a === 'hinh-thuc-thanh-toan') return 1;
-			if (b === 'hinh-thuc-thanh-toan') return -1;
+			if (a === "hinh-thuc-thanh-toan") return 1;
+			if (b === "hinh-thuc-thanh-toan") return -1;
 			return 0;
 		});
 
 		for (const key of sortedKeys) {
 			const rawValue = this.currentData[key];
-			if (key === 'brand' || key === 'default') continue; // Skip helper keys
+			if (key === "brand" || key === "default") continue; // Skip helper keys
 
 			// Hide mandatory system type for news to keep UI clean
 			if (
-				this.currentFile.includes('news') &&
-				key === 'hinh-thuc-thanh-toan'
+				this.currentFile.includes("news") &&
+				key === "hinh-thuc-thanh-toan"
 			)
 				continue;
 
-			const isNewsOrStatic = this.currentFile && (this.currentFile.includes('news') || this.currentFile.includes('static'));
+			const isNewsOrStatic =
+				this.currentFile &&
+				(this.currentFile.includes("news") ||
+					this.currentFile.includes("static"));
 			if (isNewsOrStatic) {
 				delete this.currentData[key].brand;
 			} else if (this.currentData[key].brand === undefined) {
@@ -464,11 +487,11 @@ const SchemaBuilder = {
 			);
 			const value = this.currentData[key];
 
-			const section = document.createElement('div');
-			section.className = 'sb-section';
+			const section = document.createElement("div");
+			section.className = "sb-section";
 			section.id = `sb-section-${key}`;
-			section.style.marginBottom = '30px';
-			section.style.border = '1px solid rgba(255,255,255,0.05)';
+			section.style.marginBottom = "30px";
+			section.style.border = "1px solid rgba(255,255,255,0.05)";
 			section.innerHTML = `
                 <div class="sb-section-title" style="justify-content: space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:15px; margin-bottom:15px;">
                     <span style="font-size:1.1rem; color:var(--primary);">📦 Type: ${key}</span>
@@ -479,53 +502,53 @@ const SchemaBuilder = {
                 </div>
             `;
 
-			const formBody = document.createElement('div');
-			formBody.className = 'sb-form-body';
+			const formBody = document.createElement("div");
+			formBody.className = "sb-form-body";
 
 			// 1. Group Logic
 			const logicBox = this.createGroupWrapper(
-				'⚙️ Logic & SEO',
-				'logic',
+				"⚙️ Logic & SEO",
+				"logic",
 				key,
 			);
-			const logicGrid = logicBox.querySelector('.sb-grid');
-			const logicNested = logicBox.querySelector('.sb-nested-container');
+			const logicGrid = logicBox.querySelector(".sb-grid");
+			const logicNested = logicBox.querySelector(".sb-nested-container");
 
 			// 2. Group Standard
 			const standardBox = this.createGroupWrapper(
-				'📝 Nội dung & Thông tin',
-				'standard',
+				"📝 Nội dung & Thông tin",
+				"standard",
 				key,
 			);
-			const standardGrid = standardBox.querySelector('.sb-grid');
+			const standardGrid = standardBox.querySelector(".sb-grid");
 			const standardNested = standardBox.querySelector(
-				'.sb-nested-container',
+				".sb-nested-container",
 			);
 
 			// 3. Group Images
 			const imageBox = this.createGroupWrapper(
-				'🖼️ Hình ảnh & Gallery',
-				'images',
+				"🖼️ Hình ảnh & Gallery",
+				"images",
 				key,
 			);
-			const imageGrid = imageBox.querySelector('.sb-grid');
-			const imageNested = imageBox.querySelector('.sb-nested-container');
+			const imageGrid = imageBox.querySelector(".sb-grid");
+			const imageNested = imageBox.querySelector(".sb-nested-container");
 
 			// 4. Categories
 			const catBox = this.createGroupWrapper(
-				'📂 Danh mục',
-				'categories',
+				"📂 Danh mục",
+				"categories",
 				key,
 			);
-			const catNested = catBox.querySelector('.sb-nested-container');
+			const catNested = catBox.querySelector(".sb-nested-container");
 
 			// 5. Status & Options (Others)
 			const otherBox = this.createGroupWrapper(
-				'🛠️ Trạng thái & Tùy chọn khác',
-				'others',
+				"🛠️ Trạng thái & Tùy chọn khác",
+				"others",
 				key,
 			);
-			const otherNested = otherBox.querySelector('.sb-nested-container');
+			const otherNested = otherBox.querySelector(".sb-nested-container");
 
 			// Render ALL fields based on Master Order (Full Frame)
 			const allPossibleKeys = [...this.masterOrder];
@@ -535,93 +558,93 @@ const SchemaBuilder = {
 
 			allPossibleKeys.forEach((fieldKey) => {
 				// Fields to hide specifically for News & Static modules
-				const isNews = this.currentFile.includes('news');
-				const isStatic = this.currentFile.includes('static');
-				const isNewsletters = this.currentFile.includes('newsletters');
-				const isProduct = this.currentFile.includes('product');
+				const isNews = this.currentFile.includes("news");
+				const isStatic = this.currentFile.includes("static");
+				const isNewsletters = this.currentFile.includes("newsletters");
+				const isProduct = this.currentFile.includes("product");
 				const isContent = isNews || isStatic || isNewsletters;
 
 				let forbidden = [
-					'comment',
-					'code',
-					'regular_price',
-					'sale_price',
-					'discount',
-					'brand',
-					'properties',
-					'dropdown',
+					"comment",
+					"code",
+					"regular_price",
+					"sale_price",
+					"discount",
+					"brand",
+					"properties",
+					"dropdown",
 				];
 
 				if (isProduct) {
-					forbidden = forbidden.filter((f) => f !== 'brand');
+					forbidden = forbidden.filter((f) => f !== "brand");
 				}
 
 				if (isStatic) {
 					forbidden = [
 						...forbidden,
-						'slug',
-						'copy',
-						'schema',
-						'view',
-						'datePublish',
-						'tags',
-						'categories',
+						"slug",
+						"copy",
+						"schema",
+						"view",
+						"datePublish",
+						"tags",
+						"categories",
 					];
 				}
 
 				if (isNewsletters) {
 					forbidden = [
 						...forbidden,
-						'slug',
-						'copy',
-						'schema',
-						'view',
-						'datePublish',
-						'tags',
-						'categories',
-						'images',
-						'gallery',
-						'status',
-						'name',
-						'desc',
-						'desc_cke',
-						'content',
-						'content_cke',
-						'desc_categories_cke',
-						'content_categories_cke',
-						'properties',
-						'dropdown',
-						'file',
-						'comment',
-						'email',
-						'fullname',
-						'phone',
-						'address',
-						'subject',
-						'show_subject',
-						'show_fullname',
-						'show_phone',
-						'dat-lich',
-						'show_images',
-						'show_images_categories',
-						'show_images_brand',
-						'options2',
+						"slug",
+						"copy",
+						"schema",
+						"view",
+						"datePublish",
+						"tags",
+						"categories",
+						"images",
+						"gallery",
+						"status",
+						"name",
+						"desc",
+						"desc_cke",
+						"content",
+						"content_cke",
+						"desc_categories_cke",
+						"content_categories_cke",
+						"properties",
+						"dropdown",
+						"file",
+						"comment",
+						"email",
+						"fullname",
+						"phone",
+						"address",
+						"subject",
+						"show_subject",
+						"show_fullname",
+						"show_phone",
+						"dat-lich",
+						"show_images",
+						"show_images_categories",
+						"show_images_brand",
+						"options2",
 					];
 				}
 
 				if (
 					this.groups.hidden.includes(fieldKey) ||
 					(isContent && forbidden.includes(fieldKey)) ||
-					(fieldKey === 'brand' && !isProduct)
+					(fieldKey === "brand" && !isProduct)
 				)
 					return;
 
 				// Full Frame logic:
 				const forceManagers = [
-					'gallery',
-					'gallery_categories',
-					'options2',
-					'categories',
+					"gallery",
+					"gallery_categories",
+					"options2",
+					"categories",
 				];
 				let fieldValue = value[fieldKey];
 
@@ -637,7 +660,7 @@ const SchemaBuilder = {
 
 				const path = [key, fieldKey];
 				const isSimple =
-					typeof fieldValue !== 'object' || fieldValue === null;
+					typeof fieldValue !== "object" || fieldValue === null;
 				const el = this.renderField(fieldKey, fieldValue, path);
 				if (!el) return;
 
@@ -646,13 +669,13 @@ const SchemaBuilder = {
 					else logicNested.appendChild(el);
 				} else if (
 					this.groups.standard.includes(fieldKey) ||
-					fieldKey === 'comment' ||
-					fieldKey === 'comments'
+					fieldKey === "comment" ||
+					fieldKey === "comments"
 				) {
 					if (isSimple) standardGrid.appendChild(el);
 					else standardNested.appendChild(el);
 				} else if (this.groups.images.includes(fieldKey)) {
-					if (fieldKey === 'show_images') {
+					if (fieldKey === "show_images") {
 						imageGrid.appendChild(el);
 					} else {
 						imageNested.appendChild(el);
@@ -661,7 +684,7 @@ const SchemaBuilder = {
 					catNested.appendChild(el);
 				} else {
 					if (isSimple)
-						otherBox.querySelector('.sb-grid').appendChild(el);
+						otherBox.querySelector(".sb-grid").appendChild(el);
 					else otherNested.appendChild(el);
 				}
 			});
@@ -678,7 +701,7 @@ const SchemaBuilder = {
 				formBody.appendChild(standardBox);
 			if (
 				otherNested.children.length > 0 ||
-				otherBox.querySelector('.sb-grid').children.length > 0
+				otherBox.querySelector(".sb-grid").children.length > 0
 			)
 				formBody.appendChild(otherBox);
 			if (
@@ -697,7 +720,7 @@ const SchemaBuilder = {
 	},
 
 	sortObjectKeys(obj, order) {
-		if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+		if (!obj || typeof obj !== "object" || Array.isArray(obj)) return obj;
 		const sorted = {};
 		// First, add keys that are in the master order
 		order.forEach((key) => {
@@ -711,18 +734,18 @@ const SchemaBuilder = {
 	},
 
 	createGroupWrapper(title, type, modKey) {
-		const div = document.createElement('div');
+		const div = document.createElement("div");
 		div.className = `sb-group-box sb-group-${type}`;
-		div.style.marginBottom = '20px';
-		div.style.padding = '15px';
-		div.style.background = 'rgba(255,255,255,0.02)';
-		div.style.border = '1px solid var(--border)';
-		div.style.borderRadius = '12px';
+		div.style.marginBottom = "20px";
+		div.style.padding = "15px";
+		div.style.background = "rgba(255,255,255,0.02)";
+		div.style.border = "1px solid var(--border)";
+		div.style.borderRadius = "12px";
 
 		div.innerHTML = `
             <div style="font-size:0.75rem; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:15px; letter-spacing:0.5px; display:flex; align-items:center; justify-content:space-between;">
                 <div style="display:flex; align-items:center; gap:8px;">${title}</div>
-                ${type === 'standard' ? `<button class="btn btn-ghost btn-sm" style="padding:2px 8px; font-size:1rem; line-height:1;" onclick="SchemaBuilder.promptAddOption(event, '${modKey}', '${type}')">+</button>` : ''}
+                ${type === "standard" ? `<button class="btn btn-ghost btn-sm" style="padding:2px 8px; font-size:1rem; line-height:1;" onclick="SchemaBuilder.promptAddOption(event, '${modKey}', '${type}')">+</button>` : ""}
             </div>
             <div class="sb-grid"></div>
             <div class="sb-nested-container" style="margin-top:10px;"></div>
@@ -731,13 +754,13 @@ const SchemaBuilder = {
 	},
 
 	renderPreview() {
-		const pre = document.getElementById('sb-live-preview');
+		const pre = document.getElementById("sb-live-preview");
 		if (pre && this.currentData) {
 			// First reorder, then deep clean
 			let cleanData = SchemaBuilder.reorderKeys(this.currentData);
 
 			const deepClean = (obj) => {
-				if (!obj || typeof obj !== 'object' || Array.isArray(obj))
+				if (!obj || typeof obj !== "object" || Array.isArray(obj))
 					return;
 				if (obj.sync_with_main !== undefined) delete obj.sync_with_main;
 				if (obj.brand === false) delete obj.brand;
@@ -750,7 +773,7 @@ const SchemaBuilder = {
 	},
 
 	async toggleCategoryLevel(path, level, active) {
-		const keys = path.split('.');
+		const keys = path.split(".");
 		let current = this.currentData;
 		for (let i = 0; i < keys.length; i++) {
 			current = current[keys[i]];
@@ -759,19 +782,19 @@ const SchemaBuilder = {
 		if (active) {
 			const templates = {
 				list: {
-					title_main_categories: 'Danh mục cấp 1',
+					title_main_categories: "Danh mục cấp 1",
 					copy_categories: true,
 					show_images_categories: true,
 					images: {
 						photo: {
-							title: 'anhdaidien',
-							width: '500',
-							height: '500',
-							thumb: '500x500x1',
+							title: "anhdaidien",
+							width: "500",
+							height: "500",
+							thumb: "500x500x1",
 						},
 					},
 					slug_categories: true,
-					status_categories: { hienthi: 'hienthi' },
+					status_categories: { hienthi: "hienthi" },
 					name_categories: true,
 					desc_categories: false,
 					content_categories: true,
@@ -779,19 +802,19 @@ const SchemaBuilder = {
 					seo_categories: true,
 				},
 				cat: {
-					title_main_categories: 'Danh mục cấp 2',
+					title_main_categories: "Danh mục cấp 2",
 					copy_categories: true,
 					show_images_categories: true,
 					images: {
 						photo: {
-							title: 'anhdaidien',
-							width: '500',
-							height: '500',
-							thumb: '500x500x1',
+							title: "anhdaidien",
+							width: "500",
+							height: "500",
+							thumb: "500x500x1",
 						},
 					},
 					slug_categories: true,
-					status_categories: { hienthi: 'hienthi' },
+					status_categories: { hienthi: "hienthi" },
 					name_categories: true,
 					desc_categories: false,
 					content_categories: true,
@@ -799,19 +822,19 @@ const SchemaBuilder = {
 					seo_categories: true,
 				},
 				item: {
-					title_main_categories: 'Danh mục cấp 3',
+					title_main_categories: "Danh mục cấp 3",
 					copy_categories: true,
 					show_images_categories: true,
 					images: {
 						photo: {
-							title: 'anhdaidien',
-							width: '500',
-							height: '500',
-							thumb: '500x500x1',
+							title: "anhdaidien",
+							width: "500",
+							height: "500",
+							thumb: "500x500x1",
 						},
 					},
 					slug_categories: true,
-					status_categories: { hienthi: 'hienthi' },
+					status_categories: { hienthi: "hienthi" },
 					name_categories: true,
 					desc_categories: false,
 					content_categories: true,
@@ -819,19 +842,19 @@ const SchemaBuilder = {
 					seo_categories: true,
 				},
 				sub: {
-					title_main_categories: 'Danh mục cấp 4',
+					title_main_categories: "Danh mục cấp 4",
 					copy_categories: true,
 					show_images_categories: true,
 					images: {
 						photo: {
-							title: 'anhdaidien',
-							width: '500',
-							height: '500',
-							thumb: '500x500x1',
+							title: "anhdaidien",
+							width: "500",
+							height: "500",
+							thumb: "500x500x1",
 						},
 					},
 					slug_categories: true,
-					status_categories: { hienthi: 'hienthi' },
+					status_categories: { hienthi: "hienthi" },
 					name_categories: true,
 					desc_categories: false,
 					content_categories: true,
@@ -847,11 +870,11 @@ const SchemaBuilder = {
 	},
 
 	updateData(path, value) {
-		const keys = path.split('.');
+		const keys = path.split(".");
 		let current = this.currentData;
 		for (let i = 0; i < keys.length - 1; i++) {
 			const k = keys[i];
-			if (!current[k] || typeof current[k] !== 'object') {
+			if (!current[k] || typeof current[k] !== "object") {
 				current[k] = {};
 			}
 			current = current[k];
@@ -860,45 +883,45 @@ const SchemaBuilder = {
 		current[lastKey] = value;
 
 		if (
-			lastKey === 'width' ||
-			lastKey === 'height' ||
-			lastKey === 'thumb'
+			lastKey === "width" ||
+			lastKey === "height" ||
+			lastKey === "thumb"
 		) {
 			// Find the nearest gallery relative to this image
-			const imgIdx = keys.indexOf('images');
+			const imgIdx = keys.indexOf("images");
 			if (imgIdx !== -1) {
 				const galleryPath = keys
 					.slice(0, imgIdx)
-					.concat('gallery')
-					.join('.');
+					.concat("gallery")
+					.join(".");
 				this.syncGalleryToMain(galleryPath);
 			}
 			this.renderPreview();
 		}
 		// CONDITIONAL LOGIC: sync_with_main toggle
-		else if (lastKey === 'sync_with_main') {
+		else if (lastKey === "sync_with_main") {
 			// If we are inside gallery, path is like ...gallery.albumName.sync_with_main
-			const galIdx = keys.lastIndexOf('gallery');
+			const galIdx = keys.lastIndexOf("gallery");
 			if (galIdx !== -1) {
-				const galleryPath = keys.slice(0, galIdx + 1).join('.');
+				const galleryPath = keys.slice(0, galIdx + 1).join(".");
 				if (value === true) this.syncGalleryToMain(galleryPath);
 			}
 			this.renderForm();
 		}
 		// CONDITIONAL LOGIC: title_main synchronization
-		else if (lastKey === 'title_main') {
+		else if (lastKey === "title_main") {
 			this.syncLabels();
 			this.renderForm();
 		}
 		// CONDITIONAL LOGIC: slug master switch
-		else if (lastKey === 'slug') {
+		else if (lastKey === "slug") {
 			const related = [
-				'view',
-				'datePublish',
-				'schema',
-				'seo',
-				'content',
-				'content_cke',
+				"view",
+				"datePublish",
+				"schema",
+				"seo",
+				"content",
+				"content_cke",
 			];
 			if (value === false) {
 				related.forEach((k) => delete current[k]);
@@ -910,44 +933,44 @@ const SchemaBuilder = {
 			this.renderForm();
 		}
 		// CONDITIONAL LOGIC: slug_categories switch
-		else if (lastKey === 'slug_categories') {
+		else if (lastKey === "slug_categories") {
 			if (value === false) {
-				delete current['seo_categories'];
+				delete current["seo_categories"];
 			} else {
-				current['seo_categories'] = true;
+				current["seo_categories"] = true;
 			}
 			this.renderForm();
 		}
 		// CONDITIONAL LOGIC: slug_brand switch
-		else if (lastKey === 'slug_brand') {
+		else if (lastKey === "slug_brand") {
 			if (value === false) {
-				delete current['seo_brand'];
+				delete current["seo_brand"];
 			} else {
-				current['seo_brand'] = true;
+				current["seo_brand"] = true;
 			}
 			this.renderForm();
 		}
 		// CONDITIONAL LOGIC: show_images switches (categories & brand)
 		else if (
-			lastKey === 'show_images_categories' ||
-			lastKey === 'show_images_brand'
+			lastKey === "show_images_categories" ||
+			lastKey === "show_images_brand"
 		) {
 			if (value === false) {
-				delete current['images'];
+				delete current["images"];
 			} else {
-				current['images'] = {
+				current["images"] = {
 					photo: {
-						title: 'anhdaidien',
-						width: '500',
-						height: '500',
-						thumb: '500x500x1',
+						title: "anhdaidien",
+						width: "500",
+						height: "500",
+						thumb: "500x500x1",
 					},
 				};
 			}
 			this.renderForm();
 		}
 		// CONDITIONAL LOGIC: gallery toggle
-		else if (lastKey === 'gallery' || lastKey === 'gallery_categories') {
+		else if (lastKey === "gallery" || lastKey === "gallery_categories") {
 			if (value === true) {
 				current[lastKey] = {}; // Initialize as empty gallery manager
 			} else {
@@ -956,7 +979,7 @@ const SchemaBuilder = {
 			this.renderForm();
 		}
 		// CONDITIONAL LOGIC: options2 toggle
-		else if (lastKey === 'options2') {
+		else if (lastKey === "options2") {
 			if (value === true) {
 				current[lastKey] = {}; // Initialize as object manager
 			} else {
@@ -965,19 +988,19 @@ const SchemaBuilder = {
 			this.renderForm();
 		}
 		// CONDITIONAL LOGIC: show_images master switch
-		else if (lastKey === 'show_images') {
+		else if (lastKey === "show_images") {
 			if (value === false) {
 				delete current.images;
 				delete current.gallery;
 			} else {
-				const isProduct = this.currentFile.includes('product');
+				const isProduct = this.currentFile.includes("product");
 				const defW = isProduct ? 800 : 400;
 				const defH = isProduct ? 800 : 400;
 
 				if (!current.images) {
 					current.images = {
 						photo: {
-							title: 'anhdaidien',
+							title: "anhdaidien",
 							width: defW,
 							height: defH,
 							thumb: `${defW}x${defH}x1`,
@@ -989,12 +1012,12 @@ const SchemaBuilder = {
 					Object.keys(current.gallery).length === 0
 				) {
 					// Initialize a default gallery album if empty
-					const gKey = this.currentActiveModule || 'album';
+					const gKey = this.currentActiveModule || "album";
 					current.gallery = {
 						[gKey]: {
-							title_main_photo: 'hinhanh',
-							title_sub_photo: 'hinhanh',
-							status_photo: { hienthi: 'hienthi' },
+							title_main_photo: "hinhanh",
+							title_sub_photo: "hinhanh",
+							status_photo: { hienthi: "hienthi" },
 							number_photo: 5,
 							images_photo: true,
 							avatar_photo: true,
@@ -1009,7 +1032,7 @@ const SchemaBuilder = {
 			this.renderForm();
 		}
 		// CONDITIONAL LOGIC: show_images_categories (levels)
-		else if (lastKey === 'show_images_categories') {
+		else if (lastKey === "show_images_categories") {
 			if (value === false) {
 				delete current.images;
 			} else {
@@ -1022,10 +1045,10 @@ const SchemaBuilder = {
 					const newObj = {};
 					for (const [k, v] of Object.entries(current)) {
 						newObj[k] = v;
-						if (k === 'show_images_categories') {
+						if (k === "show_images_categories") {
 							newObj.images = {
 								photo: {
-									title: 'anhdaidien',
+									title: "anhdaidien",
 									width: defW,
 									height: defH,
 									thumb: `${defW}x${defH}x1`,
@@ -1041,24 +1064,24 @@ const SchemaBuilder = {
 			this.renderForm();
 		}
 		// CONDITIONAL LOGIC: show_images_brand (levels)
-		else if (lastKey === 'show_images_brand') {
+		else if (lastKey === "show_images_brand") {
 			if (value === false) {
 				delete current.images;
 			} else {
 				if (!current.images) {
 					current.images = {
 						photo: {
-							title: 'anhdaidien',
-							width: '500',
-							height: '500',
-							thumb: '500x500x1',
+							title: "anhdaidien",
+							width: "500",
+							height: "500",
+							thumb: "500x500x1",
 						},
 					};
 				}
 			}
 			this.renderForm();
 		} else {
-			if (typeof value === 'boolean') {
+			if (typeof value === "boolean") {
 				this.renderForm();
 			} else {
 				this.renderPreview();
@@ -1068,9 +1091,9 @@ const SchemaBuilder = {
 
 	applyPreset(type) {
 		// Legacy support or global presets
-		if (type === 'news-slug' || type === 'news-no-slug') {
+		if (type === "news-slug" || type === "news-no-slug") {
 			const confirmMsg =
-				type === 'news-slug'
+				type === "news-slug"
 					? "Bạn muốn áp dụng cấu hình 'Có Slug' (SEO, Schema, Slug) cho tất cả các nhóm tin tức?"
 					: "Bạn muốn áp dụng cấu hình 'Không Slug' (Tắt SEO, Schema, Slug) cho tất cả các nhóm tin tức?";
 
@@ -1079,30 +1102,30 @@ const SchemaBuilder = {
 			for (const key in this.currentData) {
 				this.applyPresetToModule(
 					key,
-					type === 'news-slug' ? 'standard_news' : 'simple_news',
+					type === "news-slug" ? "standard_news" : "simple_news",
 				);
 			}
 
 			this.renderForm();
-			UI.notify('Đã áp dụng Preset thành công!', 'success');
+			UI.notify("Đã áp dụng Preset thành công!", "success");
 		}
 	},
 
 	showPresetMenu(event, moduleKey) {
 		event.stopPropagation();
 		const trigger = event.currentTarget;
-		let menu = document.getElementById('sb-preset-menu');
+		let menu = document.getElementById("sb-preset-menu");
 		if (!menu) {
-			menu = document.createElement('div');
-			menu.id = 'sb-preset-menu';
-			menu.className = 'action-menu';
+			menu = document.createElement("div");
+			menu.id = "sb-preset-menu";
+			menu.className = "action-menu";
 			document.body.appendChild(menu);
 		}
 
 		// Guess category from file name
-		let category = 'news';
-		if (this.currentFile.includes('product')) category = 'products';
-		if (this.currentFile.includes('photo')) category = 'photos';
+		let category = "news";
+		if (this.currentFile.includes("product")) category = "products";
+		if (this.currentFile.includes("photo")) category = "photos";
 
 		let html =
 			'<div style="padding:8px 12px; font-size:0.7rem; color:var(--muted); border-bottom:1px solid var(--border);">CHỌN CẤU HÌNH MẪU</div>';
@@ -1128,25 +1151,25 @@ const SchemaBuilder = {
 		}
 
 		menu.innerHTML = html;
-		menu.style.display = 'block';
+		menu.style.display = "block";
 
 		const rect = trigger.getBoundingClientRect();
-		menu.style.top = rect.bottom + window.scrollY + 5 + 'px';
-		menu.style.left = rect.right + window.scrollX - 200 + 'px';
-		menu.style.width = '200px';
+		menu.style.top = rect.bottom + window.scrollY + 5 + "px";
+		menu.style.left = rect.right + window.scrollX - 200 + "px";
+		menu.style.width = "200px";
 
 		const closeMenu = (e) => {
 			if (!menu.contains(e.target) && e.target !== trigger) {
 				this.hidePresetMenu();
-				document.removeEventListener('click', closeMenu);
+				document.removeEventListener("click", closeMenu);
 			}
 		};
-		setTimeout(() => document.addEventListener('click', closeMenu), 10);
+		setTimeout(() => document.addEventListener("click", closeMenu), 10);
 	},
 
 	hidePresetMenu() {
-		const menu = document.getElementById('sb-preset-menu');
-		if (menu) menu.style.display = 'none';
+		const menu = document.getElementById("sb-preset-menu");
+		if (menu) menu.style.display = "none";
 	},
 
 	applyPresetToModule(moduleKey, presetId, category = null) {
@@ -1172,15 +1195,15 @@ const SchemaBuilder = {
 
 		if (!preset) {
 			// Fallback for hardcoded news presets
-			if (presetId === 'standard_news') {
+			if (presetId === "standard_news") {
 				const mod = this.currentData[moduleKey];
 				mod.slug = true;
 				mod.seo = true;
 				mod.schema = true;
 				mod.view = true;
 				if (mod.website)
-					mod.website.type = { index: 'object', detail: 'article' };
-			} else if (presetId === 'simple_news') {
+					mod.website.type = { index: "object", detail: "article" };
+			} else if (presetId === "simple_news") {
 				const mod = this.currentData[moduleKey];
 				mod.slug = false;
 				mod.seo = false;
@@ -1193,17 +1216,17 @@ const SchemaBuilder = {
 		}
 
 		this.renderForm();
-		UI.notify(`Đã áp dụng mẫu cho ${moduleKey}`, 'success');
+		UI.notify(`Đã áp dụng mẫu cho ${moduleKey}`, "success");
 	},
 
 	deepMerge(target, source) {
 		for (const key in source) {
 			if (
 				source[key] !== null &&
-				typeof source[key] === 'object' &&
+				typeof source[key] === "object" &&
 				!Array.isArray(source[key])
 			) {
-				if (!(key in target) || typeof target[key] !== 'object')
+				if (!(key in target) || typeof target[key] !== "object")
 					target[key] = {};
 				this.deepMerge(target[key], source[key]);
 			} else {
@@ -1223,40 +1246,40 @@ const SchemaBuilder = {
 
 	promptAddOption(event, modKey, groupType) {
 		event.stopPropagation();
-		const modal = document.getElementById('sb-add-opt-modal');
-		const input = document.getElementById('sb-new-opt-key');
-		const btn = document.getElementById('sb-btn-confirm-add');
+		const modal = document.getElementById("sb-add-opt-modal");
+		const input = document.getElementById("sb-new-opt-key");
+		const btn = document.getElementById("sb-btn-confirm-add");
 
-		modal.style.display = 'flex';
-		input.value = '';
+		modal.style.display = "flex";
+		input.value = "";
 		input.focus();
 
 		btn.onclick = () => this.confirmAddOption(modKey, groupType);
 		input.onkeyup = (e) => {
-			if (e.key === 'Enter') this.confirmAddOption(modKey, groupType);
+			if (e.key === "Enter") this.confirmAddOption(modKey, groupType);
 		};
 	},
 
 	confirmAddOption(modKey, groupType) {
-		const input = document.getElementById('sb-new-opt-key');
+		const input = document.getElementById("sb-new-opt-key");
 		const key = input.value.trim();
 		if (!key || !this.currentData[modKey]) return;
 
 		// Default to true as requested, but handle objects like gallery
 		let defaultValue =
-			groupType === 'logic' ||
-			groupType === 'images' ||
-			groupType === 'standard' ||
-			key === 'comment' ||
-			key === 'tags'
+			groupType === "logic" ||
+			groupType === "images" ||
+			groupType === "standard" ||
+			key === "comment" ||
+			key === "tags"
 				? true
-				: '';
-		if (key === 'gallery' || key === 'gallery_categories') {
+				: "";
+		if (key === "gallery" || key === "gallery_categories") {
 			defaultValue = {};
 		}
 		this.currentData[modKey][key] = defaultValue;
 
-		if (key === 'gallery' || key === 'gallery_categories') {
+		if (key === "gallery" || key === "gallery_categories") {
 			// Automatically prompt to add the first album using modal
 			setTimeout(() => {
 				this.promptAddAlbum(`${modKey}.${key}`);
@@ -1265,9 +1288,9 @@ const SchemaBuilder = {
 
 		// Dynamically update masterOrder
 		if (this.masterOrder) {
-			let anchor = 'name';
-			if (key === 'images') anchor = 'show_images';
-			else if (key === 'gallery') anchor = 'images';
+			let anchor = "name";
+			if (key === "images") anchor = "show_images";
+			else if (key === "gallery") anchor = "images";
 
 			const index = this.masterOrder.indexOf(anchor);
 			if (index !== -1) {
@@ -1277,79 +1300,79 @@ const SchemaBuilder = {
 			}
 		}
 
-		document.getElementById('sb-add-opt-modal').style.display = 'none';
-		UI.notify(`Đã thêm trường [${key}] vào module [${modKey}]`, 'success');
+		document.getElementById("sb-add-opt-modal").style.display = "none";
+		UI.notify(`Đã thêm trường [${key}] vào module [${modKey}]`, "success");
 		this.renderForm();
 	},
 
 	promptAddAlbum(path) {
-		const modal = document.getElementById('sb-add-album-modal');
-		const inputName = document.getElementById('sb-album-name');
-		const inputKey = document.getElementById('sb-album-key');
-		const btn = document.getElementById('sb-btn-confirm-album');
+		const modal = document.getElementById("sb-add-album-modal");
+		const inputName = document.getElementById("sb-album-name");
+		const inputKey = document.getElementById("sb-album-key");
+		const btn = document.getElementById("sb-btn-confirm-album");
 
-		modal.style.display = 'flex';
-		inputName.value = '';
-		inputKey.value = '';
+		modal.style.display = "flex";
+		inputName.value = "";
+		inputKey.value = "";
 		inputName.focus();
 
 		// Auto-suggest key based on name
 		inputName.oninput = (e) => {
 			inputKey.value = e.target.value
 				.toLowerCase()
-				.normalize('NFD')
-				.replace(/[\u0300-\u036f]/g, '')
-				.replace(/đ/g, 'd')
-				.replace(/[^a-z0-9]/g, '-')
-				.replace(/-+/g, '-')
-				.replace(/^-|-$/g, '');
+				.normalize("NFD")
+				.replace(/[\u0300-\u036f]/g, "")
+				.replace(/đ/g, "d")
+				.replace(/[^a-z0-9]/g, "-")
+				.replace(/-+/g, "-")
+				.replace(/^-|-$/g, "");
 		};
 
 		btn.onclick = () => this.confirmAddAlbum(path);
 
 		const handleKey = (e) => {
-			if (e.key === 'Enter') this.confirmAddAlbum(path);
+			if (e.key === "Enter") this.confirmAddAlbum(path);
 		};
 		inputName.onkeyup = handleKey;
 		inputKey.onkeyup = handleKey;
 	},
 
 	confirmAddAlbum(path) {
-		const name = document.getElementById('sb-album-name').value.trim();
-		const key = document.getElementById('sb-album-key').value.trim();
+		const name = document.getElementById("sb-album-name").value.trim();
+		const key = document.getElementById("sb-album-key").value.trim();
 
 		if (!name || !key) {
-			UI.notify('Vui lòng nhập đầy đủ Tên và Key!', 'error');
+			UI.notify("Vui lòng nhập đầy đủ Tên và Key!", "error");
 			return;
 		}
 
 		const newGallery = {
 			title_main_photo: name,
-			title_sub_photo: 'hinhanh',
-			status_photo: { hienthi: 'hienthi' },
+			title_sub_photo: "hinhanh",
+			status_photo: { hienthi: "hienthi" },
 			number_photo: 3,
 			images_photo: true,
 			avatar_photo: true,
 			name_photo: true,
 			photo_width: 800,
 			photo_height: 800,
-			photo_thumb: '800x800x1',
+			photo_thumb: "800x800x1",
 		};
 
-		this.updateData(path + '.' + key, newGallery);
-		document.getElementById('sb-add-album-modal').style.display = 'none';
+		this.updateData(path + "." + key, newGallery);
+		document.getElementById("sb-add-album-modal").style.display = "none";
 		this.renderForm();
-		UI.notify(`Đã thêm album [${name}]`, 'success');
+		UI.notify(`Đã thêm album [${name}]`, "success");
 	},
 
 	deleteOption(pathStr) {
-		if (!confirm('Bạn có chắc muốn xóa trường này?')) return;
-		const keys = pathStr.split('.');
+		if (!confirm("Bạn có chắc muốn xóa trường này?")) return;
+		const keys = pathStr.split(".");
 		const lastKey = keys.pop();
 		let current = this.currentData;
 		for (const k of keys) current = current[k];
 
-		if (lastKey === 'brand') {
+		if (lastKey === "brand") {
 			current[lastKey] = false;
 		} else {
 			delete current[lastKey];
@@ -1366,7 +1389,7 @@ const SchemaBuilder = {
 
 			// Recursive cleaner function
 			const clean = (obj) => {
-				if (!obj || typeof obj !== 'object') return;
+				if (!obj || typeof obj !== "object") return;
 				if (obj.sync_with_main !== undefined) delete obj.sync_with_main;
 				if (obj.brand === false) delete obj.brand;
 				Object.values(obj).forEach((val) => clean(val));
@@ -1375,14 +1398,14 @@ const SchemaBuilder = {
 
 			if (
 				mod.gallery &&
-				typeof mod.gallery === 'object' &&
+				typeof mod.gallery === "object" &&
 				Object.keys(mod.gallery).length === 0
 			) {
 				delete mod.gallery;
 			}
 			if (
 				mod.gallery_categories &&
-				typeof mod.gallery_categories === 'object' &&
+				typeof mod.gallery_categories === "object" &&
 				Object.keys(mod.gallery_categories).length === 0
 			) {
 				delete mod.gallery_categories;
@@ -1392,7 +1415,7 @@ const SchemaBuilder = {
 
 	syncGalleryToMain(pathStr) {
 		if (!pathStr) return;
-		const keys = pathStr.split('.');
+		const keys = pathStr.split(".");
 		let current = this.currentData;
 		let parent = null;
 
@@ -1405,7 +1428,7 @@ const SchemaBuilder = {
 		if (!parent) return;
 
 		const gallery = current[keys[keys.length - 1]];
-		if (!gallery || typeof gallery !== 'object') return;
+		if (!gallery || typeof gallery !== "object") return;
 
 		// Find the main image settings for this context
 		// Priority: images.photo -> images
@@ -1420,7 +1443,7 @@ const SchemaBuilder = {
 				gall.photo_height = mainImg.height;
 
 				// Extract scale from thumb string (e.g. 800x800x1 -> 1)
-				const parts = (mainImg.thumb || '').split('x');
+				const parts = (mainImg.thumb || "").split("x");
 				const scale = parts.length > 2 ? parts[2] : 1;
 
 				gall.photo_thumb = `${mainImg.width}x${mainImg.height}x${scale}`;
@@ -1434,11 +1457,11 @@ const SchemaBuilder = {
 
 		for (const modKey in this.currentData) {
 			const mod = this.currentData[modKey];
-			const title = mod.title_main || '';
+			const title = mod.title_main || "";
 
 			if (mod.website) mod.website.title = title;
 			if (mod.gallery) {
-				const mainLabel = isLang ? 'hinhanh' : 'Hình ảnh ';
+				const mainLabel = isLang ? "hinhanh" : "Hình ảnh ";
 				for (const gKey in mod.gallery) {
 					mod.gallery[gKey].title_main_photo = mainLabel + title;
 				}
@@ -1447,12 +1470,17 @@ const SchemaBuilder = {
 	},
 
 	reorderKeys(obj) {
-		if (obj === null || typeof obj !== 'object' || Array.isArray(obj))
+		if (obj === null || typeof obj !== "object" || Array.isArray(obj))
 			return obj;
 
 		const priorityMap = {
 			title_main: 1,
 			website: 1.1,
+			amp: 1.2,
+			route: 1.3,
+			controller: 1.31,
+			method: 1.32,
+			slugs: 1.33,
 			title_main_categories: 2,
 			title_main_brand: 3,
 			send_email: 5,
@@ -1479,14 +1507,19 @@ const SchemaBuilder = {
 			copy_categories: 70,
 			copy_brand: 71,
 			desc: 80,
-			desc_categories: 81,
-			desc_brand: 82,
+			desc_cke: 81,
+			desc_categories: 82,
+			desc_categories_cke: 83,
+			desc_brand: 84,
+			desc_brand_cke: 85,
 			content: 90,
 			content_categories: 91,
 			content_brand: 92,
 			content_cke: 93,
 			content_categories_cke: 94,
 			content_brand_cke: 95,
+			options2: 96,
+			hienthi: 1000,
 		};
 
 		const sorted = {};
@@ -1505,10 +1538,10 @@ const SchemaBuilder = {
 
 	async save() {
 		const btn = document.querySelector(
-			'#schema-builder-modal .btn-primary',
+			"#schema-builder-modal .btn-primary",
 		);
 		const originalText = btn.innerText;
-		btn.innerText = '⌛ Đang lưu (v2)...';
+		btn.innerText = "⌛ Đang lưu (v2)...";
 		btn.disabled = true;
 
 		try {
@@ -1517,8 +1550,8 @@ const SchemaBuilder = {
 
 			const res = await (
 				await fetch(`api.php?action=saveModuleSchema`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						name: this.currentProject,
 						file: this.currentFile,
@@ -1527,14 +1560,14 @@ const SchemaBuilder = {
 				})
 			).json();
 
-			if (res.status === 'success') {
-				UI.notify('Đã lưu cấu hình Schema thành công!', 'success');
+			if (res.status === "success") {
+				UI.notify("Đã lưu cấu hình Schema thành công!", "success");
 				// UI.hideModal('schema-builder-modal');
 			} else {
-				UI.notify('Lỗi: ' + res.message, 'error');
+				UI.notify("Lỗi: " + res.message, "error");
 			}
 		} catch (err) {
-			UI.notify('Không thể kết nối Api.', 'error');
+			UI.notify("Không thể kết nối Api.", "error");
 		} finally {
 			btn.innerText = originalText;
 			btn.disabled = false;
@@ -1544,15 +1577,15 @@ const SchemaBuilder = {
 	initNewsSkeleton() {
 		if (
 			!confirm(
-				'Bạn có muốn khởi tạo bộ khung chuẩn cho News (Tin tức, Thư viện ảnh, Tiêu chí)?',
+				"Bạn có muốn khởi tạo bộ khung chuẩn cho News (Tin tức, Thư viện ảnh, Tiêu chí)?",
 			)
 		)
 			return;
 
-		const modules = ['tin-tuc', 'tieu-chi', 'thu-vien-anh'];
+		const modules = ["tin-tuc", "tieu-chi", "thu-vien-anh"];
 		modules.forEach((m) => {
 			if (!this.currentData[m]) {
-				const preset = this.presets.news[m.replace(/-/g, '_')];
+				const preset = this.presets.news[m.replace(/-/g, "_")];
 				if (preset) {
 					const configData = preset.data || preset.config;
 					if (configData) {
@@ -1565,22 +1598,22 @@ const SchemaBuilder = {
 			}
 		});
 
-		UI.notify('Đã khởi tạo bộ khung Tin tức!', 'success');
+		UI.notify("Đã khởi tạo bộ khung Tin tức!", "success");
 		this.renderForm();
 	},
 
 	initStaticSkeleton() {
 		if (
 			!confirm(
-				'Bạn có muốn khởi tạo bộ khung chuẩn cho Trang tĩnh (Giới thiệu, Slogan, Footer)?',
+				"Bạn có muốn khởi tạo bộ khung chuẩn cho Trang tĩnh (Giới thiệu, Slogan, Footer)?",
 			)
 		)
 			return;
 
-		const modules = ['gioi-thieu', 'slogan', 'footer'];
+		const modules = ["gioi-thieu", "slogan", "footer"];
 		modules.forEach((m) => {
 			if (!this.currentData[m]) {
-				const preset = this.presets.static[m.replace(/-/g, '_')];
+				const preset = this.presets.static[m.replace(/-/g, "_")];
 				if (preset) {
 					const configData = preset.data || preset.config;
 					if (configData) {
@@ -1593,22 +1626,22 @@ const SchemaBuilder = {
 			}
 		});
 
-		UI.notify('Đã khởi tạo bộ khung Trang tĩnh!', 'success');
+		UI.notify("Đã khởi tạo bộ khung Trang tĩnh!", "success");
 		this.renderForm();
 	},
 
 	initNewslettersSkeleton() {
 		if (
 			!confirm(
-				'Bạn có muốn khởi tạo bộ khung chuẩn cho Newsletters (Liên hệ, Đặt lịch)?',
+				"Bạn có muốn khởi tạo bộ khung chuẩn cho Newsletters (Liên hệ, Đặt lịch)?",
 			)
 		)
 			return;
 
-		const modules = ['lien-he', 'dat-lich'];
+		const modules = ["lien-he", "dat-lich"];
 		modules.forEach((m) => {
 			if (!this.currentData[m]) {
-				const preset = this.presets.newsletters[m.replace(/-/g, '_')];
+				const preset = this.presets.newsletters[m.replace(/-/g, "_")];
 				if (preset) {
 					const configData = preset.data || preset.config;
 					if (configData) {
@@ -1617,10 +1650,10 @@ const SchemaBuilder = {
 						);
 						this.currentData[m].title_main = preset.name;
 					}
-				} else if (m === 'dat-lich') {
+				} else if (m === "dat-lich") {
 					// Hardcoded mandatory dat-lich if not in presets
 					this.currentData[m] = {
-						title_main: 'datlich',
+						title_main: "datlich",
 						file: true,
 						send_email: true,
 						email: true,
@@ -1636,39 +1669,39 @@ const SchemaBuilder = {
 			}
 		});
 
-		UI.notify('Đã khởi tạo bộ khung Newsletters!', 'success');
+		UI.notify("Đã khởi tạo bộ khung Newsletters!", "success");
 		this.renderForm();
 	},
 	switchTab(tab) {
-		const preview = document.getElementById('sb-live-preview');
-		const structure = document.getElementById('sb-structure-list');
-		const btnPreview = document.getElementById('sb-tab-preview');
-		const btnStructure = document.getElementById('sb-tab-structure');
+		const preview = document.getElementById("sb-live-preview");
+		const structure = document.getElementById("sb-structure-list");
+		const btnPreview = document.getElementById("sb-tab-preview");
+		const btnStructure = document.getElementById("sb-tab-structure");
 
-		if (tab === 'preview') {
-			preview.style.display = 'block';
-			structure.style.display = 'none';
-			btnPreview.classList.add('active');
-			btnPreview.style.borderBottom = '2px solid var(--primary)';
-			btnStructure.classList.remove('active');
-			btnStructure.style.borderBottom = 'none';
+		if (tab === "preview") {
+			preview.style.display = "block";
+			structure.style.display = "none";
+			btnPreview.classList.add("active");
+			btnPreview.style.borderBottom = "2px solid var(--primary)";
+			btnStructure.classList.remove("active");
+			btnStructure.style.borderBottom = "none";
 		} else {
-			preview.style.display = 'none';
-			structure.style.display = 'block';
-			btnPreview.classList.remove('active');
-			btnPreview.style.borderBottom = 'none';
-			btnStructure.classList.add('active');
-			btnStructure.style.borderBottom = '2px solid var(--primary)';
+			preview.style.display = "none";
+			structure.style.display = "block";
+			btnPreview.classList.remove("active");
+			btnPreview.style.borderBottom = "none";
+			btnStructure.classList.add("active");
+			btnStructure.style.borderBottom = "2px solid var(--primary)";
 			this.renderStructure();
 		}
 	},
 
 	renderStructure() {
-		const container = document.getElementById('sb-structure-list');
+		const container = document.getElementById("sb-structure-list");
 		if (!container || !this.currentData) return;
 
 		const keys = Object.keys(this.currentData).filter(
-			(k) => k !== 'brand' && k !== 'default',
+			(k) => k !== "brand" && k !== "default",
 		);
 
 		if (keys.length === 0) {
@@ -1689,16 +1722,16 @@ const SchemaBuilder = {
                         <div style="display:flex; align-items:center; gap:12px;">
                             <span style="color:var(--muted); font-size:0.7rem; font-family:monospace;">#${index + 1}</span>
                             <span style="font-weight:600; color:var(--primary);">${k}</span>
-                            <span style="font-size:0.7rem; color:var(--muted);">(${this.currentData[k].title_main || 'No Title'})</span>
+                            <span style="font-size:0.7rem; color:var(--muted);">(${this.currentData[k].title_main || "No Title"})</span>
                         </div>
                         <div style="display:flex; gap:5px;">
-                            <button class="btn btn-ghost btn-sm" onclick="SchemaBuilder.moveModule('${k}', 'up')" ${index === 0 ? 'disabled' : ''} style="padding:2px 8px;">↑</button>
-                            <button class="btn btn-ghost btn-sm" onclick="SchemaBuilder.moveModule('${k}', 'down')" ${index === keys.length - 1 ? 'disabled' : ''} style="padding:2px 8px;">↓</button>
+                            <button class="btn btn-ghost btn-sm" onclick="SchemaBuilder.moveModule('${k}', 'up')" ${index === 0 ? "disabled" : ""} style="padding:2px 8px;">↑</button>
+                            <button class="btn btn-ghost btn-sm" onclick="SchemaBuilder.moveModule('${k}', 'down')" ${index === keys.length - 1 ? "disabled" : ""} style="padding:2px 8px;">↓</button>
                         </div>
                     </div>
                 `,
 					)
-					.join('')}
+					.join("")}
             </div>
         `;
 	},
@@ -1708,12 +1741,15 @@ const SchemaBuilder = {
 		const index = keys.indexOf(key);
 		if (index === -1) return;
 
-		const newIndex = direction === 'up' ? index - 1 : index + 1;
+		const newIndex = direction === "up" ? index - 1 : index + 1;
 		if (newIndex < 0 || newIndex >= keys.length) return;
 
 		// Create a new object with reordered keys
 		const newKeys = [...keys];
-		[newKeys[index], newKeys[newIndex]] = [newKeys[newIndex], newKeys[index]];
+		[newKeys[index], newKeys[newIndex]] = [
+			newKeys[newIndex],
+			newKeys[index],
+		];
 
 		const newData = {};
 		newKeys.forEach((k) => {
@@ -1722,6 +1758,9 @@ const SchemaBuilder = {
 
 		this.currentData = newData;
 		this.renderForm();
-		UI.notify(`Đã chuyển ${key} ${direction === 'up' ? 'lên' : 'xuống'}`, 'success');
+		UI.notify(
+			`Đã chuyển ${key} ${direction === "up" ? "lên" : "xuống"}`,
+			"success",
+		);
 	},
 };

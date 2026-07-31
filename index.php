@@ -731,19 +731,24 @@
                                 <label style="color: var(--purple); margin-bottom:12px; font-size:0.7rem;">🏗️ PROJECT SCAFFOLDING (ĐÚC DỰ ÁN)</label>
                                 <div class="form-grid-2">
                                     <div class="form-group"><label>Source Path</label><input type="text" id="g_source_path" placeholder="D:/RBWStack/www/source_laravel"></div>
+                                    <div class="form-group"><label>Source Folder Name</label><input type="text" id="g_source_folder_name" placeholder="source_laravel"></div>
+                                </div>
+                                <div class="form-grid-2">
                                     <div class="form-group"><label>Source DB Name</label><input type="text" id="g_source_db_name" placeholder="source_nasani_2026"></div>
+                                    <div class="form-group">
+                                        <label>Editor Path (Mở dự án)</label>
+                                        <input type="text" id="g_editor_path" placeholder="C:\Users\...\Antigravity.exe">
+                                    </div>
                                 </div>
-                                <div class="form-group" style="margin-top:10px;">
-                                    <label>Editor Path (Mở dự án)</label>
-                                    <input type="text" id="g_editor_path" placeholder="C:\Users\...\Antigravity.exe">
-                                </div>
-                                <div class="form-group" style="margin-top:10px;">
-                                    <label>Font Source Path (Thư viện Font local)</label>
-                                    <input type="text" id="g_font_source_path" placeholder="D:/RBWStack/www/font_library">
-                                </div>
-                                <div class="form-group" style="margin-top:10px;">
-                                    <label>🌱 Thư viện Ảnh Mẫu (Tạo Dữ Liệu Mẫu)</label>
-                                    <input type="text" id="g_images_pool_path" placeholder="D:/RBWStack/www/images">
+                                <div class="form-grid-2">
+                                    <div class="form-group">
+                                        <label>Font Source Path (Thư viện Font local)</label>
+                                        <input type="text" id="g_font_source_path" placeholder="D:/RBWStack/www/font_library">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>🌱 Thư viện Ảnh Mẫu (Tạo Dữ Liệu Mẫu)</label>
+                                        <input type="text" id="g_images_pool_path" placeholder="D:/RBWStack/www/images">
+                                    </div>
                                 </div>
                             </div>
                             <div class="form-submit-row" style="margin-top: 25px; border-top: 1px solid var(--border); padding-top: 20px;">
@@ -829,6 +834,10 @@
             <div class="form-group">
                 <label>Hậu tố DB (Tùy chọn: vd 'shop', 'v2')</label>
                 <input type="text" id="manual_db_suffix" placeholder="Mặc định: Tên dự án">
+            </div>
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Tên miền Demo đích (Tùy chọn, để trống sẽ dùng mặc định)</label>
+                <input type="text" id="custom_demo_domain" placeholder="VD: demo92v3.nasanivietnam.info">
             </div>
             <div class="form-group" style="margin-top: 15px;">
                 <label style="display:flex; align-items:center; gap:8px; text-transform:none; cursor:pointer; color:#fff; font-weight:normal;">

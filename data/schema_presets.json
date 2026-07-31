@@ -10,6 +10,15 @@
                         "detail": "article"
                     },
                     "title": "sanpham",
+                    "amp": false,
+                    "route": {
+                        "controller": "ProductController@index",
+                        "name": "product",
+                        "method": "get",
+                        "slugs": {
+                            "vi": "san-pham"
+                        }
+                    },
                     "bre": "product"
                 },
                 "copy": true,
@@ -122,6 +131,15 @@
                         "detail": "article"
                     },
                     "title": "thucdon",
+                    "amp": false,
+                    "route": {
+                        "controller": "ProductController@index",
+                        "name": "product",
+                        "method": "get",
+                        "slugs": {
+                            "vi": "thuc-don"
+                        }
+                    },
                     "bre": "product"
                 },
                 "copy": true,
@@ -234,7 +252,16 @@
                         "index": "object",
                         "detail": "article"
                     },
-                    "title": "tintuc"
+                    "title": "tintuc",
+                    "amp": false,
+                    "route": {
+                        "controller": "NewsController@index",
+                        "name": "news",
+                        "method": "get",
+                        "slugs": {
+                            "vi": "tin-tuc"
+                        }
+                    }
                 },
                 "status": {
                     "hienthi": "hienthi"
@@ -270,13 +297,21 @@
                         "detail": "article"
                     },
                     "title": "thuvienanh",
-                    "view_page": "news.album"
+                    "route": {
+                        "controller": "NewsController@index",
+                        "name": "album",
+                        "method": "get",
+                        "slugs": {
+                            "vi": "thu-vien-anh"
+                        }
+                    }
                 },
                 "status": {
                     "hienthi": "hienthi"
                 },
                 "slug": false,
                 "show_images": true,
+                "name": true,
                 "images": {
                     "photo": {
                         "title": "anhdaidien",

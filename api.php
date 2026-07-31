@@ -12,23 +12,54 @@ ignore_user_abort(true);
 
 $cliInputData = null;
 if (PHP_SAPI === 'cli') {
+    $debugLogFile = __DIR__ . '/logs/debug_bg_job.log';
+    $timestamp = date('Y-m-d H:i:s');
+    @file_put_contents($debugLogFile, "[$timestamp] ⚡ CLI ENTRY POINT: Đã vào PHP CLI mode!\n", FILE_APPEND);
+
     $cliArgs = [];
     foreach ($argv ?? [] as $arg) {
         if (strpos($arg, '--') !== 0) continue;
         $parts = explode('=', substr($arg, 2), 2);
         $cliArgs[$parts[0]] = $parts[1] ?? '1';
     }
+    @file_put_contents($debugLogFile, "[$timestamp] CLI Args: " . json_encode($cliArgs) . "\n", FILE_APPEND);
+
     if (!empty($cliArgs['action'])) {
         $_GET['action'] = $cliArgs['action'];
     }
     if (!empty($cliArgs['payload']) && is_file($cliArgs['payload'])) {
         $payloadRaw = file_get_contents($cliArgs['payload']);
         $cliInputData = json_decode($payloadRaw, true) ?: [];
+        @file_put_contents($debugLogFile, "[$timestamp] Payload JSON decoded successfully (Keys: " . implode(', ', array_keys($cliInputData)) . ")\n", FILE_APPEND);
+        if (!empty($cliInputData['jobId'])) {
+            $jobId = $cliInputData['jobId'];
+        }
         @unlink($cliArgs['payload']);
+    } else {
+        @file_put_contents($debugLogFile, "[$timestamp] ❌ LỖI CLI: Payload file không tồn tại hoặc rỗng!\n", FILE_APPEND);
+    }
+} elseif (!empty($_POST['_background']) && !empty($_POST['payloadFile'])) {
+    $debugLogFile = __DIR__ . '/logs/debug_bg_job.log';
+    $timestamp = date('Y-m-d H:i:s');
+    @file_put_contents($debugLogFile, "[$timestamp] 🌐 HTTP BACKGROUND ENTRY POINT: Đã nhận luồng chạy nền HTTP!\n", FILE_APPEND);
+    
+    if (is_file($_POST['payloadFile'])) {
+        $payloadRaw = file_get_contents($_POST['payloadFile']);
+        $cliInputData = json_decode($payloadRaw, true) ?: [];
+        $cliInputData['_background'] = true; // Ensure it skips re-queueing
+        
+        @file_put_contents($debugLogFile, "[$timestamp] HTTP Payload JSON decoded successfully (Keys: " . implode(', ', array_keys($cliInputData)) . ")\n", FILE_APPEND);
+        if (!empty($cliInputData['jobId'])) {
+            $jobId = $cliInputData['jobId'];
+        }
+        @unlink($_POST['payloadFile']);
+    } else {
+        @file_put_contents($debugLogFile, "[$timestamp] ❌ LỖI HTTP BACKGROUND: Payload file không tồn tại: " . $_POST['payloadFile'] . "\n", FILE_APPEND);
     }
 }
 
 register_shutdown_function(function () use (&$jobId) {
+    global $jobId;
     $error = error_get_last();
     if ($error && ($error['type'] === E_ERROR || $error['type'] === E_PARSE || $error['type'] === E_COMPILE_ERROR || $error['type'] === E_CORE_ERROR)) {
         writeJobLog($jobId, [
@@ -58,43 +89,93 @@ function readJsonInput() {
 function getPhpCliBinary() {
     $php = PHP_BINARY;
     $base = strtolower(basename($php));
+    if ($base === 'php.exe') {
+        return $php;
+    }
     if ($base === 'php-cgi.exe' || $base === 'php-win.exe') {
         $candidate = dirname($php) . DIRECTORY_SEPARATOR . 'php.exe';
         if (is_file($candidate)) return $candidate;
     }
-    return $php;
+    // Detect under Apache / RBWStack
+    $parentDir = dirname($php);
+    if (is_file($parentDir . DIRECTORY_SEPARATOR . 'php.exe')) {
+        return $parentDir . DIRECTORY_SEPARATOR . 'php.exe';
+    }
+    $stackBinPhp = dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'php';
+    if (is_dir($stackBinPhp)) {
+        $dirs = glob($stackBinPhp . DIRECTORY_SEPARATOR . 'php*');
+        if ($dirs) {
+            rsort($dirs);
+            foreach ($dirs as $d) {
+                if (is_file($d . DIRECTORY_SEPARATOR . 'php.exe')) {
+                    return $d . DIRECTORY_SEPARATOR . 'php.exe';
+                }
+            }
+        }
+    }
+    return 'php';
 }
 
 function startApiBackgroundJob($action, array $data, $jobId) {
     $safeJobId = preg_replace('/[^a-zA-Z0-9_-]/', '', $jobId ?: ('job_' . time()));
     $logDir = __DIR__ . '/logs';
+    if (substr($logDir, 0, 4) === '\\\\.\\' || substr($logDir, 0, 4) === '\\\\?\\') {
+        $logDir = substr($logDir, 4);
+    }
     if (!is_dir($logDir)) @mkdir($logDir, 0777, true);
+
+    $debugLogFile = $logDir . '/debug_bg_job.log';
+    $timestamp = date('Y-m-d H:i:s');
+    @file_put_contents($debugLogFile, "[$timestamp] --- BẮT ĐẦU startApiBackgroundJob (Job: $safeJobId, Action: $action) ---\n", FILE_APPEND);
 
     $payloadFile = $logDir . DIRECTORY_SEPARATOR . $safeJobId . '.payload.json';
     $data['jobId'] = $safeJobId;
     if (file_put_contents($payloadFile, json_encode($data)) === false) {
-        throw new Exception('Khong the tao payload cho background job.');
+        @file_put_contents($debugLogFile, "[$timestamp] ❌ LỖI: Không thể tạo payloadFile: $payloadFile\n", FILE_APPEND);
+        throw new Exception('Không thể tạo file dữ liệu (payload) cho tiến trình chạy nền.');
     }
+    @file_put_contents($debugLogFile, "[$timestamp] ✅ Đã tạo payloadFile thành công.\n", FILE_APPEND);
 
     $php = getPhpCliBinary();
+    @file_put_contents($debugLogFile, "[$timestamp] PHP Binary detected: $php (Exists: " . (file_exists($php) ? 'YES' : 'NO') . ")\n", FILE_APPEND);
+    
+    // Remove Windows Device Namespace prefix (\\.\) which breaks CMD and PHP CLI path resolution
+    $scriptFile = __FILE__;
+    if (substr($scriptFile, 0, 4) === '\\\\.\\') $scriptFile = substr($scriptFile, 4);
+    if (substr($payloadFile, 0, 4) === '\\\\.\\') $payloadFile = substr($payloadFile, 4);
+
+    @file_put_contents($debugLogFile, "[$timestamp] ScriptFile: $scriptFile (Exists: " . (file_exists($scriptFile) ? 'YES' : 'NO') . ")\n", FILE_APPEND);
+    @file_put_contents($debugLogFile, "[$timestamp] PayloadFile: $payloadFile (Exists: " . (file_exists($payloadFile) ? 'YES' : 'NO') . ")\n", FILE_APPEND);
+
+    $cmdOutLog = $logDir . DIRECTORY_SEPARATOR . $safeJobId . '_cmd_exec.log';
+    if (substr($cmdOutLog, 0, 4) === '\\\\.\\') $cmdOutLog = substr($cmdOutLog, 4);
+
     if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
-        $cmd = 'start "" /B ' . escapeshellarg($php)
-            . ' ' . escapeshellarg(__FILE__)
-            . ' --action=' . escapeshellarg($action)
-            . ' --payload=' . escapeshellarg($payloadFile)
-            . ' > NUL 2>&1';
-        $handle = @popen($cmd, 'r');
-        if (!$handle) {
-            @unlink($payloadFile);
-            throw new Exception('Khong the khoi dong background job.');
-        }
-        pclose($handle);
+        $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}";
+        @file_put_contents($debugLogFile, "[$timestamp] Gọi curl nội bộ tới: $url\n", FILE_APPEND);
+        
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 1);
+        curl_setopt($ch, CURLOPT_NOSIGNAL, 1);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, [
+            'action' => $action, 
+            'payloadFile' => $payloadFile, 
+            '_background' => 1
+        ]);
+        
+        curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+        
+        @file_put_contents($debugLogFile, "[$timestamp] ✅ Đã đẩy luồng qua HTTP cURL (Err: $err)\n", FILE_APPEND);
     } else {
         $cmd = escapeshellarg($php)
-            . ' ' . escapeshellarg(__FILE__)
+            . ' ' . escapeshellarg($scriptFile)
             . ' --action=' . escapeshellarg($action)
             . ' --payload=' . escapeshellarg($payloadFile)
             . ' > /dev/null 2>&1 &';
+        @file_put_contents($debugLogFile, "[$timestamp] Lệnh cmd Linux sẽ chạy: $cmd\n", FILE_APPEND);
         exec($cmd);
     }
 
@@ -211,7 +292,10 @@ use RamboWoon\RemoteClient;
 use RamboWoon\ProjectDeployer;
 use RamboWoon\ImageTrimService;
 
-$baseDir = dirname(__DIR__); 
+$baseDir = dirname(__DIR__);
+if (strpos($baseDir, '\\\\.\\') === 0 || strpos($baseDir, '\\\\?\\') === 0) {
+    $baseDir = substr($baseDir, 4);
+}
 $configPath = __DIR__ . '/data/projects.json';
 
 $scanner = new ProjectScanner($baseDir);
@@ -325,7 +409,8 @@ switch ($action) {
 
             $finalSourceFolder = null;
             $finalSourceZip = null;
-            $sourceBaseName = $sourceDbName; // e.g. source_nasani_2026
+            $sourceFolderName = $gConfig['source_folder_name'] ?? '';
+            $sourceBaseName = !empty($sourceFolderName) ? $sourceFolderName : $sourceDbName;
 
             // Check if sourcePath itself is the project root
             if (is_dir($sourcePath) && (file_exists($sourcePath . DIRECTORY_SEPARATOR . '.env') || is_dir($sourcePath . DIRECTORY_SEPARATOR . 'app'))) {
@@ -612,10 +697,10 @@ switch ($action) {
         if (PHP_SAPI !== 'cli' && empty($data['_background'])) {
             try {
                 $queuedJobId = startApiBackgroundJob($action, array_merge($data, ['_background' => true]), $jobId);
-                writeJobLog($queuedJobId, ['status' => 'info', 'log' => 'Da khoi dong job deploy nen...']);
+                writeJobLog($queuedJobId, ['status' => 'info', 'log' => '🚀 Đã khởi động luồng xuất bản (Deploy) chạy nền...']);
                 echo json_encode(['status' => 'queued', 'jobId' => $queuedJobId]);
             } catch (Throwable $e) {
-                writeJobLog($jobId, ['status' => 'error', 'message' => 'Khong the khoi dong job nen: ' . $e->getMessage()]);
+                writeJobLog($jobId, ['status' => 'error', 'message' => 'Không thể khởi động luồng chạy nền: ' . $e->getMessage()]);
                 echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
             }
             break;
@@ -627,6 +712,14 @@ switch ($action) {
 
         $config = $isDemo ? (file_exists(__DIR__ . '/data/demo_config.json') ? json_decode(file_get_contents(__DIR__ . '/data/demo_config.json'), true) : null) : ($projectConfig['prod'] ?? null);
         if (!$config) { writeJobLog($jobId, ['status' => 'error', 'message' => 'Host chưa cấu hình']); exit; }
+
+        if ($isDemo && !empty($data['custom_domain'])) {
+            $customDomain = trim($data['custom_domain']);
+            $config['web_domain'] = $customDomain;
+            // Trên DirectAdmin, Addon Domain sẽ nằm trong thư mục domains/domain.com/public_html
+            $config['ftp_root'] = '/domains/' . $customDomain . '/public_html';
+            writeJobLog($jobId, ['status' => 'info', 'log' => '🌐 Đã kích hoạt upload lên tên miền tùy chỉnh: ' . $customDomain]);
+        }
 
         // Cập nhật cấu hình SSL từ tham số truyền lên hoặc từ cấu hình cũ
         $useSSL = isset($data['use_ssl']) ? (bool)$data['use_ssl'] : (!empty($projectConfig['demo']['ssl']) || !empty($projectConfig['prod']['ssl']));
@@ -700,7 +793,10 @@ switch ($action) {
             }
         }
 
-        $zipFile = __DIR__ . '/dist.zip'; $sqlFile = __DIR__ . '/dist.sql';
+        $zipFile = __DIR__ . DIRECTORY_SEPARATOR . 'dist.zip'; 
+        $sqlFile = __DIR__ . DIRECTORY_SEPARATOR . 'dist.sql';
+        if (substr($zipFile, 0, 4) === '\\\\.\\') $zipFile = substr($zipFile, 4);
+        if (substr($sqlFile, 0, 4) === '\\\\.\\') $sqlFile = substr($sqlFile, 4);
         if (!$skipSource) {
             $use7zip = !empty($data['use_7zip']);
             $msg = $use7zip ? '📦 Đang nén mã nguồn bằng 7-Zip...' : '📦 Đang nén mã nguồn...';
@@ -1049,7 +1145,7 @@ switch ($action) {
         $projects = $scanner->getProjects($data['category'] ?? null);
         $project = null;
         foreach ($projects as $p) { if ($p['name'] === $data['name']) { $project = $p; break; } }
-        $res = $deployService->cleanupBridge($config, ($data['type'] === 'demo' ? $project['relPath'] : ''));
+        $res = $deployService->cleanupBridge($config, ($data['type'] === 'demo' ? $project['relPath'] : ''), ($data['type'] === 'demo'));
         $decoded = json_decode($res, true);
         if ($decoded && $decoded['status'] === 'success') {
             $configManager->addHistory($data['name'], 'Dọn dẹp Bridge (' . $data['type'] . ')', 'Hoàn tất');
@@ -2505,6 +2601,78 @@ switch ($action) {
             'message' => "Đã hoàn tác thành công $restoredCount hình ảnh về định dạng gốc.",
             'errors' => $errors
         ]);
+        break;
+
+    case 'clearProjectImages':
+        $projectName = $_POST['name'] ?? ($_GET['name'] ?? '');
+        $category = $_POST['category'] ?? ($_GET['category'] ?? '');
+        $projectConfig = $configManager->getForProject($projectName);
+
+        $config = file_exists(__DIR__ . '/data/demo_config.json') ? json_decode(file_get_contents(__DIR__ . '/data/demo_config.json'), true) : null;
+        if (!$config) {
+            echo json_encode(['status' => 'error', 'message' => 'Cấu hình chung chưa thiết lập']);
+            break;
+        }
+
+        $projects = $scanner->getProjects($category);
+        $project = null;
+        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        if (!$project) {
+            echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại']);
+            break;
+        }
+
+        // 1. Upload bridge.php to demo
+        try {
+            $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $project['relPath']);
+        } catch (\Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => 'Không thể upload Bridge để dọn dẹp: ' . $e->getMessage()]);
+            break;
+        }
+
+        // 2. Call action=clearImages
+        $cleanHost = !empty($config['web_domain'])
+            ? str_replace(['https://', 'http://', '/'], '', $config['web_domain'])
+            : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
+
+        $useSSL = !empty($config['ssl']) || (isset($config['web_domain']) && strpos($config['web_domain'], 'https://') === 0);
+        $schemes = $useSSL ? ['https://', 'http://'] : ['http://', 'https://'];
+        $res = null;
+        $webSub = '';
+        if (isset($config['ftp_root'])) {
+            $parts = explode('/public_html', $config['ftp_root']);
+            if (count($parts) > 1) $webSub = $parts[1];
+        }
+        $fullSubPath = rtrim($webSub, '/') . '/' . trim($project['relPath'], '/');
+
+        $success = false;
+        $resMessage = '';
+        foreach ($schemes as $scheme) {
+            $pathPart = trim($fullSubPath, '/');
+            $url = $scheme . $cleanHost . ($pathPart ? '/' . $pathPart : '') . "/bridge.php?action=clearImages";
+            
+            $res = RemoteClient::get($url);
+            $decoded = json_decode($res, true);
+            if ($decoded && isset($decoded['status'])) {
+                $success = true;
+                $resMessage = $res;
+                break;
+            }
+        }
+
+        // 3. Remove bridge.php from demo
+        try {
+            $ftpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
+            $remoteDir = rtrim($ftpRoot, '/');
+            if ($project['relPath']) $remoteDir = $remoteDir . '/' . trim($project['relPath'], '/');
+            RemoteClient::deleteViaDA($config, $remoteDir, 'bridge.php');
+        } catch (\Exception $e) {}
+
+        if ($success) {
+            echo $resMessage;
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Không thể dọn dẹp hình ảnh trên demo: ' . strip_tags((string)$res)]);
+        }
         break;
 
     case 'listProjectTrimImages':
