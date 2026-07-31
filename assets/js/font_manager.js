@@ -1,4 +1,19 @@
 const FontManager = {
+    async reindex() {
+        UI.notify('Đang quét và đồng bộ lại chỉ mục tree.md...', 'info');
+        try {
+            const res = await (await fetch('api.php?action=reindexFonts')).json();
+            if (res.status === 'success') {
+                UI.notify(res.message, 'success');
+                this.search(true);
+            } else {
+                UI.notify('Lỗi đồng bộ: ' + (res.message || 'Thao tác thất bại'), 'error');
+            }
+        } catch (err) {
+            UI.notify('Lỗi kết nối API đồng bộ', 'error');
+        }
+    },
+
     async search(isProjectView = false) {
         const inputId = isProjectView ? 'project-font-search-input' : 'font-search-input';
         const resultsId = isProjectView ? 'project-font-results' : 'font-results';
@@ -61,61 +76,59 @@ const FontManager = {
 
             woffFonts.forEach(font => {
                 const card = document.createElement('div');
-                card.className = 'item-card';
-                card.style.cursor = 'default';
-                card.style.padding = '24px';
-                
                 const isGoogle = font.source === 'google';
-                const badgeColor = isGoogle ? '#a855f7' : '#3b82f6';
-                const badgeText = isGoogle ? 'Google Fonts' : 'Local Library';
+                card.className = isGoogle ? 'font-card-premium google' : 'font-card-premium';
+                
                 const displayFamily = isGoogle ? font.family : font.family.split(' > ').pop();
 
                 card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; gap:15px;">
-                        <div style="flex:1;">
-                            <div style="font-weight:700; color:#fff; font-size:1.2rem; line-height:1.2; margin-bottom:4px;">${font.family}</div>
-                            <div style="font-size:0.75rem; color:var(--muted);">${isGoogle ? 'Dịch vụ font từ Google' : 'Font trong thư viện của bạn'}</div>
+                    <div class="font-card-header">
+                        <div class="font-card-header-left">
+                            <div class="font-family-title">${displayFamily}</div>
+                            <div class="font-path-badge">${isGoogle ? '☁️ Google Web Fonts' : '📁 ' + font.family}</div>
                         </div>
-                        <div style="background:${badgeColor}20; color:${badgeColor}; border:1px solid ${badgeColor}40; padding:4px 10px; border-radius:6px; font-size:0.65rem; font-weight:800; text-transform:uppercase; white-space:nowrap; letter-spacing:0.5px;">
-                            ${badgeText}
+                        <div class="font-source-tag ${isGoogle ? 'google' : 'local'}">
+                            ${isGoogle ? '☁️ Google' : '⚡ Local WOFF'}
                         </div>
                     </div>
                     
                     ${!isGoogle ? `
-                    <div style="margin-bottom:18px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                            <span style="font-size:0.7rem; color:var(--muted); font-weight:700; letter-spacing:0.5px;">BIẾN THỂ (WEIGHTS)</span>
-                            <button class="btn btn-ghost" style="font-size:0.65rem; padding:2px 8px; height:auto; color:${badgeColor};" onclick="FontManager.toggleAll('${font.id}')">Chọn hết</button>
+                    <div class="font-variants-wrap">
+                        <div class="font-variants-header">
+                            <span class="font-variants-title">BIẾN THỂ WEIGHT & STYLE (${(font.variants || []).length})</span>
+                            <button class="btn btn-ghost" style="font-size:0.68rem; padding:2px 8px; height:auto; color:#22d3ee;" onclick="FontManager.toggleAll('${font.id}')">Chọn tất cả</button>
                         </div>
-                        <div class="font-variants-selector" id="vars-${font.id.replace(/[^a-z0-9]/gi, '')}" style="display:flex; gap:8px; flex-wrap:wrap; background:rgba(0,0,0,0.25); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
+                        <div class="font-variants-box" id="vars-${font.id.replace(/[^a-z0-9]/gi, '')}">
                             ${(font.variants || []).map(v => `
-                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.75rem; color:#fff; background:rgba(255,255,255,0.05); padding:6px 12px; border-radius:8px; border:1px solid var(--border); transition:all 0.2s;">
-                                    <input type="checkbox" class="font-variant-checkbox" data-font="${font.id}" data-variant="${v}" style="margin:0;">
-                                    ${String(v).replace('i', ' Italic')}
+                                <label class="font-variant-chip">
+                                    <input type="checkbox" class="font-variant-checkbox" data-font="${font.id}" data-variant="${v}">
+                                    <span>${String(v).replace('i', ' Italic')}</span>
                                 </label>
                             `).join('')}
                         </div>
                     </div>
                     ` : `
-                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px;">
-                        ${(font.variants || []).slice(0, 10).map(v => `<span style="font-size:0.65rem; color:var(--muted); background:rgba(255,255,255,0.05); padding:3px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">${v}</span>`).join('')}
-                        ${font.variants.length > 10 ? `<span style="font-size:0.65rem; color:var(--muted); padding:3px 4px;">+${font.variants.length - 10}</span>` : ''}
+                    <div class="font-variants-wrap">
+                        <div class="font-variants-title">BIẾN THỂ (${(font.variants || []).length})</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${(font.variants || []).slice(0, 12).map(v => `<span style="font-size:0.68rem; color:#cbd5e1; background:rgba(255,255,255,0.06); padding:3px 9px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">${v}</span>`).join('')}
+                            ${font.variants.length > 12 ? `<span style="font-size:0.68rem; color:var(--muted); padding:3px 6px;">+${font.variants.length - 12}</span>` : ''}
+                        </div>
                     </div>
                     `}
 
-                    <div style="font-family: '${displayFamily}', sans-serif; font-size: 1.6rem; margin-bottom: 24px; color: #fff; background: rgba(255,255,255,0.03); padding: 24px; border-radius: 14px; min-height: 80px; display:flex; align-items:center; border: 1px solid rgba(255,255,255,0.05);">
+                    <div class="font-preview-box-premium" style="font-family: '${displayFamily}', sans-serif;">
                         The quick brown fox jumps over the lazy dog.
                     </div>
 
-                    <div style="display:flex; gap:10px;">
+                    <div>
                         ${isGoogle ? 
-                            `<button class="btn btn-primary" style="flex:1; background:${badgeColor}; border-color:${badgeColor};" onclick="FontManager.quickAddGoogle('${font.family}', ${JSON.stringify(font.variants).replace(/"/g, '&quot;')})">⚡ Add via Google @import</button>` :
-                            `<button class="btn btn-primary" style="flex:1; background:${badgeColor}; border-color:${badgeColor};" onclick="FontManager.install('${font.id}', '${font.family}')">💾 Install Local Font</button>`
+                            `<button class="font-action-btn-google" onclick="FontManager.quickAddGoogle('${font.family}', ${JSON.stringify(font.variants).replace(/"/g, '&quot;')})">⚡ Add via Google @import</button>` :
+                            `<button class="font-action-btn-local" onclick="FontManager.install('${font.id}', '${font.family}')">💾 Install Local Font</button>`
                         }
                     </div>
                 `;
                 
-                // Add font preview dynamically
                 if (isGoogle) {
                     const link = document.createElement('link');
                     link.rel = 'stylesheet';
@@ -142,46 +155,41 @@ const FontManager = {
 
             convertFonts.forEach(font => {
                 const card = document.createElement('div');
-                card.className = 'item-card';
-                card.style.cursor = 'default';
-                card.style.padding = '24px';
-                card.style.borderColor = 'rgba(245, 158, 11, 0.3)';
-                
-                const badgeColor = '#f59e0b';
-                const badgeText = 'Convertible';
+                card.className = 'font-card-premium convertible';
+                const displayFamily = font.family.split(' > ').pop();
 
                 card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; gap:15px;">
-                        <div style="flex:1;">
-                            <div style="font-weight:700; color:#fff; font-size:1.2rem; line-height:1.2; margin-bottom:4px;">${font.family}</div>
-                            <div style="font-size:0.75rem; color:var(--muted);">Font gốc OTF/TTF chưa tối ưu cho web</div>
+                    <div class="font-card-header">
+                        <div class="font-card-header-left">
+                            <div class="font-family-title">${displayFamily}</div>
+                            <div class="font-path-badge">📁 ${font.family}</div>
                         </div>
-                        <div style="background:${badgeColor}20; color:${badgeColor}; border:1px solid ${badgeColor}40; padding:4px 10px; border-radius:6px; font-size:0.65rem; font-weight:800; text-transform:uppercase; white-space:nowrap; letter-spacing:0.5px;">
-                            ${badgeText}
+                        <div class="font-source-tag convertible">
+                            ⚙️ Convertible
                         </div>
                     </div>
                     
-                    <div style="margin-bottom:18px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                            <span style="font-size:0.7rem; color:var(--muted); font-weight:700; letter-spacing:0.5px;">BIẾN THỂ CẦN CONVERT</span>
-                            <button class="btn btn-ghost" style="font-size:0.65rem; padding:2px 8px; height:auto; color:${badgeColor};" onclick="FontManager.toggleAllConvert('${font.id}')">Chọn hết</button>
+                    <div class="font-variants-wrap">
+                        <div class="font-variants-header">
+                            <span class="font-variants-title">BIẾN THỂ CẦN CONVERT (${(font.convert_variants || []).length})</span>
+                            <button class="btn btn-ghost" style="font-size:0.68rem; padding:2px 8px; height:auto; color:#fbbf24;" onclick="FontManager.toggleAllConvert('${font.id}')">Chọn tất cả</button>
                         </div>
-                        <div class="font-variants-selector" id="conv-vars-${font.id.replace(/[^a-z0-9]/gi, '')}" style="display:flex; gap:8px; flex-wrap:wrap; background:rgba(0,0,0,0.25); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
+                        <div class="font-variants-box" id="conv-vars-${font.id.replace(/[^a-z0-9]/gi, '')}">
                             ${(font.convert_variants || []).map(cv => `
-                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.75rem; color:#fff; background:rgba(255,255,255,0.05); padding:6px 12px; border-radius:8px; border:1px solid var(--border); transition:all 0.2s;">
-                                    <input type="checkbox" class="font-convert-checkbox" data-font="${font.id}" data-variant="${cv.variant}" data-ext="${cv.ext}" data-filename="${cv.filename}" style="margin:0;">
-                                    ${String(cv.variant).replace('i', ' Italic')} (${cv.ext.toUpperCase()})
+                                <label class="font-variant-chip">
+                                    <input type="checkbox" class="font-convert-checkbox" data-font="${font.id}" data-variant="${cv.variant}" data-ext="${cv.ext}" data-filename="${cv.filename}">
+                                    <span>${String(cv.variant).replace('i', ' Italic')} (${cv.ext.toUpperCase()})</span>
                                 </label>
                             `).join('')}
                         </div>
                     </div>
 
-                    <div style="font-family: sans-serif; font-size: 1.6rem; margin-bottom: 24px; color: var(--muted); background: rgba(255,255,255,0.03); padding: 24px; border-radius: 14px; min-height: 80px; display:flex; align-items:center; border: 1px solid rgba(255,255,255,0.05);">
+                    <div class="font-preview-box-premium">
                         The quick brown fox jumps over the lazy dog.
                     </div>
 
-                    <div style="display:flex; gap:10px;">
-                        <button class="btn btn-primary" style="flex:1; background:${badgeColor}; border-color:${badgeColor}; color:#000; font-weight:bold;" onclick="FontManager.convertAndInstall('${font.id}', '${font.family}')">⚡ Convert & Install Font</button>
+                    <div>
+                        <button class="font-action-btn-convert" onclick="FontManager.convertAndInstall('${font.id}', '${font.family}')">⚡ Convert & Install Font</button>
                     </div>
                 `;
                 

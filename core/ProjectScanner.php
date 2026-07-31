@@ -8,7 +8,90 @@ class ProjectScanner {
         $this->baseDir = $baseDir;
     }
 
-    public function getCategories($strictMonth = false) {
+    private function getCacheFile() {
+        $dataDir = __DIR__ . '/../data';
+        if (!is_dir($dataDir)) @mkdir($dataDir, 0777, true);
+        return $dataDir . '/projects_cache.json';
+    }
+
+    public function buildCache() {
+        $strictCategories = $this->scanCategoriesRaw(true);
+        $allCategories = $this->scanCategoriesRaw(false);
+
+        $projectsCache = [];
+        $projectsCache[''] = $this->scanProjectsRaw('');
+        $projectsCache['all'] = $this->scanProjectsRaw('all');
+
+        foreach ($allCategories as $cat) {
+            $projectsCache[$cat] = $this->scanProjectsRaw($cat);
+        }
+
+        $data = [
+            'updated_at' => time(),
+            'categories_strict' => $strictCategories,
+            'categories_all' => $allCategories,
+            'projects' => $projectsCache
+        ];
+
+        file_put_contents($this->getCacheFile(), json_encode($data));
+        return $data;
+    }
+
+    public function getCacheData($forceRefresh = false) {
+        $cacheFile = $this->getCacheFile();
+        $needBuild = $forceRefresh || !file_exists($cacheFile);
+
+        if (!$needBuild && is_dir($this->baseDir)) {
+            if (filemtime($this->baseDir) > filemtime($cacheFile)) {
+                $needBuild = true;
+            }
+        }
+
+        if ($needBuild) {
+            return $this->buildCache();
+        }
+
+        $raw = @file_get_contents($cacheFile);
+        $data = json_decode($raw, true);
+        if (!is_array($data) || empty($data)) {
+            return $this->buildCache();
+        }
+        return $data;
+    }
+
+    public function getCategories($strictMonth = false, $forceRefresh = false) {
+        $cache = $this->getCacheData($forceRefresh);
+        return $strictMonth ? ($cache['categories_strict'] ?? []) : ($cache['categories_all'] ?? []);
+    }
+
+    public function getProjectByName($projectName, $category = null) {
+        if ($category) {
+            $categories = [$category];
+        } else {
+            $categories = $this->getCategories();
+            $categories[] = ''; // Also search the root directory
+        }
+        foreach ($categories as $cat) {
+            $projects = $this->getProjects($cat);
+            foreach ($projects as $p) {
+                if ($p['name'] === $projectName) {
+                    return $p;
+                }
+            }
+        }
+        return null;
+    }
+
+    public function getProjects($category = null, $forceRefresh = false) {
+        $catKey = ($category === null) ? '' : $category;
+        $cache = $this->getCacheData($forceRefresh);
+        if (isset($cache['projects'][$catKey])) {
+            return $cache['projects'][$catKey];
+        }
+        return $this->scanProjectsRaw($category);
+    }
+
+    private function scanCategoriesRaw($strictMonth = false) {
         $categories = [];
         if (!is_dir($this->baseDir)) return [];
         $items = scandir($this->baseDir);
@@ -89,25 +172,7 @@ class ProjectScanner {
         return $categories;
     }
 
-    public function getProjectByName($projectName, $category = null) {
-        if ($category) {
-            $categories = [$category];
-        } else {
-            $categories = $this->getCategories();
-            $categories[] = ''; // Also search the root directory
-        }
-        foreach ($categories as $cat) {
-            $projects = $this->getProjects($cat);
-            foreach ($projects as $p) {
-                if ($p['name'] === $projectName) {
-                    return $p;
-                }
-            }
-        }
-        return null;
-    }
-
-    public function getProjects($category = null) {
+    private function scanProjectsRaw($category = null) {
         if ($category === null) {
             $category = '';
         }
@@ -144,7 +209,7 @@ class ProjectScanner {
             }
             
             // 2. Scan month subdirectories
-            $categories = $this->getCategories();
+            $categories = $this->scanCategoriesRaw(false);
             foreach ($categories as $cat) {
                 $catDir = $this->baseDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $cat);
                 if (is_dir($catDir)) {

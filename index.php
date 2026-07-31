@@ -210,6 +210,7 @@
                                     <div class="font-search-row">
                                         <input type="text" id="project-font-search-input" placeholder="Nhập tên font (ví dụ: Roboto, Be Vietnam...)" class="flex-1" onkeyup="if(event.key==='Enter') FontManager.search(true)">
                                         <button class="btn btn-primary" onclick="FontManager.search(true)">Tìm kiếm</button>
+                                        <button class="btn btn-secondary" onclick="FontManager.reindex()" title="Đồng bộ lại chỉ mục font từ tree.md">🔄 Đồng bộ</button>
                                     </div>
 
                                     <div id="project-font-results" class="grid-container font-results-grid">

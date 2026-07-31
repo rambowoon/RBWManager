@@ -242,6 +242,200 @@ function removeVietnameseDiacritics($str) {
     return $str;
 }
 
+function buildLocalFontCacheFromTree($fontSource) {
+    $fontSource = rtrim(str_replace('\\', '/', $fontSource), '/');
+    $treeFile = $fontSource . '/tree.md';
+    $cacheDir = __DIR__ . '/data';
+    if (!is_dir($cacheDir)) @mkdir($cacheDir, 0777, true);
+    $cacheFile = $cacheDir . '/local_fonts_cache.json';
+
+    $grouped = [];
+
+    if (file_exists($treeFile)) {
+        $handle = @fopen($treeFile, 'r');
+        if ($handle) {
+            $dirStack = [];
+            while (($line = fgets($handle)) !== false) {
+                $line = rtrim($line, "\r\n");
+                if (trim($line) === '') continue;
+
+                if (preg_match('/^([│├└─\s]+)(.*)$/u', $line, $m)) {
+                    $prefix = $m[1];
+                    $name = trim($m[2]);
+                    $depth = (int)floor(mb_strlen($prefix, 'UTF-8') / 4);
+                } else {
+                    $name = trim($line);
+                    $depth = 0;
+                }
+
+                $isDir = (substr($name, -1) === '/');
+                $nameClean = rtrim($name, '/');
+
+                if ($isDir) {
+                    $dirStack[$depth] = $nameClean;
+                    $dirStack = array_slice($dirStack, 0, $depth + 1, true);
+                } else {
+                    $ext = strtolower(pathinfo($nameClean, PATHINFO_EXTENSION));
+                    $isWoff = ($ext === 'woff' || $ext === 'woff2');
+                    $isConvert = ($ext === 'otf' || $ext === 'ttf');
+
+                    if ($isWoff || $isConvert) {
+                        $relParts = [];
+                        for ($i = 1; $i < $depth; $i++) {
+                            if (isset($dirStack[$i]) && $dirStack[$i] !== '') {
+                                $relParts[] = $dirStack[$i];
+                            }
+                        }
+                        $parentFolder = implode('/', $relParts);
+                        $filename = pathinfo($nameClean, PATHINFO_FILENAME);
+                        $parsed = parseFontFilename($filename);
+                        $familyPrefix = $parsed['family'];
+                        $weight = $parsed['weight'];
+                        $style = $parsed['style'];
+                        $vKey = $weight . ($style === 'italic' ? 'i' : '');
+
+                        $fontId = ($parentFolder === '.' || $parentFolder === '') ? $familyPrefix : ($parentFolder . '/' . $familyPrefix);
+
+                        if (!isset($grouped[$fontId])) {
+                            $grouped[$fontId] = [
+                                'id' => $fontId,
+                                'family' => str_replace(['/', '-', '_'], [' > ', ' ', ' '], $fontId),
+                                'category' => 'Local Library',
+                                'source' => 'local',
+                                'files' => []
+                            ];
+                        }
+
+                        $grouped[$fontId]['files'][] = [
+                            'file' => $nameClean,
+                            'filename' => $filename,
+                            'ext' => $ext,
+                            'weight' => $weight,
+                            'style' => $style,
+                            'vKey' => $vKey,
+                            'isWoff' => $isWoff
+                        ];
+                    }
+                }
+            }
+            fclose($handle);
+        }
+    }
+
+    if (empty($grouped) && is_dir($fontSource)) {
+        try {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($fontSource, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+            foreach ($iterator as $fileInfo) {
+                if ($fileInfo->isFile()) {
+                    $f = $fileInfo->getFilename();
+                    $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                    $isWoff = ($ext === 'woff' || $ext === 'woff2');
+                    $isConvert = ($ext === 'otf' || $ext === 'ttf');
+
+                    if ($isWoff || $isConvert) {
+                        $fullPath = str_replace('\\', '/', $fileInfo->getRealPath());
+                        $relPath = ltrim(str_replace($fontSource, '', $fullPath), '/');
+                        $parentFolder = dirname($relPath);
+                        if ($parentFolder === '.') $parentFolder = '';
+
+                        $filename = pathinfo($f, PATHINFO_FILENAME);
+                        $parsed = parseFontFilename($filename);
+                        $familyPrefix = $parsed['family'];
+                        $weight = $parsed['weight'];
+                        $style = $parsed['style'];
+                        $vKey = $weight . ($style === 'italic' ? 'i' : '');
+
+                        $fontId = ($parentFolder === '' ? $familyPrefix : ($parentFolder . '/' . $familyPrefix));
+
+                        if (!isset($grouped[$fontId])) {
+                            $grouped[$fontId] = [
+                                'id' => $fontId,
+                                'family' => str_replace(['/', '-', '_'], [' > ', ' ', ' '], $fontId),
+                                'category' => 'Local Library',
+                                'source' => 'local',
+                                'files' => []
+                            ];
+                        }
+
+                        $grouped[$fontId]['files'][] = [
+                            'file' => $f,
+                            'filename' => $filename,
+                            'ext' => $ext,
+                            'weight' => $weight,
+                            'style' => $style,
+                            'vKey' => $vKey,
+                            'isWoff' => $isWoff
+                        ];
+                    }
+                }
+            }
+        } catch (Exception $e) {}
+    }
+
+    $finalFonts = [];
+    foreach ($grouped as $fontId => $font) {
+        $variants = [];
+        $convert_variants = [];
+        foreach ($font['files'] as $file) {
+            $vKey = $file['vKey'];
+            if ($file['isWoff']) {
+                if (!in_array($vKey, $variants)) $variants[] = $vKey;
+            } else {
+                $exists = false;
+                foreach ($convert_variants as $cv) {
+                    if ($cv['variant'] === $vKey) {
+                        $exists = true;
+                        break;
+                    }
+                }
+                if (!$exists) {
+                    $convert_variants[] = ['variant' => $vKey, 'ext' => $file['ext'], 'filename' => $file['filename']];
+                }
+            }
+        }
+        sort($variants);
+        usort($convert_variants, function($a, $b) {
+            return strcmp($a['variant'], $b['variant']);
+        });
+
+        $font['variants'] = $variants;
+        $font['convert_variants'] = $convert_variants;
+        unset($font['files']);
+
+        $finalFonts[$fontId] = $font;
+    }
+
+    file_put_contents($cacheFile, json_encode($finalFonts));
+    return $finalFonts;
+}
+
+function getLocalFontData($fontSource, $forceReindex = false) {
+    $cacheFile = __DIR__ . '/data/local_fonts_cache.json';
+    $treeFile = rtrim(str_replace('\\', '/', $fontSource), '/') . '/tree.md';
+
+    $needBuild = $forceReindex || !file_exists($cacheFile);
+    if (!$needBuild && file_exists($treeFile)) {
+        if (filemtime($treeFile) > filemtime($cacheFile)) {
+            $needBuild = true;
+        }
+    }
+
+    if ($needBuild) {
+        return buildLocalFontCacheFromTree($fontSource);
+    }
+
+    $raw = @file_get_contents($cacheFile);
+    $data = json_decode($raw, true);
+    if (!is_array($data) || empty($data)) {
+        return buildLocalFontCacheFromTree($fontSource);
+    }
+
+    return $data;
+}
+
 function cleanAllOldBackups($dir, $ttl = 86400) {
     if (!is_dir($dir)) return;
     try {
@@ -331,15 +525,28 @@ switch ($action) {
 
     case 'listCategories':
         $strict = isset($_GET['strict']) && $_GET['strict'] === 'true';
-        echo json_encode(['status' => 'success', 'data' => $scanner->getCategories($strict)]);
+        $refresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';
+        echo json_encode(['status' => 'success', 'data' => $scanner->getCategories($strict, $refresh)]);
         break;
 
     case 'listProjects':
         $category = $_GET['category'] ?? '';
-        $projects = $scanner->getProjects($category);
+        $refresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';
+        $projects = $scanner->getProjects($category, $refresh);
         $configs = $configManager->getAll();
         foreach ($projects as &$p) { $p['config'] = $configs[$p['name']] ?? null; }
         echo json_encode(['status' => 'success', 'data' => $projects]);
+        break;
+
+    case 'reindexProjects':
+        $cache = $scanner->buildCache();
+        $catCount = count($cache['categories_all'] ?? []);
+        $projCount = count($cache['projects']['all'] ?? []);
+        echo json_encode([
+            'status' => 'success',
+            'message' => "Đã đồng bộ lại chỉ mục danh mục và dự án thành công ($catCount thư mục, $projCount dự án)!",
+            'data' => $cache
+        ]);
         break;
 
     case 'saveConfig':
@@ -1533,177 +1740,161 @@ switch ($action) {
 
         $results = [];
 
-        // 1. Search Local Library
+        // 1. Search Local Library (Layer 1: Tree Index Cache)
         if ($fontSource && is_dir($fontSource)) {
             $fontSource = rtrim(str_replace('\\', '/', $fontSource), '/');
-            try {
-                $iterator = new RecursiveIteratorIterator(
-                    new RecursiveDirectoryIterator($fontSource, RecursiveDirectoryIterator::SKIP_DOTS),
-                    RecursiveIteratorIterator::SELF_FIRST
-                );
+            $localFonts = getLocalFontData($fontSource);
 
-                $grouped = [];
+            $cleanQuery = removeVietnameseDiacritics($query);
+            $normalizedQuery = str_replace(['_', '-', ' '], '', strtolower($cleanQuery));
 
-                foreach ($iterator as $fileInfo) {
-                    if ($fileInfo->isFile()) {
-                        $f = $fileInfo->getFilename();
-                        $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-                        $isWoff = ($ext === 'woff' || $ext === 'woff2');
-                        $isConvert = ($ext === 'otf' || $ext === 'ttf');
+            foreach ($localFonts as $fontId => $font) {
+                $cleanFamily = removeVietnameseDiacritics($font['family']);
+                $normalizedFamily = str_replace(['_', '-', ' '], '', strtolower($cleanFamily));
 
-                        if ($isWoff || $isConvert) {
-                            $fullPath = str_replace('\\', '/', $fileInfo->getRealPath());
-                            $relPath = ltrim(str_replace($fontSource, '', $fullPath), '/');
-                            $parentFolder = dirname($relPath);
-                            
-                            $filename = pathinfo($f, PATHINFO_FILENAME);
-                            $parsed = parseFontFilename($filename);
-                            $familyPrefix = $parsed['family'];
-                            $weight = $parsed['weight'];
-                            $style = $parsed['style'];
-                            $vKey = $weight . ($style === 'italic' ? 'i' : '');
-                            
-                            $fontId = ($parentFolder === '.' || $parentFolder === '') ? $familyPrefix : ($parentFolder . '/' . $familyPrefix);
-                            
-                            if (!isset($grouped[$fontId])) {
-                                $grouped[$fontId] = [
-                                    'id' => $fontId,
-                                    'family' => str_replace(['/', '-', '_'], [' > ', ' ', ' '], $fontId),
-                                    'category' => 'Local Library',
-                                    'variants' => [],
-                                    'convert_variants' => [],
-                                    'source' => 'local',
-                                    'files' => []
-                                ];
-                            }
-                            
-                            $grouped[$fontId]['files'][] = [
-                                'file' => $f,
-                                'filename' => $filename,
-                                'ext' => $ext,
-                                'weight' => $weight,
-                                'style' => $style,
-                                'vKey' => $vKey,
-                                'isWoff' => $isWoff
-                            ];
-                        }
+                if ($query === '' || strpos($normalizedFamily, $normalizedQuery) !== false) {
+                    $familyLower = strtolower($cleanFamily);
+                    $queryLower = strtolower($cleanQuery);
+
+                    if ($familyLower === $queryLower) {
+                        $score = 3000;
+                    } elseif (strpos($familyLower, $queryLower) === 0) {
+                        $score = 2000 - strlen($font['family']);
+                    } else {
+                        $score = 1000 - strlen($font['family']);
                     }
+                    $font['score'] = $score;
+                    $font['source'] = 'local';
+                    $font['category'] = 'Local Library';
+
+                    $results[] = $font;
+                    if (count($results) >= 100) break;
                 }
+            }
 
-                $normalizedQuery = str_replace(['_', '-', ' '], '', strtolower($query));
+            // Layer 2: Real Disk Fallback Search if empty and query provided
+            if (empty($results) && $query !== '') {
+                try {
+                    $iterator = new RecursiveIteratorIterator(
+                        new RecursiveDirectoryIterator($fontSource, RecursiveDirectoryIterator::SKIP_DOTS),
+                        RecursiveIteratorIterator::SELF_FIRST
+                    );
+                    $diskGrouped = [];
+                    foreach ($iterator as $fileInfo) {
+                        if ($fileInfo->isFile()) {
+                            $f = $fileInfo->getFilename();
+                            $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                            $isWoff = ($ext === 'woff' || $ext === 'woff2');
+                            $isConvert = ($ext === 'otf' || $ext === 'ttf');
 
-                foreach ($grouped as $fontId => $font) {
-                    $normalizedFamily = str_replace(['_', '-', ' '], '', strtolower($font['family']));
-                    
-                    if ($query === '' || strpos($normalizedFamily, $normalizedQuery) !== false) {
-                        $variants = [];
-                        $convert_variants = [];
-                        
-                        foreach ($font['files'] as $file) {
-                            $vKey = $file['vKey'];
-                            if ($file['isWoff']) {
-                                if (!in_array($vKey, $variants)) $variants[] = $vKey;
-                            } else {
-                                $exists = false;
-                                foreach ($convert_variants as $cv) {
-                                    if ($cv['variant'] === $vKey) {
-                                        $exists = true;
-                                        break;
+                            if ($isWoff || $isConvert) {
+                                $fullPath = str_replace('\\', '/', $fileInfo->getRealPath());
+                                $relPath = ltrim(str_replace($fontSource, '', $fullPath), '/');
+                                $parentFolder = dirname($relPath);
+                                if ($parentFolder === '.') $parentFolder = '';
+
+                                $filename = pathinfo($f, PATHINFO_FILENAME);
+                                $parsed = parseFontFilename($filename);
+                                $familyPrefix = $parsed['family'];
+
+                                $cleanFam = removeVietnameseDiacritics($familyPrefix);
+                                if (strpos(strtolower($cleanFam), $normalizedQuery) !== false) {
+                                    $fontId = ($parentFolder === '' ? $familyPrefix : ($parentFolder . '/' . $familyPrefix));
+                                    $weight = $parsed['weight'];
+                                    $style = $parsed['style'];
+                                    $vKey = $weight . ($style === 'italic' ? 'i' : '');
+
+                                    if (!isset($diskGrouped[$fontId])) {
+                                        $diskGrouped[$fontId] = [
+                                            'id' => $fontId,
+                                            'family' => str_replace(['/', '-', '_'], [' > ', ' ', ' '], $fontId),
+                                            'category' => 'Local Library',
+                                            'source' => 'local',
+                                            'files' => []
+                                        ];
                                     }
-                                }
-                                if (!$exists) {
-                                    $convert_variants[] = ['variant' => $vKey, 'ext' => $file['ext'], 'filename' => $file['filename']];
+                                    $diskGrouped[$fontId]['files'][] = [
+                                        'file' => $f, 'filename' => $filename, 'ext' => $ext,
+                                        'weight' => $weight, 'style' => $style, 'vKey' => $vKey, 'isWoff' => $isWoff
+                                    ];
                                 }
                             }
                         }
-                        
-                        sort($variants);
-                        usort($convert_variants, function($a, $b) {
-                            return strcmp($a['variant'], $b['variant']);
-                        });
-                        
-                        $font['variants'] = $variants;
-                        $font['convert_variants'] = $convert_variants;
-                        unset($font['files']);
-                        
-                        $score = 0;
-                        $familyLower = strtolower($font['family']);
-                        $queryLower = strtolower($query);
-                        if ($familyLower === $queryLower) {
-                            $score = 2000;
-                        } elseif (strpos($familyLower, $queryLower) === 0) {
-                            $score = 1000 - strlen($font['family']);
-                        } else {
-                            $score = 500 - strlen($font['family']);
-                        }
-                        $font['score'] = $score;
-                        
-                        $results[] = $font;
-                        
-                        if (count($results) >= 20) break;
                     }
-                }
-            } catch (Exception $e) {}
+
+                    if (!empty($diskGrouped)) {
+                        foreach ($diskGrouped as $fontId => $font) {
+                            $variants = []; $convert_variants = [];
+                            foreach ($font['files'] as $file) {
+                                $vKey = $file['vKey'];
+                                if ($file['isWoff']) {
+                                    if (!in_array($vKey, $variants)) $variants[] = $vKey;
+                                } else {
+                                    $exists = false;
+                                    foreach ($convert_variants as $cv) {
+                                        if ($cv['variant'] === $vKey) { $exists = true; break; }
+                                    }
+                                    if (!$exists) $convert_variants[] = ['variant' => $vKey, 'ext' => $file['ext'], 'filename' => $file['filename']];
+                                }
+                            }
+                            sort($variants);
+                            $font['variants'] = $variants;
+                            $font['convert_variants'] = $convert_variants;
+                            unset($font['files']);
+                            $font['score'] = 2500;
+                            $results[] = $font;
+
+                            $localFonts[$fontId] = $font;
+                        }
+                        @file_put_contents(__DIR__ . '/data/local_fonts_cache.json', json_encode($localFonts));
+                    }
+                } catch (Exception $e) {}
+            }
         }
 
         // 2. Search Google Fonts
         if ($query !== '') {
-            ini_set('memory_limit', '256M'); // Increase memory for large JSON
+            ini_set('memory_limit', '256M');
             $cacheFile = __DIR__ . '/data/google_fonts_cache.json';
             $googleFonts = [];
-            $cacheValid = false;
             
             if (file_exists($cacheFile)) {
                 $cacheData = @file_get_contents($cacheFile);
                 if ($cacheData) {
-                    $googleFonts = json_decode($cacheData, true);
-                    if (json_last_error() === JSON_ERROR_NONE && !empty($googleFonts)) {
-                        $cacheValid = true;
-                    }
+                    $googleFonts = json_decode($cacheData, true) ?: [];
                 }
             }
-
-            if (!$cacheValid || (time() - filemtime($cacheFile) > 86400 * 7)) {
-                // Fetch from Google metadata with aggressive settings
-                $ctx = stream_context_create([
-                    'http' => [
-                        'timeout' => 30,
-                        'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n"
-                    ],
-                    'ssl' => [
-                        'verify_peer' => false,
-                        'verify_peer_name' => false
-                    ]
-                ]);
+            
+            if (empty($googleFonts)) {
+                $ctx = stream_context_create(['http' => ['timeout' => 5]]);
                 $data = @file_get_contents('https://fonts.google.com/metadata/fonts', false, $ctx);
                 if ($data) {
                     $json = json_decode($data, true);
-                    if (json_last_error() === JSON_ERROR_NONE && isset($json['familyMetadataList'])) {
-                        $googleFonts = [];
+                    if (isset($json['familyMetadataList'])) {
                         foreach ($json['familyMetadataList'] as $item) {
                             $googleFonts[] = [
-                                'family' => $item['family'],
-                                'category' => $item['category'],
+                                'family' => $item['family'] ?? '',
+                                'category' => $item['category'] ?? 'Google Fonts',
                                 'variants' => array_keys($item['fonts'] ?? [])
                             ];
                         }
                         @file_put_contents($cacheFile, json_encode($googleFonts));
-                        $cacheValid = true;
                     }
                 }
             }
 
             if (!empty($googleFonts)) {
+                $cleanQuery = removeVietnameseDiacritics($query);
+                $queryLower = strtolower($cleanQuery);
                 $count = 0;
-                $queryLower = strtolower($query);
                 foreach ($googleFonts as $font) {
                     $familyLower = strtolower($font['family']);
                     if (strpos($familyLower, $queryLower) !== false) {
                         $score = 0;
                         if ($familyLower === $queryLower) {
-                            $score = 2000;
+                            $score = 2500;
                         } elseif (strpos($familyLower, $queryLower) === 0) {
-                            $score = 1000 - strlen($font['family']);
+                            $score = 1500 - strlen($font['family']);
                         } else {
                             $score = 500 - strlen($font['family']);
                         }
@@ -1713,6 +1904,7 @@ switch ($action) {
                             'family' => $font['family'],
                             'category' => $font['category'],
                             'variants' => $font['variants'],
+                            'convert_variants' => [],
                             'source' => 'google',
                             'score' => $score
                         ];
@@ -1723,10 +1915,10 @@ switch ($action) {
             }
         }
 
-        // Final sorting: Exact matches first, then partials. Google Fonts has a HUGE boost over Local.
+        // Final sorting: Balanced score sorting
         usort($results, function($a, $b) {
-            $scoreA = ($a['score'] ?? 0) + ($a['source'] === 'google' ? 5000 : 0);
-            $scoreB = ($b['score'] ?? 0) + ($b['source'] === 'google' ? 5000 : 0);
+            $scoreA = $a['score'] ?? 0;
+            $scoreB = $b['score'] ?? 0;
             if ($scoreA !== $scoreB) return $scoreB - $scoreA;
             return strcmp($a['family'], $b['family']);
         });
@@ -1735,6 +1927,23 @@ switch ($action) {
             'status' => 'success', 
             'data' => $results, 
             'google_search' => !empty($googleFonts)
+        ]);
+        break;
+
+    case 'reindexFonts':
+        $globalPath = __DIR__ . '/data/demo_config.json';
+        $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
+        $fontSource = $gConfig['font_source_path'] ?? '';
+        if (empty($fontSource) || !is_dir($fontSource)) {
+            $fontSource = $baseDir . DIRECTORY_SEPARATOR . 'fonts';
+        }
+
+        $fonts = buildLocalFontCacheFromTree($fontSource);
+        $count = count($fonts);
+        echo json_encode([
+            'status' => 'success',
+            'message' => "Đã đồng bộ thành công $count họ font từ chỉ mục tree.md!",
+            'count' => $count
         ]);
         break;
 
