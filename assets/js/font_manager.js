@@ -245,7 +245,7 @@ const FontManager = {
             const res = await (await fetch(`api.php?action=addGoogleFont`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: projectName, importUrl })
+                body: JSON.stringify({ name: projectName, category: App.currentCategory, importUrl })
             })).json();
 
             if (res.status === 'success') {
@@ -278,7 +278,7 @@ const FontManager = {
             const res = await (await fetch(`api.php?action=installFont`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: projectName, fontId, fontFamily, variants: selectedVariants })
+                body: JSON.stringify({ name: projectName, category: App.currentCategory, fontId, fontFamily, variants: selectedVariants })
             })).json();
 
             if (res.status === 'success') {
@@ -331,7 +331,7 @@ const FontManager = {
         if (!previewContainer) return;
 
         try {
-            const res = await (await fetch(`api.php?action=getFontsCss&name=${encodeURIComponent(projectName)}`)).json();
+            const res = await (await fetch(`api.php?action=getFontsCss&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory || '')}`)).json();
             if (res.status === 'success') {
                 const content = res.data || '/* Chưa có font nào được thêm */';
                 previewContainer.innerText = content;
@@ -408,7 +408,7 @@ const FontManager = {
             const res = await (await fetch(`api.php?action=removeFont`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: projectName, fontName })
+                body: JSON.stringify({ name: projectName, category: App.currentCategory, fontName })
             })).json();
 
             if (res.status === 'success') {
@@ -529,7 +529,7 @@ const FontManager = {
             const res = await (await fetch(`api.php?action=installConvertedFonts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: projectName, fontFamily, files: filesToUpload })
+                body: JSON.stringify({ name: projectName, category: App.currentCategory, fontFamily, files: filesToUpload })
             })).json();
 
             if (res.status === 'success') {

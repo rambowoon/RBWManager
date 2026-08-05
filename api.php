@@ -565,6 +565,201 @@ switch ($action) {
         foreach ($projects as &$p) { 
             $p['config'] = $configManager->getForProject($p['name'], $p['category'] ?? null); 
         }
+                        $filename = pathinfo($f, PATHINFO_FILENAME);
+                        $parsed = parseFontFilename($filename);
+                        $familyPrefix = $parsed['family'];
+                        $weight = $parsed['weight'];
+                        $style = $parsed['style'];
+                        $vKey = $weight . ($style === 'italic' ? 'i' : '');
+
+                        $fontId = ($parentFolder === '' ? $familyPrefix : ($parentFolder . '/' . $familyPrefix));
+
+                        if (!isset($grouped[$fontId])) {
+                            $grouped[$fontId] = [
+                                'id' => $fontId,
+                                'family' => str_replace(['/', '-', '_'], [' > ', ' ', ' '], $fontId),
+                                'category' => 'Local Library',
+                                'source' => 'local',
+                                'files' => []
+                            ];
+                        }
+
+                        $grouped[$fontId]['files'][] = [
+                            'file' => $f,
+                            'filename' => $filename,
+                            'ext' => $ext,
+                            'weight' => $weight,
+                            'style' => $style,
+                            'vKey' => $vKey,
+                            'isWoff' => $isWoff
+                        ];
+                    }
+                }
+            }
+        } catch (Exception $e) {}
+    }
+
+    $finalFonts = [];
+    foreach ($grouped as $fontId => $font) {
+        $variants = [];
+        $convert_variants = [];
+        foreach ($font['files'] as $file) {
+            $vKey = $file['vKey'];
+            if ($file['isWoff']) {
+                if (!in_array($vKey, $variants)) $variants[] = $vKey;
+            } else {
+                $exists = false;
+                foreach ($convert_variants as $cv) {
+                    if ($cv['variant'] === $vKey) {
+                        $exists = true;
+                        break;
+                    }
+                }
+                if (!$exists) {
+                    $convert_variants[] = ['variant' => $vKey, 'ext' => $file['ext'], 'filename' => $file['filename']];
+                }
+            }
+        }
+        sort($variants);
+        usort($convert_variants, function($a, $b) {
+            return strcmp($a['variant'], $b['variant']);
+        });
+
+        $font['variants'] = $variants;
+        $font['convert_variants'] = $convert_variants;
+        unset($font['files']);
+
+        $finalFonts[$fontId] = $font;
+    }
+
+    file_put_contents($cacheFile, json_encode($finalFonts));
+    return $finalFonts;
+}
+
+function getLocalFontData($fontSource, $forceReindex = false) {
+    $cacheFile = __DIR__ . '/data/local_fonts_cache.json';
+    $treeFile = rtrim(str_replace('\\', '/', $fontSource), '/') . '/tree.md';
+
+    $needBuild = $forceReindex || !file_exists($cacheFile);
+    if (!$needBuild && file_exists($treeFile)) {
+        if (filemtime($treeFile) > filemtime($cacheFile)) {
+            $needBuild = true;
+        }
+    }
+
+    if ($needBuild) {
+        return buildLocalFontCacheFromTree($fontSource);
+    }
+
+    $raw = @file_get_contents($cacheFile);
+    $data = json_decode($raw, true);
+    if (!is_array($data) || empty($data)) {
+        return buildLocalFontCacheFromTree($fontSource);
+    }
+
+    return $data;
+}
+
+function cleanAllOldBackups($dir, $ttl = 86400) {
+    if (!is_dir($dir)) return;
+    try {
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($files as $fileinfo) {
+            if ($fileinfo->isFile()) {
+                $path = $fileinfo->getRealPath();
+                // Avoid unlinking the tracking file itself
+                if (basename($path) === '.last_clean') continue;
+                if (time() - filemtime($path) > $ttl) {
+                    @unlink($path);
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // Fail silently to prevent interrupting API requests
+    }
+}
+
+// Auto clean backups older than 24 hours (run at most once per hour)
+$backupsRootDir = __DIR__ . DIRECTORY_SEPARATOR . 'backups';
+if (!is_dir($backupsRootDir)) {
+    @mkdir($backupsRootDir, 0777, true);
+}
+$lastCleanFile = $backupsRootDir . DIRECTORY_SEPARATOR . '.last_clean';
+if (!file_exists($lastCleanFile) || (time() - filemtime($lastCleanFile) > 3600)) {
+    cleanAllOldBackups($backupsRootDir);
+    @touch($lastCleanFile);
+}
+
+require_once __DIR__ . '/core/ProjectScanner.php';
+require_once __DIR__ . '/core/ConfigManager.php';
+require_once __DIR__ . '/core/DeploymentService.php';
+require_once __DIR__ . '/core/PackagingService.php';
+require_once __DIR__ . '/core/SchemaManager.php';
+require_once __DIR__ . '/core/RemoteClient.php';
+require_once __DIR__ . '/core/ProjectDeployer.php';
+require_once __DIR__ . '/core/ImageTrimService.php';
+
+use RamboWoon\ProjectScanner;
+use RamboWoon\ConfigManager;
+use RamboWoon\DeploymentService;
+use RamboWoon\PackagingService;
+use RamboWoon\RemoteClient;
+use RamboWoon\ProjectDeployer;
+use RamboWoon\ImageTrimService;
+
+$baseDir = dirname(__DIR__);
+if (strpos($baseDir, '\\\\.\\') === 0 || strpos($baseDir, '\\\\?\\') === 0) {
+    $baseDir = substr($baseDir, 4);
+}
+$configPath = __DIR__ . '/data/projects.json';
+
+$scanner = new ProjectScanner($baseDir);
+$configManager = new ConfigManager($configPath);
+$deployService = new DeploymentService($baseDir);
+$packagingService = new PackagingService($scanner, $deployService, $configManager);
+$projectDeployer = new ProjectDeployer($baseDir);
+
+$action = $_GET['action'] ?? '';
+$jobId = $_GET['jobId'] ?? ($_POST['jobId'] ?? null);
+
+header('Content-Type: application/json');
+
+switch ($action) {
+    case 'getLogs':
+        if (!$jobId) die(json_encode(['status' => 'error', 'message' => 'Missing jobId']));
+        $logFile = __DIR__ . "/logs/{$jobId}.log";
+        $logs = [];
+        if (file_exists($logFile)) {
+            $lines = explode("\n", trim(file_get_contents($logFile)));
+            foreach ($lines as $line) { if ($line) $logs[] = json_decode($line, true); }
+        }
+        echo json_encode(['status' => 'success', 'logs' => $logs]);
+        break;
+
+    case 'deleteLog':
+        if ($jobId) {
+            $logFile = __DIR__ . "/logs/{$jobId}.log";
+            if (file_exists($logFile)) @unlink($logFile);
+        }
+        echo json_encode(['status' => 'success']);
+        break;
+
+    case 'listCategories':
+        $strict = isset($_GET['strict']) && $_GET['strict'] === 'true';
+        $refresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';
+        echo json_encode(['status' => 'success', 'data' => $scanner->getCategories($strict, $refresh)]);
+        break;
+
+    case 'listProjects':
+        $category = $_GET['category'] ?? '';
+        $refresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';
+        $projects = $scanner->getProjects($category, $refresh);
+        foreach ($projects as &$p) { 
+            $p['config'] = $configManager->getForProject($p['name'], $p['category'] ?? null); 
+        }
         echo json_encode(['status' => 'success', 'data' => $projects]);
         break;
 
@@ -1679,8 +1874,8 @@ switch ($action) {
         break;
 
     case 'saveModuleSchema':
-        $category = $data['category'] ?? '';
         $data = json_decode(file_get_contents('php://input'), true);
+        $category = $data['category'] ?? '';
         $projectName = $data['name'] ?? '';
         $file = $data['file'] ?? '';
         $configData = $data['config'] ?? [];
@@ -1776,564 +1971,6 @@ switch ($action) {
         break;
 
     case 'openProject':
-        $category = $_GET['category'] ?? '';
-        $name = $_GET['name'] ?? '';
-        $project = $scanner->getProjectByName($name, $category ?? null);
-        if (!$project) {
-            echo json_encode(['status' => 'error', 'message' => 'Project not found']);
-            break;
-        }
-        $path = $project['path'];
-        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-            $globalPath = __DIR__ . '/data/demo_config.json';
-            $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
-            $codeCmd = $gConfig['editor_path'] ?? 'code';
-            
-            // If configured editor path does not exist on disk, reset to 'code' to trigger auto-detection
-            $cleanCodeCmd = trim($codeCmd, '"\' ');
-            if ($codeCmd !== 'code' && !empty($cleanCodeCmd) && !file_exists($cleanCodeCmd)) {
-                $codeCmd = 'code';
-            }
-            
-            // If editor_path is default 'code', try to find standard paths
-            if ($codeCmd === 'code') {
-                $localAppData = getenv('LOCALAPPDATA');
-                $progFiles = getenv('ProgramFiles');
-                $searchPaths = [
-                    $localAppData . '\Programs\Microsoft VS Code\bin\code.cmd',
-                    $progFiles . '\Microsoft VS Code\bin\code.cmd',
-                    $localAppData . '\Programs\cursor\resources\app\bin\cursor',
-                    $localAppData . '\Programs\Cursor\resources\app\bin\cursor.cmd'
-                ];
-
-                foreach ($searchPaths as $sp) {
-                    if (file_exists($sp)) {
-                        $codeCmd = '"' . $sp . '"';
-                        break;
-                    }
-                }
-            } else {
-                // Ensure custom path is quoted
-                $codeCmd = '"' . $codeCmd . '"';
-            }
-
-            @exec("start \"\" /B $codeCmd \"" . $path . "\"");
-        } else {
-            @exec("code \"" . $path . "\" > /dev/null 2>&1 &");
-        }
-        echo json_encode(['status' => 'success']);
-        break;
-
-    case 'setupLocalSource':
-        $data = json_decode(file_get_contents('php://input'), true) ?? [];
-        $projectName = $data['name'] ?? '';
-        $category = $data['category'] ?? '';
-        $forceOverwriteDb = isset($data['forceOverwriteDb']) ? $data['forceOverwriteDb'] : null;
-
-        $project = $scanner->getProjectByName($projectName, $category);
-        if (!$project) {
-            $catPath = $category ? str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $category) . DIRECTORY_SEPARATOR : '';
-            $projectDir = $baseDir . DIRECTORY_SEPARATOR . $catPath . $projectName;
-            if (is_dir($projectDir)) {
-                $project = [
-                    'name' => $projectName,
-                    'path' => $projectDir,
-                    'category' => $category,
-                    'relPath' => ($category ? $category . '/' : '') . $projectName,
-                    'type' => 'project'
-                ];
-            }
-        }
-
-        if (!$project || !is_dir($project['path'])) {
-            echo json_encode(['status' => 'error', 'message' => 'Thư mục dự án không tồn tại trên hệ thống local!']);
-            break;
-        }
-
-        $projectPath = $project['path'];
-
-        // Tên Database chuẩn hóa: e.g. 2026_08_ngocanhclinic_0553526w
-        $cleanProjectName = preg_replace('/[^a-z0-9_]/', '', strtolower($projectName));
-        if (!empty($category)) {
-            $dbName = str_replace(['/', '\\'], '_', $category) . '_' . $cleanProjectName;
-        } else {
-            $dbName = $cleanProjectName;
-        }
-
-        // 1. Quét tìm file .sql trong thư mục dự án
-        $sqlFiles = [];
-        try {
-            $iterator = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($projectPath, RecursiveDirectoryIterator::SKIP_DOTS),
-                RecursiveIteratorIterator::SELF_FIRST
-            );
-            foreach ($iterator as $fileInfo) {
-                if ($fileInfo->isFile() && strtolower($fileInfo->getExtension()) === 'sql') {
-                    $rel = str_replace('\\', '/', ltrim(str_replace($projectPath, '', $fileInfo->getRealPath()), '\\/'));
-                    if (strpos($rel, 'vendor/') === 0 || strpos($rel, 'node_modules/') === 0 || strpos($rel, 'backups/') === 0) continue;
-                    $sqlFiles[] = $fileInfo->getRealPath();
-                }
-            }
-        } catch (Exception $e) {}
-
-        $targetSqlFile = null;
-        if (!empty($sqlFiles)) {
-            $folderName = strtolower(basename($projectPath));
-            foreach ($sqlFiles as $sf) {
-                $baseName = strtolower(pathinfo($sf, PATHINFO_FILENAME));
-                $cleanBase = preg_replace('/[^a-z0-9]/', '', $baseName);
-                if ($cleanBase === $cleanProjectName || $baseName === $folderName || strpos($cleanBase, $cleanProjectName) !== false) {
-                    $targetSqlFile = $sf;
-                    break;
-                }
-            }
-            if (!$targetSqlFile) {
-                usort($sqlFiles, function($a, $b) { return strlen($a) <=> strlen($b); });
-                $targetSqlFile = $sqlFiles[0];
-            }
-        }
-
-        // 2. Kiểm tra DB đã tồn tại chưa bằng MySQLi
-        $dbHost = 'localhost';
-        $dbUser = 'root';
-        $dbPass = '';
-
-        $mysqli = @new \mysqli($dbHost, $dbUser, $dbPass);
-        if ($mysqli->connect_error) {
-            $dbHost = '127.0.0.1';
-            $mysqli = @new \mysqli($dbHost, $dbUser, $dbPass);
-        }
-
-        if ($mysqli->connect_error) {
-            echo json_encode(['status' => 'error', 'message' => 'Kết nối MySQL/phpMyAdmin thất bại: ' . $mysqli->connect_error]);
-            break;
-        }
-
-        $resDb = $mysqli->query("SHOW DATABASES LIKE '" . $mysqli->real_escape_string($dbName) . "'");
-        $dbExists = ($resDb && $resDb->num_rows > 0);
-        $mysqli->close();
-
-        if ($dbExists && $forceOverwriteDb === null) {
-            echo json_encode([
-                'status' => 'db_exists_prompt',
-                'db_name' => $dbName,
-                'sql_file' => $targetSqlFile ? basename($targetSqlFile) : 'Không có file .sql',
-                'message' => "Database '$dbName' đã tồn tại trên phpMyAdmin."
-            ]);
-            break;
-        }
-
-        $importLog = '';
-
-        try {
-            // 3. Nếu ghi đè -> Drop DB cũ
-            if ($dbExists && $forceOverwriteDb === true) {
-                $mDrop = new \mysqli($dbHost, $dbUser, $dbPass);
-                @$mDrop->query("DROP DATABASE IF EXISTS `" . $mDrop->real_escape_string($dbName) . "`");
-                $mDrop->close();
-            }
-
-            // 4. Tạo Database
-            if (!$dbExists || $forceOverwriteDb === true) {
-                $projectDeployer->createDatabase($dbName, $dbHost, $dbUser, $dbPass);
-                if ($targetSqlFile && file_exists($targetSqlFile)) {
-                    $projectDeployer->importSql($dbName, $targetSqlFile, $dbHost, $dbUser, $dbPass);
-                    $importLog = "Tạo & nạp DB '$dbName' từ " . basename($targetSqlFile);
-                } else {
-                    $importLog = "Tạo mới DB '$dbName' (không file SQL)";
-                }
-            } else {
-                $importLog = "Bỏ qua DB (Giữ nguyên Database '$dbName' hiện tại)";
-            }
-
-            // 5. Copy .agents folder vào dự án (nếu có)
-            $agentsDir = __DIR__ . DIRECTORY_SEPARATOR . '.agents';
-            if (is_dir($agentsDir)) {
-                try {
-                    $projectDeployer->copyRecursive($agentsDir, $projectPath . DIRECTORY_SEPARATOR . '.agents');
-                } catch (Exception $e) {}
-            }
-
-            // 6. Cấu hình file .env
-            $envPath = $projectPath . DIRECTORY_SEPARATOR . '.env';
-            $envExamplePath = $projectPath . DIRECTORY_SEPARATOR . '.env.example';
-
-            if (!file_exists($envPath) && file_exists($envExamplePath)) {
-                @copy($envExamplePath, $envPath);
-            }
-
-            $sitePath = '/' . str_replace('\\', '/', trim($project['relPath'], '/\\')) . '/';
-
-            $envUpdates = [
-                'SITE_PATH' => $sitePath,
-                'APP_URL' => '"http://localhost${SITE_PATH}"',
-                'DB_HOST' => '127.0.0.1',
-                'DB_PORT' => '3306',
-                'DB_DATABASE' => $dbName,
-                'DB_USERNAME' => 'root',
-                'DB_PASSWORD' => ''
-            ];
-
-            if (file_exists($envPath)) {
-                $projectDeployer->updateEnv($envPath, $envUpdates);
-            } else {
-                $newEnvContent = "";
-                foreach ($envUpdates as $k => $val) {
-                    $newEnvContent .= "$k=$val\n";
-                }
-                file_put_contents($envPath, $newEnvContent);
-            }
-
-            // 7. Lưu trạng thái đã cấu hình & khóa nút
-            $projectConfig = $configManager->getForProject($projectName, $category);
-            $projectConfig['configured_local'] = true;
-            $configManager->save($projectName, $projectConfig, $category);
-            $configManager->addHistory($projectName, 'Cấu hình Source Local', $importLog, $category);
-
-            echo json_encode([
-                'status' => 'success',
-                'message' => '✅ Cấu hình Source Local thành công! DB: ' . $dbName . ' (' . $importLog . ')'
-            ]);
-
-        } catch (Exception $e) {
-            echo json_encode(['status' => 'error', 'message' => 'Lỗi cấu hình Source Local: ' . $e->getMessage()]);
-        }
-        break;
-
-    case 'searchFonts':
-        $query = $_GET['query'] ?? '';
-        $globalPath = __DIR__ . '/data/demo_config.json';
-        $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
-        $fontSource = $gConfig['font_source_path'] ?? '';
-        if (empty($fontSource) || !is_dir($fontSource)) {
-            $fontSource = $baseDir . DIRECTORY_SEPARATOR . 'fonts';
-        }
-
-        $results = [];
-
-        // 1. Search Local Library (Layer 1: Tree Index Cache)
-        if ($fontSource && is_dir($fontSource)) {
-            $fontSource = rtrim(str_replace('\\', '/', $fontSource), '/');
-            $localFonts = getLocalFontData($fontSource);
-
-            $cleanQuery = removeVietnameseDiacritics($query);
-            $normalizedQuery = str_replace(['_', '-', ' '], '', strtolower($cleanQuery));
-
-            foreach ($localFonts as $fontId => $font) {
-                $cleanFamily = removeVietnameseDiacritics($font['family']);
-                $normalizedFamily = str_replace(['_', '-', ' '], '', strtolower($cleanFamily));
-
-                if ($query === '' || strpos($normalizedFamily, $normalizedQuery) !== false) {
-                    $familyLower = strtolower($cleanFamily);
-                    $queryLower = strtolower($cleanQuery);
-
-                    if ($familyLower === $queryLower) {
-                        $score = 3000;
-                    } elseif (strpos($familyLower, $queryLower) === 0) {
-                        $score = 2000 - strlen($font['family']);
-                    } else {
-                        $score = 1000 - strlen($font['family']);
-                    }
-                    $font['score'] = $score;
-                    $font['source'] = 'local';
-                    $font['category'] = 'Local Library';
-
-                    $results[] = $font;
-                    if (count($results) >= 100) break;
-                }
-            }
-
-            // Layer 2: Real Disk Fallback Search if empty and query provided
-            if (empty($results) && $query !== '') {
-                try {
-                    $iterator = new RecursiveIteratorIterator(
-                        new RecursiveDirectoryIterator($fontSource, RecursiveDirectoryIterator::SKIP_DOTS),
-                        RecursiveIteratorIterator::SELF_FIRST
-                    );
-                    $diskGrouped = [];
-                    foreach ($iterator as $fileInfo) {
-                        if ($fileInfo->isFile()) {
-                            $f = $fileInfo->getFilename();
-                            $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-                            $isWoff = ($ext === 'woff' || $ext === 'woff2');
-                            $isConvert = ($ext === 'otf' || $ext === 'ttf');
-
-                            if ($isWoff || $isConvert) {
-                                $fullPath = str_replace('\\', '/', $fileInfo->getRealPath());
-                                $relPath = ltrim(str_replace($fontSource, '', $fullPath), '/');
-                                $parentFolder = dirname($relPath);
-                                if ($parentFolder === '.') $parentFolder = '';
-
-                                $filename = pathinfo($f, PATHINFO_FILENAME);
-                                $parsed = parseFontFilename($filename);
-                                $familyPrefix = $parsed['family'];
-
-                                $cleanFam = removeVietnameseDiacritics($familyPrefix);
-                                if (strpos(strtolower($cleanFam), $normalizedQuery) !== false) {
-                                    $fontId = ($parentFolder === '' ? $familyPrefix : ($parentFolder . '/' . $familyPrefix));
-                                    $weight = $parsed['weight'];
-                                    $style = $parsed['style'];
-                                    $vKey = $weight . ($style === 'italic' ? 'i' : '');
-
-                                    if (!isset($diskGrouped[$fontId])) {
-                                        $diskGrouped[$fontId] = [
-                                            'id' => $fontId,
-                                            'family' => str_replace(['/', '-', '_'], [' > ', ' ', ' '], $fontId),
-                                            'category' => 'Local Library',
-                                            'source' => 'local',
-                                            'files' => []
-                                        ];
-                                    }
-                                    $diskGrouped[$fontId]['files'][] = [
-                                        'file' => $f, 'filename' => $filename, 'ext' => $ext,
-                                        'weight' => $weight, 'style' => $style, 'vKey' => $vKey, 'isWoff' => $isWoff
-                                    ];
-                                }
-                            }
-                        }
-                    }
-
-                    if (!empty($diskGrouped)) {
-                        foreach ($diskGrouped as $fontId => $font) {
-                            $variants = []; $convert_variants = [];
-                            foreach ($font['files'] as $file) {
-                                $vKey = $file['vKey'];
-                                if ($file['isWoff']) {
-                                    if (!in_array($vKey, $variants)) $variants[] = $vKey;
-                                } else {
-                                    $exists = false;
-                                    foreach ($convert_variants as $cv) {
-                                        if ($cv['variant'] === $vKey) { $exists = true; break; }
-                                    }
-                                    if (!$exists) $convert_variants[] = ['variant' => $vKey, 'ext' => $file['ext'], 'filename' => $file['filename']];
-                                }
-                            }
-                            sort($variants);
-                            $font['variants'] = $variants;
-                            $font['convert_variants'] = $convert_variants;
-                            unset($font['files']);
-                            $font['score'] = 2500;
-                            $results[] = $font;
-
-                            $localFonts[$fontId] = $font;
-                        }
-                        @file_put_contents(__DIR__ . '/data/local_fonts_cache.json', json_encode($localFonts));
-                    }
-                } catch (Exception $e) {}
-            }
-        }
-
-        // 2. Search Google Fonts
-        if ($query !== '') {
-            ini_set('memory_limit', '256M');
-            $cacheFile = __DIR__ . '/data/google_fonts_cache.json';
-            $googleFonts = [];
-            
-            if (file_exists($cacheFile)) {
-                $cacheData = @file_get_contents($cacheFile);
-                if ($cacheData) {
-                    $googleFonts = json_decode($cacheData, true) ?: [];
-                }
-            }
-            
-            if (empty($googleFonts)) {
-                $ctx = stream_context_create(['http' => ['timeout' => 5]]);
-                $data = @file_get_contents('https://fonts.google.com/metadata/fonts', false, $ctx);
-                if ($data) {
-                    $json = json_decode($data, true);
-                    if (isset($json['familyMetadataList'])) {
-                        foreach ($json['familyMetadataList'] as $item) {
-                            $googleFonts[] = [
-                                'family' => $item['family'] ?? '',
-                                'category' => $item['category'] ?? 'Google Fonts',
-                                'variants' => array_keys($item['fonts'] ?? [])
-                            ];
-                        }
-                        @file_put_contents($cacheFile, json_encode($googleFonts));
-                    }
-                }
-            }
-
-            if (!empty($googleFonts)) {
-                $cleanQuery = removeVietnameseDiacritics($query);
-                $queryLower = strtolower($cleanQuery);
-                $count = 0;
-                foreach ($googleFonts as $font) {
-                    $familyLower = strtolower($font['family']);
-                    if (strpos($familyLower, $queryLower) !== false) {
-                        $score = 0;
-                        if ($familyLower === $queryLower) {
-                            $score = 2500;
-                        } elseif (strpos($familyLower, $queryLower) === 0) {
-                            $score = 1500 - strlen($font['family']);
-                        } else {
-                            $score = 500 - strlen($font['family']);
-                        }
-
-                        $results[] = [
-                            'id' => $font['family'],
-                            'family' => $font['family'],
-                            'category' => $font['category'],
-                            'variants' => $font['variants'],
-                            'convert_variants' => [],
-                            'source' => 'google',
-                            'score' => $score
-                        ];
-                        $count++;
-                    }
-                    if (count($results) >= 150 || $count >= 100) break;
-                }
-            }
-        }
-
-        // Final sorting: Balanced score sorting
-        usort($results, function($a, $b) {
-            $scoreA = $a['score'] ?? 0;
-            $scoreB = $b['score'] ?? 0;
-            if ($scoreA !== $scoreB) return $scoreB - $scoreA;
-            return strcmp($a['family'], $b['family']);
-        });
-
-        echo json_encode([
-            'status' => 'success', 
-            'data' => $results, 
-            'google_search' => !empty($googleFonts)
-        ]);
-        break;
-
-    case 'reindexFonts':
-        $globalPath = __DIR__ . '/data/demo_config.json';
-        $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
-        $fontSource = $gConfig['font_source_path'] ?? '';
-        if (empty($fontSource) || !is_dir($fontSource)) {
-            $fontSource = $baseDir . DIRECTORY_SEPARATOR . 'fonts';
-        }
-
-        $fonts = buildLocalFontCacheFromTree($fontSource);
-        $count = count($fonts);
-        echo json_encode([
-            'status' => 'success',
-            'message' => "Đã đồng bộ thành công $count họ font từ chỉ mục tree.md!",
-            'count' => $count
-        ]);
-        break;
-
-    case 'installFont':
-        $data = json_decode(file_get_contents('php://input'), true);
-        $projectName = $data['name'] ?? '';
-        $fontId = $data['fontId'] ?? ''; 
-        $selectedVariants = $data['variants'] ?? [];
-
-        $project = $scanner->getProjectByName($projectName, $category ?? null);
-        $globalPath = __DIR__ . '/data/demo_config.json';
-        $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
-        $fontSource = $gConfig['font_source_path'] ?? '';
-        if (empty($fontSource) || !is_dir($fontSource)) {
-            $fontSource = $baseDir . DIRECTORY_SEPARATOR . 'fonts';
-        }
-
-        if (!$project || !$fontSource) {
-            echo json_encode(['status' => 'error', 'message' => 'Thiếu thông tin dự án hoặc thư viện font']);
-            break;
-        }
-
-        $parentFolder = dirname($fontId);
-        $familyPrefix = basename($fontId);
-
-        $srcDir = $fontSource;
-        if ($parentFolder !== '.' && $parentFolder !== '') {
-            $srcDir .= DIRECTORY_SEPARATOR . $parentFolder;
-        }
-        
-        $cleanFolderName = removeVietnameseDiacritics($familyPrefix);
-        $destDir = $project['path'] . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'fonts' . DIRECTORY_SEPARATOR . $cleanFolderName;
-
-        if (!is_dir($srcDir)) {
-            echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy thư mục font gốc']);
-            break;
-        }
-
-        if (!is_dir($destDir)) @mkdir($destDir, 0777, true);
-
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($srcDir, RecursiveDirectoryIterator::SKIP_DOTS)
-        );
-        $copiedFiles = [];
-        $fontName = $cleanFolderName;
-
-        foreach ($iterator as $fileInfo) {
-            if ($fileInfo->isFile()) {
-                $f = $fileInfo->getFilename();
-                
-                $filename = pathinfo($f, PATHINFO_FILENAME);
-                $parsed = parseFontFilename($filename);
-                if (strtolower($parsed['family']) !== strtolower($familyPrefix)) {
-                    continue;
-                }
-
-                $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-                if ($ext === 'woff' || $ext === 'woff2') {
-                    $weight = $parsed['weight'];
-                    $style = $parsed['style'];
-                    $vKey = $weight . ($style === 'italic' ? 'i' : '');
-
-                    if (in_array($vKey, $selectedVariants)) {
-                        copy($fileInfo->getRealPath(), $destDir . DIRECTORY_SEPARATOR . $f);
-                        $copiedFiles[$vKey][] = ['file' => $f, 'ext' => $ext, 'weight' => $weight, 'style' => $style];
-                    }
-                }
-            }
-        }
-
-        if (empty($copiedFiles)) {
-            echo json_encode(['status' => 'error', 'message' => 'Không có file font nào phù hợp với lựa chọn.']);
-            break;
-        }
-
-        // Generate CSS
-        $globalCssPath = $project['path'] . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'css' . DIRECTORY_SEPARATOR . 'fonts.css';
-        $globalCssDir = dirname($globalCssPath);
-        if (!is_dir($globalCssDir)) @mkdir($globalCssDir, 0777, true);
-
-        $cssContent = "";
-        foreach ($copiedFiles as $vKey => $vFiles) {
-            $weight = $vFiles[0]['weight'];
-            $style = $vFiles[0]['style'];
-            $cssContent .= "@font-face {\n";
-            $cssContent .= "  font-family: '$fontName';\n";
-            $cssContent .= "  font-style: $style;\n";
-            $cssContent .= "  font-weight: $weight;\n";
-            $cssContent .= "  font-display: swap;\n"; // SEO & Speed Optimization
-            
-            $srcs = [];
-            
-            // Sort to ensure woff2 is prioritized
-            usort($vFiles, function($a, $b) {
-                if ($a['ext'] === 'woff2') return -1;
-                if ($b['ext'] === 'woff2') return 1;
-                return 0;
-            });
-
-            foreach ($vFiles as $vf) {
-                $srcs[] = "url('../fonts/" . $cleanFolderName . "/{$vf['file']}') format('{$vf['ext']}')";
-            }
-            $cssContent .= "  src: " . implode(",\n       ", $srcs) . ";\n";
-            $cssContent .= "}\n";
-        }
-
-        $existing = file_exists($globalCssPath) ? file_get_contents($globalCssPath) : '';
-        $prefix = (empty($existing) || substr($existing, -1) === "\n") ? "" : "\n";
-        file_put_contents($globalCssPath, $prefix . $cssContent, FILE_APPEND);
-        
-        echo json_encode(['status' => 'success', 'message' => "Đã cài đặt font $fontName và cập nhật vào assets/css/fonts.css"]);
-        break;
-
-    case 'getFontsCss':
-        $projectName = $_GET['name'] ?? '';
-        $project = $scanner->getProjectByName($projectName, $category ?? null);
-        if (!$project) {
-            echo json_encode(['status' => 'error', 'message' => 'Project not found']);
-            break;
         }
         $cssPath = $project['path'] . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'css' . DIRECTORY_SEPARATOR . 'fonts.css';
         $content = file_exists($cssPath) ? file_get_contents($cssPath) : '';
