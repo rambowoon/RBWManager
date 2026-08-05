@@ -1556,6 +1556,7 @@ const SchemaBuilder = {
 						name: this.currentProject,
 						file: this.currentFile,
 						config: finalData,
+						category: App.currentCategory
 					}),
 				})
 			).json();

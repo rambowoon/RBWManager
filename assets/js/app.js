@@ -1350,7 +1350,8 @@ const App = {
 
 	async openAntigravity(name) {
 		try {
-			const res = await (await fetch(`api.php?action=openProject&name=${encodeURIComponent(name)}`)).json();
+			const categoryQuery = this.currentCategory ? `&category=${encodeURIComponent(this.currentCategory)}` : '';
+			const res = await (await fetch(`api.php?action=openProject&name=${encodeURIComponent(name)}${categoryQuery}`)).json();
 			if (res.status === 'success') {
 				UI.notify('Đã yêu cầu mở dự án: ' + name, 'success');
 			} else {
