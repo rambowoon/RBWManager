@@ -1,7 +1,7 @@
 const App = {
 	projects: [],
 	currentCategory: null,
-	globalConfig: null,
+	globalData: null,
 
 	async init() {
 		this.bindEvents();
@@ -1210,7 +1210,7 @@ const App = {
 		const month = String(now.getMonth() + 1).padStart(2, '0');
 		const shortYear = String(year).slice(-2);
 		
-		const fmt = (this.globalConfig && this.globalConfig.month_folder_format) ? this.globalConfig.month_folder_format : 'YYYY_MM';
+		const fmt = (this.globalData && this.globalData.month_folder_format) ? this.globalData.month_folder_format : 'YYYY_MM';
 		let autoMonth = `${year}_${month}`;
 		if (fmt === 'YYYY/thangMM') autoMonth = `${year}/thang${month}`;
 		else if (fmt === 'thangMM') autoMonth = `thang${month}`;
@@ -1235,7 +1235,7 @@ const App = {
 		const year = now.getFullYear();
 		const month = String(now.getMonth() + 1).padStart(2, '0');
 		const shortYear = String(year).slice(-2);
-		const fmt = (this.globalConfig && this.globalConfig.month_folder_format) ? this.globalConfig.month_folder_format : 'YYYY_MM';
+		const fmt = (this.globalData && this.globalData.month_folder_format) ? this.globalData.month_folder_format : 'YYYY_MM';
 		
 		let defaultFolder = `${year}_${month}`;
 		if (fmt === 'YYYY/thangMM') defaultFolder = `${year}/thang${month}`;
