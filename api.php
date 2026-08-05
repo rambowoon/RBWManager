@@ -2160,7 +2160,7 @@ switch ($action) {
                 $count = 0;
                 foreach ($googleFonts as $font) {
                     $familyLower = strtolower($font['family']);
-                    if (strpos($familyLower, $queryLower) !== false) {
+                    if ($queryLower === '' || strpos($familyLower, $queryLower) !== false) {
                         $score = 0;
                         if ($familyLower === $queryLower) {
                             $score = 2500;
