@@ -11,7 +11,7 @@ const App = {
 			const gRes = await fetch('api.php?action=getGlobalConfig');
 			const gData = await gRes.json();
 			if (gData.status === 'success') {
-				this.globalConfig = gData.data;
+				this.globalData = (Array.isArray(gData.data) && gData.data.length === 0) ? {} : gData.data;
 			}
 		} catch (e) {
 			console.error("Error loading global config:", e);
@@ -132,7 +132,8 @@ const App = {
 		try {
 			const res = await (await fetch('api.php?action=getGlobalConfig')).json();
 			if (res.status === 'success') {
-				const config = res.data;
+				const config = (Array.isArray(res.data) && res.data.length === 0) ? {} : res.data;
+				this.globalData = config;
 				document.getElementById('gemini-api-key').value = config.gemini_key || '';
 				document.getElementById('claude-api-key').value = config.claude_key || '';
 				
@@ -283,7 +284,7 @@ const App = {
 			try {
 				const res = await (await fetch('api.php?action=getGlobalConfig')).json();
 				if (res.status === 'success') {
-					this.globalData = res.data;
+					this.globalData = (Array.isArray(res.data) && res.data.length === 0) ? {} : res.data;
 				}
 			} catch (err) { }
 		}
@@ -693,7 +694,9 @@ const App = {
 		if (!this.globalData) {
 			try {
 				const res = await (await fetch('api.php?action=getGlobalConfig')).json();
-				if (res.status === 'success') this.globalData = res.data;
+				if (res.status === 'success') {
+					this.globalData = (Array.isArray(res.data) && res.data.length === 0) ? {} : res.data;
+				}
 			} catch (e) {}
 		}
 
@@ -749,7 +752,9 @@ const App = {
 		if (!this.globalData) {
 			try {
 				const res = await (await fetch('api.php?action=getGlobalConfig')).json();
-				if (res.status === 'success') this.globalData = res.data;
+				if (res.status === 'success') {
+					this.globalData = (Array.isArray(res.data) && res.data.length === 0) ? {} : res.data;
+				}
 			} catch (e) {}
 		}
 

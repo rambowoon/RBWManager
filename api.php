@@ -593,7 +593,8 @@ switch ($action) {
 
     case 'getGlobalConfig':
         $globalPath = __DIR__ . '/data/demo_config.json';
-        $config = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
+        $config = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : null;
+        if (empty($config)) $config = new stdClass();
         echo json_encode(['status' => 'success', 'data' => $config]);
         break;
 
