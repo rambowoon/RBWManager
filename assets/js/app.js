@@ -330,28 +330,28 @@ const App = {
 				</div>
 				<div class="form-group" style="margin-bottom:10px;">
 					<label style="font-size:0.7rem;">Host / IP</label>
-					<input type="text" class="form-control" value="${demo.ftp_host || ''}" onchange="App.updateDemoField('${demo.id}', 'ftp_host', this.value)">
+					<input type="text" class="form-control" value="${demo.ftp_host || ''}" oninput="App.updateDemoField('${demo.id}', 'ftp_host', this.value)">
 				</div>
 				<div class="form-group" style="margin-bottom:10px;">
 					<label style="font-size:0.7rem;">Tên miền (Mặc định)</label>
-					<input type="text" class="form-control" value="${demo.web_domain || ''}" onchange="App.updateDemoField('${demo.id}', 'web_domain', this.value)">
+					<input type="text" class="form-control" value="${demo.web_domain || ''}" oninput="App.updateDemoField('${demo.id}', 'web_domain', this.value)">
 				</div>
 				<div class="form-group" style="margin-bottom:10px;">
 					<label style="font-size:0.7rem;">Username</label>
-					<input type="text" class="form-control" value="${demo.ftp_user || ''}" onchange="App.updateDemoField('${demo.id}', 'ftp_user', this.value)">
+					<input type="text" class="form-control" value="${demo.ftp_user || ''}" oninput="App.updateDemoField('${demo.id}', 'ftp_user', this.value)">
 				</div>
 				<div class="form-group" style="margin-bottom:10px;">
 					<label style="font-size:0.7rem;">Password</label>
-					<input type="text" class="form-control" value="${demo.ftp_pass || ''}" onchange="App.updateDemoField('${demo.id}', 'ftp_pass', this.value)">
+					<input type="text" class="form-control" value="${demo.ftp_pass || ''}" oninput="App.updateDemoField('${demo.id}', 'ftp_pass', this.value)">
 				</div>
 				<div class="form-grid-2">
 					<div class="form-group" style="margin-bottom:0;">
 						<label style="font-size:0.7rem;">Port (DA)</label>
-						<input type="text" class="form-control" value="${demo.da_port || '1111'}" onchange="App.updateDemoField('${demo.id}', 'da_port', this.value)">
+						<input type="text" class="form-control" value="${demo.da_port || '1111'}" oninput="App.updateDemoField('${demo.id}', 'da_port', this.value)">
 					</div>
 					<div class="form-group" style="margin-bottom:0;">
 						<label style="font-size:0.7rem;">FTP Root</label>
-						<input type="text" class="form-control" value="${demo.ftp_root || ''}" onchange="App.updateDemoField('${demo.id}', 'ftp_root', this.value)">
+						<input type="text" class="form-control" value="${demo.ftp_root || ''}" oninput="App.updateDemoField('${demo.id}', 'ftp_root', this.value)">
 					</div>
 				</div>
 			`;
@@ -430,6 +430,7 @@ const App = {
 		this.renderDemoServersGrid();
 		UI.hideModal('demo-quick-paste-modal');
 		UI.notify('Đã dán và trích xuất cấu hình tự động!', 'success');
+		this.saveDemoListConfig();
 	},
 
 	updateDemoField(id, field, value) {

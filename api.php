@@ -920,6 +920,9 @@ switch ($action) {
         // Cập nhật lại mật khẩu đúng vào project config để lưu vết
         if (!isset($projectConfig['deployed']['demo'])) $projectConfig['deployed']['demo'] = [];
         $projectConfig['deployed']['demo']['db_pass'] = $dbPass;
+        if ($isDemo && isset($demoId)) {
+            $projectConfig['deployed']['demo']['demo_server_id'] = $demoId;
+        }
         $configManager->save($projectName, $projectConfig, $category);
 
         // 6. Kiểm tra xem database đã có dữ liệu hay chưa
