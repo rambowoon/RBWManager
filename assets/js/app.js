@@ -709,10 +709,10 @@ const App = {
 
 		// Populate demo server selector
 		const demoSelect = document.getElementById('pre_deploy_demo_server_id');
-		if (demoSelect && this.globalConfig && this.globalConfig.demo_list) {
+		if (demoSelect && this.globalData && this.globalData.demo_list) {
 			demoSelect.innerHTML = '';
-			const defaultId = this.globalConfig.default_demo_id || 'legacy';
-			this.globalConfig.demo_list.forEach(demo => {
+			const defaultId = this.globalData.default_demo_id || 'legacy';
+			this.globalData.demo_list.forEach(demo => {
 				const option = document.createElement('option');
 				option.value = demo.id;
 				option.innerText = demo.name + ' (' + demo.web_domain + ')' + (demo.id === defaultId ? ' ⭐' : '');
