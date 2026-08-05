@@ -362,7 +362,7 @@ const App = {
 		const saveDiv = document.createElement('div');
 		saveDiv.style.gridColumn = '1 / -1';
 		saveDiv.style.textAlign = 'right';
-		saveDiv.innerHTML = `<button class="btn btn-success btn-submit-large" onclick="App.saveDemoListConfig()">💾 Lưu Danh sách Demo</button>`;
+		saveDiv.innerHTML = `<button class="btn btn-primary btn-submit-large" onclick="App.saveDemoListConfig()">💾 Lưu Danh sách Demo</button>`;
 		list.appendChild(saveDiv);
 	},
 
