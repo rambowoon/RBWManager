@@ -485,8 +485,8 @@ const UI = {
 		if (!demoUrl && hasDemo && project) {
 			let demoDomain = "demo92.nasanivietnam.net";
 			const demoId = config.deployed.demo.demo_server_id || "legacy";
-			if (App.globalConfig && App.globalConfig.demo_list) {
-				const demoServer = App.globalConfig.demo_list.find(
+			if (App.globalData && App.globalData.demo_list) {
+				const demoServer = App.globalData.demo_list.find(
 					(d) => d.id === demoId,
 				);
 				if (demoServer)
