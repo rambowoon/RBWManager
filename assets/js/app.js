@@ -66,7 +66,7 @@ const App = {
 	},
 
 	hideAllViews() {
-		const views = ['view-dashboard', 'view-converter', 'view-project-detail', 'view-ai-checker', 'view-cache-clearer', 'view-global-config'];
+		const views = ['view-dashboard', 'view-converter', 'view-project-detail', 'view-ai-checker', 'view-cache-clearer', 'view-global-config', 'view-demo-servers'];
 		views.forEach(id => {
 			const el = document.getElementById(id);
 			if (el) el.style.display = 'none';
@@ -83,14 +83,34 @@ const App = {
 		document.getElementById('view-project-detail').style.display = 'block';
 		
 		document.getElementById('detail-project-name').innerText = name;
-		this.currentCategory = category; // Ensure category is updated
-		
-		const data = await Api.getProjectConfig(name);
+		const pathEl = document.getElementById('detail-project-path');
+		if (pathEl) pathEl.innerText = `${category || 'Dự án'} / Cấu hình & Deploy`;
+		this.currentCategory = category;
+
+		const data = await Api.getProjectConfig(name, category);
 		if (data.status === 'success') {
-			UI.fillProjectDetailForm(name, data.data, category);
+			const config = data.data || {};
+			const hasDemo = !!(config.deployed && config.deployed.demo);
+			const hasProd = !!(config.deployed && config.deployed.production);
+			const statusEl = document.getElementById('detail-project-status');
+			if (statusEl) {
+				if (hasProd) {
+					statusEl.innerText = '● PRODUCTION ĐANG CHẠY';
+					statusEl.className = 'badge-env';
+				} else if (hasDemo) {
+					statusEl.innerText = '● DEMO ĐANG CHẠY';
+					statusEl.className = 'badge-env';
+				} else {
+					statusEl.innerText = '○ CHƯA DEPLOY';
+					statusEl.className = 'badge-env';
+					statusEl.style.background = 'var(--surface-2)';
+					statusEl.style.color = 'var(--text-muted)';
+				}
+			}
+
+			UI.fillProjectDetailForm(name, config, category);
 			
-			// Reset Tabs to first one
-			const firstTabBtn = document.querySelector('.project-master-tabs .btn');
+			const firstTabBtn = document.querySelector('.tabs .tab');
 			if (firstTabBtn) UI.switchProjectTab(firstTabBtn, 'd_tab-config');
 		}
 	},
@@ -162,7 +182,7 @@ const App = {
 				}
 			}
 		} catch (err) {
-			alert('Lỗi tải danh sách dự án');
+			await UI.alert('Lỗi tải danh sách dự án');
 		}
 	},
 
@@ -219,6 +239,8 @@ const App = {
 		}
 	},
 
+	globalData: null,
+
 	async showGlobalConfig() {
 		this.setActiveNav(5);
 		this.hideAllViews();
@@ -230,71 +252,234 @@ const App = {
 			).json();
 			if (res.status === 'success') {
 				const config = res.data;
-				document.getElementById('g_ftp_host').value =
-					config.ftp_host || '';
-				document.getElementById('g_web_domain').value =
-					config.web_domain || '';
-				document.getElementById('g_da_port').value =
-					config.da_port || '1111';
-				document.getElementById('g_ftp_user').value =
-					config.ftp_user || '';
-				document.getElementById('g_ftp_pass').value =
-					config.ftp_pass || '';
-				document.getElementById('g_ftp_root').value =
-					config.ftp_root || '';
-				document.getElementById('g_cf_account_id').value =
-					config.cf_account_id || '';
-				document.getElementById('g_cf_api_token').value =
-					config.cf_api_token || '';
-				document.getElementById('g_cf_auth_email').value =
-					config.cf_auth_email || '';
-				document.getElementById('g_gemini_key').value =
-					config.gemini_key || '';
-				document.getElementById('g_claude_key').value =
-					config.claude_key || '';
-				document.getElementById('g_source_path').value =
-					config.source_path || '';
-				document.getElementById('g_source_folder_name').value =
-					config.source_folder_name || '';
-				document.getElementById('g_source_db_name').value =
-					config.source_db_name || '';
-				document.getElementById('g_editor_path').value =
-					config.editor_path || '';
-				document.getElementById('g_font_source_path').value =
-					config.font_source_path || '';
-				document.getElementById('g_images_pool_path').value =
-					config.images_pool_path || '';
+				this.globalData = config;
+
+				document.getElementById('g_cf_account_id').value = config.cf_account_id || '';
+				document.getElementById('g_cf_api_token').value = config.cf_api_token || '';
+				document.getElementById('g_cf_auth_email').value = config.cf_auth_email || '';
+				document.getElementById('g_gemini_key').value = config.gemini_key || '';
+				document.getElementById('g_claude_key').value = config.claude_key || '';
+				document.getElementById('g_source_path').value = config.source_path || '';
+				document.getElementById('g_source_folder_name').value = config.source_folder_name || '';
+				document.getElementById('g_source_db_name').value = config.source_db_name || '';
+				document.getElementById('g_editor_path').value = config.editor_path || '';
+				document.getElementById('g_font_source_path').value = config.font_source_path || '';
+				document.getElementById('g_images_pool_path').value = config.images_pool_path || '';
+				if (document.getElementById('g_month_folder_format')) {
+					document.getElementById('g_month_folder_format').value = config.month_folder_format || 'YYYY_MM';
+				}
 			}
 		} catch (err) {
-			alert('Lỗi tải cấu hình chung');
+			await UI.alert('Lỗi tải cấu hình chung');
 		}
 	},
 
-	async saveGlobalConfig() {
-		const config = {
-			ftp_host: document.getElementById('g_ftp_host').value,
-			web_domain: document.getElementById('g_web_domain').value,
-			da_port: document.getElementById('g_da_port').value,
-			ftp_user: document.getElementById('g_ftp_user').value,
-			ftp_pass: document.getElementById('g_ftp_pass').value,
-			ftp_root: document.getElementById('g_ftp_root').value,
-			cf_account_id: document.getElementById('g_cf_account_id').value,
-			cf_api_token: document.getElementById('g_cf_api_token').value,
-			cf_auth_email: document.getElementById('g_cf_auth_email').value,
-			gemini_key: document.getElementById('g_gemini_key').value,
-			claude_key: document.getElementById('g_claude_key').value,
-			source_path: document.getElementById('g_source_path').value,
-			source_folder_name: document.getElementById('g_source_folder_name').value,
-			source_db_name: document.getElementById('g_source_db_name').value,
-			editor_path: document.getElementById('g_editor_path').value,
-			font_source_path: document.getElementById('g_font_source_path').value,
-			images_pool_path: document.getElementById('g_images_pool_path').value,
+	async showDemoServers() {
+		this.setActiveNav(4);
+		this.hideAllViews();
+		document.getElementById('view-demo-servers').style.display = 'block';
+
+		if (!this.globalData) {
+			try {
+				const res = await (await fetch('api.php?action=getGlobalConfig')).json();
+				if (res.status === 'success') {
+					this.globalData = res.data;
+				}
+			} catch (err) { }
+		}
+		
+		if (this.globalData) {
+			if (!this.globalData.demo_list) {
+				this.globalData.demo_list = [{
+					id: 'legacy',
+					name: 'Server Demo 1 (Mặc định)',
+					ftp_host: this.globalData.ftp_host || '',
+					web_domain: this.globalData.web_domain || '',
+					da_port: this.globalData.da_port || '1111',
+					ftp_user: this.globalData.ftp_user || '',
+					ftp_pass: this.globalData.ftp_pass || '',
+					ftp_root: this.globalData.ftp_root || '',
+				}];
+				this.globalData.default_demo_id = 'legacy';
+			}
+			this.renderDemoServersGrid();
+		}
+	},
+
+	renderDemoServersGrid() {
+		const list = document.getElementById('demo-servers-list');
+		list.innerHTML = '';
+		
+		this.globalData.demo_list.forEach((demo) => {
+			const isDefault = demo.id === this.globalData.default_demo_id;
+			const card = document.createElement('div');
+			card.className = 'card-padded';
+			card.style.position = 'relative';
+			if (isDefault) card.style.border = '1px solid var(--primary)';
+			
+			card.innerHTML = `
+				<div class="flex-between-center-mb20">
+					<h3 class="card-title-sm">${isDefault ? '⭐ ' : ''} <input type="text" style="background:transparent; border:none; border-bottom:1px solid #555; color:#fff; font-size:1rem; width:150px; outline:none;" value="${demo.name || ''}" onchange="App.updateDemoField('${demo.id}', 'name', this.value)" placeholder="Tên Server"></h3>
+					<div class="flex-align-center-gap10">
+						${!isDefault ? `<button class="btn btn-ghost" style="padding:4px 8px; font-size:0.75rem;" onclick="App.setDefaultDemoGrid('${demo.id}')">Làm mặc định</button>` : ''}
+						<button class="btn btn-ghost" style="padding:4px 8px; font-size:0.75rem; color:var(--danger);" onclick="App.deleteDemoGrid('${demo.id}')">Xóa</button>
+					</div>
+				</div>
+				<div style="margin-bottom:15px;">
+					<button class="btn btn-ghost" style="width: 100%; border: 1px dashed var(--border); color: var(--primary);" onclick="App.showDemoQuickPaste('${demo.id}')">⚡ Dán nhanh cấu hình</button>
+				</div>
+				<div class="form-group" style="margin-bottom:10px;">
+					<label style="font-size:0.7rem;">Host / IP</label>
+					<input type="text" class="form-control" value="${demo.ftp_host || ''}" onchange="App.updateDemoField('${demo.id}', 'ftp_host', this.value)">
+				</div>
+				<div class="form-group" style="margin-bottom:10px;">
+					<label style="font-size:0.7rem;">Tên miền (Mặc định)</label>
+					<input type="text" class="form-control" value="${demo.web_domain || ''}" onchange="App.updateDemoField('${demo.id}', 'web_domain', this.value)">
+				</div>
+				<div class="form-group" style="margin-bottom:10px;">
+					<label style="font-size:0.7rem;">Username</label>
+					<input type="text" class="form-control" value="${demo.ftp_user || ''}" onchange="App.updateDemoField('${demo.id}', 'ftp_user', this.value)">
+				</div>
+				<div class="form-group" style="margin-bottom:10px;">
+					<label style="font-size:0.7rem;">Password</label>
+					<input type="text" class="form-control" value="${demo.ftp_pass || ''}" onchange="App.updateDemoField('${demo.id}', 'ftp_pass', this.value)">
+				</div>
+				<div class="form-grid-2">
+					<div class="form-group" style="margin-bottom:0;">
+						<label style="font-size:0.7rem;">Port (DA)</label>
+						<input type="text" class="form-control" value="${demo.da_port || '1111'}" onchange="App.updateDemoField('${demo.id}', 'da_port', this.value)">
+					</div>
+					<div class="form-group" style="margin-bottom:0;">
+						<label style="font-size:0.7rem;">FTP Root</label>
+						<input type="text" class="form-control" value="${demo.ftp_root || ''}" onchange="App.updateDemoField('${demo.id}', 'ftp_root', this.value)">
+					</div>
+				</div>
+			`;
+			list.appendChild(card);
+		});
+		
+		const saveDiv = document.createElement('div');
+		saveDiv.style.gridColumn = '1 / -1';
+		saveDiv.style.textAlign = 'right';
+		saveDiv.innerHTML = `<button class="btn btn-success btn-submit-large" onclick="App.saveDemoListConfig()">💾 Lưu Danh sách Demo</button>`;
+		list.appendChild(saveDiv);
+	},
+
+	async saveDemoListConfig() {
+		if (!this.globalData) return;
+		const defaultDemo = this.globalData.demo_list.find(d => d.id === this.globalData.default_demo_id) || this.globalData.demo_list[0];
+		if (defaultDemo) {
+			this.globalData.ftp_host = defaultDemo.ftp_host;
+			this.globalData.web_domain = defaultDemo.web_domain;
+			this.globalData.da_port = defaultDemo.da_port;
+			this.globalData.ftp_user = defaultDemo.ftp_user;
+			this.globalData.ftp_pass = defaultDemo.ftp_pass;
+			this.globalData.ftp_root = defaultDemo.ftp_root;
+		}
+		const res = await (await fetch('api.php?action=saveGlobalConfig', { method: 'POST', body: JSON.stringify(this.globalData) })).json();
+		if (res.status === 'success') {
+			UI.notify('Đã lưu danh sách Demo thành công!', 'success');
+		}
+	},
+
+	showDemoQuickPaste(demoId) {
+		document.getElementById('demo_quick_paste_target_id').value = demoId;
+		document.getElementById('demo_quick_paste_text').value = '';
+		UI.showModal('demo-quick-paste-modal');
+	},
+
+	processDemoQuickPaste() {
+		const demoId = document.getElementById('demo_quick_paste_target_id').value;
+		const text = document.getElementById('demo_quick_paste_text').value.trim();
+		if (!text) {
+			UI.hideModal('demo-quick-paste-modal');
+			return;
+		}
+
+		const demo = this.globalData.demo_list.find(d => d.id === demoId);
+		if (!demo) return;
+
+		const lines = text.split(/\r?\n/);
+		const findHosts = (str) => {
+			const matches = str.match(/(?:https?:\/\/|ftp\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|(?:\d{1,3}\.){3}\d{1,3})/gi) || [];
+			return matches.map(m => m.replace(/https?:\/\//i, '').replace(/ftp\./i, '').split(':')[0]);
 		};
+
+		lines.forEach(line => {
+			line = line.trim();
+			if (!line) return;
+			const lowerLine = line.toLowerCase();
+			if (lowerLine.includes('tên miền')) {
+				const hosts = findHosts(line);
+				if (hosts.length > 0) demo.web_domain = hosts[0];
+			}
+			if (lowerLine.includes('control panel') || lowerLine.includes('host name') || lowerLine.includes('ip') || lowerLine.includes('hosting')) {
+				const hosts = findHosts(line);
+				if (hosts.length > 0) demo.ftp_host = hosts[0];
+			}
+			if (lowerLine.includes('username') || lowerLine.includes('tên đăng nhập') || lowerLine.includes('tài khoản')) {
+				const val = line.replace(/.*?(username|tên đăng nhập|tài khoản)[\s:]*/i, '').trim();
+				if (val) demo.ftp_user = val.split(/\s/)[0];
+			}
+			if (lowerLine.includes('password') || lowerLine.includes('mật khẩu') || lowerLine.includes('pass')) {
+				const val = line.replace(/.*?(password|mật khẩu|pass)[\s:]*/i, '').trim();
+				if (val) demo.ftp_pass = val.split(/\s/)[0];
+			}
+		});
+
+		this.renderDemoServersGrid();
+		UI.hideModal('demo-quick-paste-modal');
+		UI.notify('Đã dán và trích xuất cấu hình tự động!', 'success');
+	},
+
+	updateDemoField(id, field, value) {
+		const demo = this.globalData.demo_list.find(d => d.id === id);
+		if (demo) demo[field] = value;
+	},
+
+	setDefaultDemoGrid(id) {
+		this.globalData.default_demo_id = id;
+		this.renderDemoServersGrid();
+	},
+
+	async deleteDemoGrid(id) {
+		if (this.globalData.demo_list.length <= 1) return await UI.alert('Phải có ít nhất 1 Server Demo!');
+		if (!await UI.confirm('Xóa Server Demo này?')) return;
+		this.globalData.demo_list = this.globalData.demo_list.filter(d => d.id !== id);
+		if (this.globalData.default_demo_id === id) this.globalData.default_demo_id = this.globalData.demo_list[0].id;
+		this.renderDemoServersGrid();
+	},
+
+	addDemoServer() {
+		const newId = 'demo_' + Date.now();
+		this.globalData.demo_list.push({
+			id: newId,
+			name: 'Server Demo Mới',
+			ftp_host: '', web_domain: '', da_port: '1111', ftp_user: '', ftp_pass: '', ftp_root: ''
+		});
+		this.renderDemoServersGrid();
+	},
+
+	async saveGlobalConfig() {
+		if (!this.globalData) return;
+
+		this.globalData.cf_account_id = document.getElementById('g_cf_account_id').value;
+		this.globalData.cf_api_token = document.getElementById('g_cf_api_token').value;
+		this.globalData.cf_auth_email = document.getElementById('g_cf_auth_email').value;
+		this.globalData.gemini_key = document.getElementById('g_gemini_key').value;
+		this.globalData.claude_key = document.getElementById('g_claude_key').value;
+		this.globalData.source_path = document.getElementById('g_source_path').value;
+		this.globalData.source_folder_name = document.getElementById('g_source_folder_name').value;
+		this.globalData.source_db_name = document.getElementById('g_source_db_name').value;
+		this.globalData.editor_path = document.getElementById('g_editor_path').value;
+		this.globalData.font_source_path = document.getElementById('g_font_source_path').value;
+		this.globalData.images_pool_path = document.getElementById('g_images_pool_path').value;
+		this.globalData.month_folder_format = document.getElementById('g_month_folder_format') ? document.getElementById('g_month_folder_format').value : 'YYYY_MM';
 
 		const res = await (
 			await fetch('api.php?action=saveGlobalConfig', {
 				method: 'POST',
-				body: JSON.stringify(config),
+				body: JSON.stringify(this.globalData),
 			})
 		).json();
 
@@ -308,7 +493,7 @@ const App = {
 	},
 
 	async deleteConfig(name) {
-		if (!confirm(`Bạn có chắc muốn xóa cấu hình của dự án ${name}?`))
+		if (!await UI.confirm(`Bạn có chắc muốn xóa cấu hình của dự án ${name}?`))
 			return;
 		try {
 			const res = await (
@@ -321,7 +506,71 @@ const App = {
 				this.loadProjects(this.currentCategory);
 			}
 		} catch (err) {
-			alert('Lỗi khi xóa cấu hình');
+			await UI.alert('Lỗi khi xóa cấu hình');
+		}
+	},
+
+	async setupLocalSource(name, category, forceOverwriteDb = null) {
+		document.getElementById('deploy-modal-title').innerText = `⚡ Cấu hình Source Local: ${name}`;
+		document.getElementById('log-output').innerHTML = '';
+		document.getElementById('progress-fill').style.width = '10%';
+		document.getElementById('status-text').innerText = 'Đang khởi chạy...';
+		document.getElementById('deploy-footer').style.display = 'none';
+		UI.showModal('deploy-modal');
+
+		UI.updateDeployStatus('Đang xử lý...', 35, '🔍 Đang quét file SQL, tạo Database & cấu hình .env...');
+
+		try {
+			const res = await Api.setupLocalSource(name, category, forceOverwriteDb);
+
+			if (res.status === 'db_exists_prompt') {
+				UI.hideModal('deploy-modal');
+				document.getElementById('local-db-confirm-message').innerHTML = 
+					`Database <b>${res.db_name}</b> đã tồn tại trên phpMyAdmin.<br>File SQL nguồn: <code style="color:var(--primary);">${res.sql_file}</code>.<br><br>Bạn có muốn <b>GHI ĐÈ</b> (xóa DB cũ & nạp lại) không?`;
+				UI.showModal('local-db-confirm-modal');
+
+				document.getElementById('btn-local-db-overwrite').onclick = async () => {
+					UI.hideModal('local-db-confirm-modal');
+					await this.setupLocalSource(name, category, true);
+				};
+
+				document.getElementById('btn-local-db-skip').onclick = async () => {
+					UI.hideModal('local-db-confirm-modal');
+					await this.setupLocalSource(name, category, false);
+				};
+				return;
+			}
+
+			if (res.status === 'success') {
+				UI.updateDeployStatus('Thành công!', 100, `<span style="color:#5FF0BE;font-weight:700;">${res.message || '✅ Cấu hình Source Local thành công!'}</span>`);
+				document.getElementById('deploy-footer').style.display = 'flex';
+				UI.showToast(res.message || 'Cấu hình Source Local thành công!', 'success');
+				await this.loadProjects(category);
+				await this.showProjectDetail(name, category);
+			} else {
+				UI.updateDeployStatus('Lỗi!', 100, `<span style="color:#FF5E8F;font-weight:700;">❌ ${res.message || 'Lỗi cấu hình Source Local!'}</span>`);
+				document.getElementById('deploy-footer').style.display = 'flex';
+				UI.showToast(res.message || 'Lỗi cấu hình Source Local!', 'error');
+			}
+		} catch (e) {
+			UI.updateDeployStatus('Lỗi!', 100, `<span style="color:#FF5E8F;font-weight:700;">❌ Lỗi kết nối: ${e.message}</span>`);
+			document.getElementById('deploy-footer').style.display = 'flex';
+			UI.showToast('Lỗi kết nối: ' + e.message, 'error');
+		}
+	},
+
+	async refreshSystemCache() {
+		UI.showToast('↻ Đang quét và đồng bộ lại danh mục tháng & dự án...', 'info');
+		try {
+			await Api.reindexProjects();
+			await this.loadProjects(this.currentCategory || '');
+			if (document.getElementById('view-project-detail').style.display === 'block') {
+				const currentName = document.getElementById('detail-project-name')?.innerText;
+				if (currentName) await this.showProjectDetail(currentName, this.currentCategory);
+			}
+			UI.showToast('✅ Đã cập nhật chỉ mục & danh mục tháng thành công!', 'success');
+		} catch (e) {
+			UI.showToast('Lỗi khi làm mới: ' + e.message, 'error');
 		}
 	},
 
@@ -348,13 +597,16 @@ const App = {
 		const res = await (
 			await fetch('api.php?action=saveConfig', {
 				method: 'POST',
-				body: JSON.stringify({ name, config }),
+				body: JSON.stringify({ name, config, category: this.currentCategory }),
 			})
 		).json();
 
 		if (res.status === 'success') {
 			if (!isDetail) UI.hideModal('config-modal');
-			else UI.notify('Đã lưu cấu hình dự án!', 'success');
+			else {
+				UI.hideModal('detail-config-modal');
+				UI.notify('Đã lưu cấu hình dự án!', 'success');
+			}
 			await this.loadProjects(this.currentCategory);
 		} else {
 			UI.notify('Lưu thất bại: ' + res.message, 'error');
@@ -434,28 +686,51 @@ const App = {
 		if (document.getElementById('custom_demo_domain')) document.getElementById('custom_demo_domain').value = '';
 		document.getElementById('pre_deploy_ssl').checked = false;
 		document.getElementById('pre_deploy_pack_upload').checked = true;
+		if (!this.globalData) {
+			try {
+				const res = await (await fetch('api.php?action=getGlobalConfig')).json();
+				if (res.status === 'success') this.globalData = res.data;
+			} catch (e) {}
+		}
+
 		if (document.getElementById('pre_deploy_use_7zip')) {
 			document.getElementById('pre_deploy_use_7zip').checked = true;
 		}
 		document.getElementById('pre_deploy_export_upload').checked = true;
 		document.getElementById('pre_deploy_create_db').checked = true;
 		document.getElementById('pre_deploy_extract_setup').checked = true;
+
+		// Populate demo server selector
+		const demoSelect = document.getElementById('pre_deploy_demo_server_id');
+		if (demoSelect && this.globalConfig && this.globalConfig.demo_list) {
+			demoSelect.innerHTML = '';
+			const defaultId = this.globalConfig.default_demo_id || 'legacy';
+			this.globalConfig.demo_list.forEach(demo => {
+				const option = document.createElement('option');
+				option.value = demo.id;
+				option.innerText = demo.name + ' (' + demo.web_domain + ')' + (demo.id === defaultId ? ' ⭐' : '');
+				if (demo.id === defaultId) option.selected = true;
+				demoSelect.appendChild(option);
+			});
+		}
+
 		UI.showModal('pre-deploy-modal');
 
 		document.getElementById('confirm-deploy-btn').onclick = async () => {
 			const manualSuffix = document.getElementById('manual_db_suffix').value;
+			const demoServerId = document.getElementById('pre_deploy_demo_server_id') ? document.getElementById('pre_deploy_demo_server_id').value : '';
 			const useSSL = document.getElementById('pre_deploy_ssl').checked;
 			const packUpload = document.getElementById('pre_deploy_pack_upload').checked;
 			const use7zip = document.getElementById('pre_deploy_use_7zip') ? document.getElementById('pre_deploy_use_7zip').checked : true;
 			const exportUpload = document.getElementById('pre_deploy_export_upload').checked;
 			const createDb = document.getElementById('pre_deploy_create_db').checked;
 			const extractSetup = document.getElementById('pre_deploy_extract_setup').checked;
-			const customDomain = document.getElementById('custom_demo_domain') ? document.getElementById('custom_demo_domain').value.trim() : '';
 			
 			UI.hideModal('pre-deploy-modal');
 			await this.handleDeployDemo(name, category, {
 				manual_db_suffix: manualSuffix,
-				custom_domain: customDomain,
+				demo_server_id: demoServerId,
+				custom_domain: '',
 				use_ssl: useSSL,
 				use_7zip: use7zip,
 				pack_upload: packUpload,
@@ -467,10 +742,16 @@ const App = {
 	},
 
 	async deployDbDemo(name, category) {
+		if (!this.globalData) {
+			try {
+				const res = await (await fetch('api.php?action=getGlobalConfig')).json();
+				if (res.status === 'success') this.globalData = res.data;
+			} catch (e) {}
+		}
+
 		document.getElementById('pre-deploy-project-desc').innerText =
 			`Dự án: ${name} (${category}) - Chỉ Deploy Database`;
 		document.getElementById('manual_db_suffix').value = '';
-		if (document.getElementById('custom_demo_domain')) document.getElementById('custom_demo_domain').value = '';
 		document.getElementById('pre_deploy_ssl').checked = false;
 		document.getElementById('pre_deploy_pack_upload').checked = false;
 		if (document.getElementById('pre_deploy_use_7zip')) {
@@ -479,22 +760,38 @@ const App = {
 		document.getElementById('pre_deploy_export_upload').checked = true;
 		document.getElementById('pre_deploy_create_db').checked = true;
 		document.getElementById('pre_deploy_extract_setup').checked = true;
+
+		// Populate demo server selector
+		const demoSelect = document.getElementById('pre_deploy_demo_server_id');
+		if (demoSelect && this.globalData && this.globalData.demo_list) {
+			demoSelect.innerHTML = '';
+			const defaultId = this.globalData.default_demo_id || 'legacy';
+			this.globalData.demo_list.forEach(demo => {
+				const option = document.createElement('option');
+				option.value = demo.id;
+				option.innerText = demo.name + ' (' + demo.web_domain + ')' + (demo.id === defaultId ? ' ⭐' : '');
+				if (demo.id === defaultId) option.selected = true;
+				demoSelect.appendChild(option);
+			});
+		}
+
 		UI.showModal('pre-deploy-modal');
 
 		document.getElementById('confirm-deploy-btn').onclick = async () => {
 			const manualSuffix = document.getElementById('manual_db_suffix').value;
+			const demoServerId = document.getElementById('pre_deploy_demo_server_id') ? document.getElementById('pre_deploy_demo_server_id').value : '';
 			const useSSL = document.getElementById('pre_deploy_ssl').checked;
 			const packUpload = document.getElementById('pre_deploy_pack_upload').checked;
 			const use7zip = document.getElementById('pre_deploy_use_7zip') ? document.getElementById('pre_deploy_use_7zip').checked : false;
 			const exportUpload = document.getElementById('pre_deploy_export_upload').checked;
 			const createDb = document.getElementById('pre_deploy_create_db').checked;
 			const extractSetup = document.getElementById('pre_deploy_extract_setup').checked;
-			const customDomain = document.getElementById('custom_demo_domain') ? document.getElementById('custom_demo_domain').value.trim() : '';
 			
 			UI.hideModal('pre-deploy-modal');
 			await this.handleDeployDemo(name, category, {
 				manual_db_suffix: manualSuffix,
-				custom_domain: customDomain,
+				demo_server_id: demoServerId,
+				custom_domain: '',
 				use_ssl: useSSL,
 				use_7zip: use7zip,
 				pack_upload: packUpload,
@@ -516,7 +813,7 @@ const App = {
 	},
 
 	async integrateAMP(name, category) {
-		const confirmed = confirm(
+		const confirmed = await UI.confirm(
 			`⚡ Tích hợp AMP NASANI vào dự án "${name}"\n\nThao tác này sẽ:\n• Copy views, assets, helpers AMP vào dự án\n• Cập nhật config/app.php, config/view.php\n• Inject AMP routes vào src/Routes/web.php\n• Merge AMP methods vào Func.php\n• Cập nhật ApiController.php\n• Thêm <link rel="amphtml"> vào head.blade.php\n\nBạn có chắc chắn muốn tiếp tục?`
 		);
 		if (!confirmed) return;
@@ -570,7 +867,7 @@ const App = {
 		);
 	},
 
-	async installSSL(name) {
+	async installSSL(name, category) {
 		document.getElementById('ssl-project-name').innerText = name;
 		document.getElementById('ssl-log-output').innerHTML = '';
 		document.getElementById('ssl-footer').style.display = 'none';
@@ -593,7 +890,7 @@ const App = {
 				const res = await (
 					await fetch(`api.php?action=installSSL`, {
 						method: 'POST',
-						body: JSON.stringify({ name }),
+						body: JSON.stringify({ name, category }),
 					})
 				).json();
 
@@ -651,18 +948,18 @@ const App = {
 		}
 	},
 
-	async toggleActionLock(name, type) {
+	async toggleActionLock(name, type, category) {
 		try {
 			const res = await (
 				await fetch(`api.php?action=toggleActionLock`, {
 					method: 'POST',
-					body: JSON.stringify({ name, type }),
+					body: JSON.stringify({ name, type, category }),
 				})
 			).json();
 
 			if (res.status === 'success') {
 				// Cập nhật dữ liệu local để UI thay đổi liền
-				const configRes = await Api.getProjectConfig(name);
+				const configRes = await Api.getProjectConfig(name, category);
 				if (configRes.status === 'success') {
 					// Cập nhật trong danh sách projects
 					const pIdx = this.projects.findIndex(p => p.name === name);
@@ -810,7 +1107,7 @@ const App = {
 	},
 	async cleanupTools(name, category, type = 'demo') {
 		if (
-			!confirm(
+			!await UI.confirm(
 				`Bạn có chắc muốn xóa file Bridge (Tool) trên ${type === 'demo' ? 'Demo' : 'Production'}?`,
 			)
 		)
@@ -855,6 +1152,7 @@ const App = {
 
 	async executeChangeType() {
 		const name = document.getElementById('ct-project-name').value;
+		const category = document.getElementById('ct-project-category').value;
 		const module = document.getElementById('ct-module').value;
 		const oldType = document.getElementById('ct-old-type').value.trim();
 		const newType = document.getElementById('ct-new-type').value.trim();
@@ -864,7 +1162,7 @@ const App = {
 			return;
 		}
 
-		if (!confirm(`Bạn có chắc muốn đổi tất cả Type từ "${oldType}" sang "${newType}" cho module ${module}?\n\nHành động này không thể hoàn tác!`)) {
+		if (!await UI.confirm(`Bạn có chắc muốn đổi tất cả Type từ "${oldType}" sang "${newType}" cho module ${module}?\n\nHành động này không thể hoàn tác!`)) {
 			return;
 		}
 
@@ -876,7 +1174,7 @@ const App = {
 			const res = await (await fetch(`api.php?action=changeDatabaseType`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name, module, old_type: oldType, new_type: newType }),
+				body: JSON.stringify({ name, category, module, old_type: oldType, new_type: newType }),
 			})).json();
 
 			if (res.status === 'success') {
@@ -894,12 +1192,20 @@ const App = {
 	},
 
 	showDeployProjectModal() {
+		const now = new Date();
+		const year = now.getFullYear();
+		const month = String(now.getMonth() + 1).padStart(2, '0');
+		const shortYear = String(year).slice(-2);
+		
+		const fmt = (this.globalConfig && this.globalConfig.month_folder_format) ? this.globalConfig.month_folder_format : 'YYYY_MM';
+		let autoMonth = `${year}_${month}`;
+		if (fmt === 'YYYY/thangMM') autoMonth = `${year}/thang${month}`;
+		else if (fmt === 'thangMM') autoMonth = `thang${month}`;
+		else if (fmt === 'YYYY/YYtMM') autoMonth = `${year}/${shortYear}t${month}`;
+		
 		// Default to current month if not selected
 		if (!this.currentCategory) {
-			const now = new Date();
-			const year = now.getFullYear();
-			const month = String(now.getMonth() + 1).padStart(2, '0');
-			this.currentCategory = `${year}_${month}`;
+			this.currentCategory = autoMonth;
 		}
 		
 		const displayMonth = document.getElementById('dp-current-month');
@@ -909,6 +1215,41 @@ const App = {
 		if (projectNameInput) projectNameInput.value = '';
 		
 		UI.showModal('deploy-project-modal');
+	},
+
+	async createCustomMonthFolder() {
+		const now = new Date();
+		const year = now.getFullYear();
+		const month = String(now.getMonth() + 1).padStart(2, '0');
+		const shortYear = String(year).slice(-2);
+		const fmt = (this.globalConfig && this.globalConfig.month_folder_format) ? this.globalConfig.month_folder_format : 'YYYY_MM';
+		
+		let defaultFolder = `${year}_${month}`;
+		if (fmt === 'YYYY/thangMM') defaultFolder = `${year}/thang${month}`;
+		else if (fmt === 'thangMM') defaultFolder = `thang${month}`;
+		else if (fmt === 'YYYY/YYtMM') defaultFolder = `${year}/${shortYear}t${month}`;
+
+		const monthFolder = prompt('Nhập tên thư mục tháng cần tạo (Ví dụ: 2026_08, 2026_09, 2026/thang08):', defaultFolder);
+		if (!monthFolder) return;
+
+		try {
+			const res = await (await fetch('api.php?action=createMonthCategory', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ monthFolder: monthFolder.trim() })
+			})).json();
+
+			if (res.status === 'success') {
+				UI.notify(res.message, 'success');
+				this.currentCategory = monthFolder.trim();
+				await this.showCategories();
+				await this.loadProjects(this.currentCategory);
+			} else {
+				UI.notify('Lỗi: ' + res.message, 'error');
+			}
+		} catch (e) {
+			UI.notify('Lỗi tạo thư mục tháng: ' + e.message, 'error');
+		}
 	},
 
 	async executeDeployProject() {
@@ -932,8 +1273,9 @@ const App = {
 		);
 	},
 
-	async showChangePhpVersionModal(name) {
+	async showChangePhpVersionModal(name, category) {
 		document.getElementById('cpp-project-name').value = name;
+		document.getElementById('cpp-project-category').value = category;
 		
 		const selectEl = document.getElementById('cpp-php-index');
 		selectEl.innerHTML = '<option value="">⏳ Đang tải phiên bản PHP từ host...</option>';
@@ -972,6 +1314,7 @@ const App = {
 
 	async executeChangePhpVersion() {
 		const name = document.getElementById('cpp-project-name').value;
+		const category = document.getElementById('cpp-project-category').value;
 		const phpIndex = document.getElementById('cpp-php-index').value;
 
 		UI.hideModal('change-php-modal');
@@ -982,7 +1325,7 @@ const App = {
 			const res = await (await fetch(`api.php?action=changePhpVersion`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name, php_version_index: phpIndex }),
+				body: JSON.stringify({ name, category, php_version_index: phpIndex }),
 			})).json();
 
 			if (res.status === 'success') {
@@ -990,7 +1333,7 @@ const App = {
 				UI.notify('Thay đổi phiên bản PHP thành công!', 'success');
 				
 				// Cập nhật lại lịch sử dự án
-				const configRes = await Api.getProjectConfig(name);
+				const configRes = await Api.getProjectConfig(name, category);
 				if (configRes.status === 'success') {
 					UI.renderMasterHistoryInfo(configRes.data.history, 'd_');
 				}

@@ -13,10 +13,10 @@ const Api = {
         return this.fetch(`listProjects&category=${category}`);
     },
 
-    async saveConfig(name, config) {
+    async saveConfig(name, config, category = '') {
         return this.fetch('saveConfig', {
             method: 'POST',
-            body: JSON.stringify({ name, config })
+            body: JSON.stringify({ name, config, category })
         });
     },
 
@@ -27,8 +27,8 @@ const Api = {
         });
     },
 
-    async getProjectConfig(name) {
-        return this.fetch(`getProjectConfig&name=${name}`);
+    async getProjectConfig(name, category = '') {
+        return this.fetch(`getProjectConfig&name=${name}&category=${category}`);
     },
 
     async getProjectSchemaList(name) {
@@ -43,5 +43,17 @@ const Api = {
         return this.fetch(
             `getTypeImageSize&name=${encodeURIComponent(name)}&type=${encodeURIComponent(type)}`,
         );
+    },
+
+    async setupLocalSource(name, category, forceOverwriteDb = null) {
+        return this.fetch('setupLocalSource', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, category, forceOverwriteDb })
+        });
+    },
+
+    async reindexProjects() {
+        return this.fetch('reindexProjects');
     }
 };

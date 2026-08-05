@@ -49,12 +49,12 @@ const ConverterUI = {
         input.onchange = (e) => this.handleFiles(e.target.files);
     },
 
-    handleFiles(files) {
+    async handleFiles(files) {
         this.selectedFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
         
         const limit = parseInt(this.serverLimits.max_file_uploads) || 20;
         if (this.selectedFiles.length > limit) {
-            alert(`Cảnh báo: Server của bạn chỉ cho phép upload tối đa ${limit} file một lần. Các file dư thừa sẽ bị loại bỏ.`);
+            await UI.alert(`Cảnh báo: Server của bạn chỉ cho phép upload tối đa ${limit} file một lần. Các file dư thừa sẽ bị loại bỏ.`);
             this.selectedFiles = this.selectedFiles.slice(0, limit);
         }
 
@@ -102,10 +102,10 @@ const ConverterUI = {
                     origin: { y: 0.6 }
                 });
             } else {
-                alert('Lỗi: ' + res.message);
+                await UI.alert('Lỗi: ' + res.message);
             }
         } catch (err) {
-            alert('Lỗi kết nối máy chủ');
+            await UI.alert('Lỗi kết nối máy chủ');
             console.error(err);
         } finally {
             btn.innerText = originalText;

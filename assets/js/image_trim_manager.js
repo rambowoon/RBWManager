@@ -211,7 +211,7 @@ const ImageTrimManager = {
 	},
 
 	async undoSingle(fileName, btn) {
-		if (!confirm(`Hoàn tác trim ảnh ${fileName}?`)) return;
+		if (!await UI.confirm(`Hoàn tác trim ảnh ${fileName}?`)) return;
 		const projectName = document.getElementById('d_current-project')?.value || '';
 		const category = App.currentCategory || '';
 		const originalHtml = btn ? btn.innerHTML : '';
@@ -249,7 +249,7 @@ const ImageTrimManager = {
 	},
 
 	async undoAll() {
-		if (!confirm('Hoàn tác tất cả ảnh đã trim về bản sao lưu mới nhất?')) return;
+		if (!await UI.confirm('Hoàn tác tất cả ảnh đã trim về bản sao lưu mới nhất?')) return;
 		const projectName = document.getElementById('d_current-project')?.value || '';
 		const category = App.currentCategory || '';
 		const btn = document.getElementById('btn-project-trim-undo-all');

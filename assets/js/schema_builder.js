@@ -497,7 +497,7 @@ const SchemaBuilder = {
                     <span style="font-size:1.1rem; color:var(--primary);">📦 Type: ${key}</span>
                     <div style="display:flex; gap:10px;">
                         <button class="btn btn-ghost btn-sm" onclick="SchemaBuilder.showPresetMenu(event, '${key}')">⚡ Áp dụng Presets</button>
-                        <button class="btn btn-danger btn-sm" onclick="if(confirm('Bạn có chắc chắn muốn xóa toàn bộ Type này?')) { delete SchemaBuilder.currentData['${key}']; SchemaBuilder.renderForm(); }">🗑️ Xóa Type</button>
+                        <button class="btn btn-danger btn-sm" onclick="UI.confirm('Bạn có chắc chắn muốn xóa toàn bộ Type này?').then(res => { if(res) { delete SchemaBuilder.currentData['${key}']; SchemaBuilder.renderForm(); } })">🗑️ Xóa Type</button>
                     </div>
                 </div>
             `;
@@ -1089,7 +1089,7 @@ const SchemaBuilder = {
 		}
 	},
 
-	applyPreset(type) {
+	async applyPreset(type) {
 		// Legacy support or global presets
 		if (type === "news-slug" || type === "news-no-slug") {
 			const confirmMsg =
@@ -1097,7 +1097,7 @@ const SchemaBuilder = {
 					? "Bạn muốn áp dụng cấu hình 'Có Slug' (SEO, Schema, Slug) cho tất cả các nhóm tin tức?"
 					: "Bạn muốn áp dụng cấu hình 'Không Slug' (Tắt SEO, Schema, Slug) cho tất cả các nhóm tin tức?";
 
-			if (!confirm(confirmMsg)) return;
+			if (!await UI.confirm(confirmMsg)) return;
 
 			for (const key in this.currentData) {
 				this.applyPresetToModule(
@@ -1365,8 +1365,8 @@ const SchemaBuilder = {
 		UI.notify(`Đã thêm album [${name}]`, "success");
 	},
 
-	deleteOption(pathStr) {
-		if (!confirm("Bạn có chắc muốn xóa trường này?")) return;
+	async deleteOption(pathStr) {
+		if (!await UI.confirm("Bạn có chắc muốn xóa trường này?")) return;
 		const keys = pathStr.split(".");
 		const lastKey = keys.pop();
 		let current = this.currentData;
@@ -1574,9 +1574,9 @@ const SchemaBuilder = {
 		}
 	},
 
-	initNewsSkeleton() {
+	async initNewsSkeleton() {
 		if (
-			!confirm(
+			!await UI.confirm(
 				"Bạn có muốn khởi tạo bộ khung chuẩn cho News (Tin tức, Thư viện ảnh, Tiêu chí)?",
 			)
 		)
@@ -1602,9 +1602,9 @@ const SchemaBuilder = {
 		this.renderForm();
 	},
 
-	initStaticSkeleton() {
+	async initStaticSkeleton() {
 		if (
-			!confirm(
+			!await UI.confirm(
 				"Bạn có muốn khởi tạo bộ khung chuẩn cho Trang tĩnh (Giới thiệu, Slogan, Footer)?",
 			)
 		)
@@ -1630,9 +1630,9 @@ const SchemaBuilder = {
 		this.renderForm();
 	},
 
-	initNewslettersSkeleton() {
+	async initNewslettersSkeleton() {
 		if (
-			!confirm(
+			!await UI.confirm(
 				"Bạn có muốn khởi tạo bộ khung chuẩn cho Newsletters (Liên hệ, Đặt lịch)?",
 			)
 		)

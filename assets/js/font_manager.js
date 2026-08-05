@@ -198,8 +198,8 @@ const FontManager = {
         }
     },
 
-    quickAddGoogle(family, variants = []) {
-        if (!confirm(`Bạn có chắc chắn muốn thêm Google Font "${family}" qua @import vào dự án không?`)) return;
+    async quickAddGoogle(family, variants = []) {
+        if (!await UI.confirm(`Bạn có chắc chắn muốn thêm Google Font "${family}" qua @import vào dự án không?`)) return;
         // Construct a precise Google Fonts v2 URL
         // Format: ital,wght@0,100;0,400;1,100;1,400
         
@@ -269,7 +269,7 @@ const FontManager = {
         
         const selectedVariants = Array.from(checkedBoxes).map(cb => cb.dataset.variant);
 
-        if (!confirm(`Bạn có chắc muốn cài đặt ${selectedVariants.length} biến thể của font "${fontFamily}" vào dự án "${projectName}"?`)) return;
+        if (!await UI.confirm(`Bạn có chắc muốn cài đặt ${selectedVariants.length} biến thể của font "${fontFamily}" vào dự án "${projectName}"?`)) return;
 
         UI.showModal('deploy-modal');
         UI.updateDeployStatus('Đang chuẩn bị...', 10, `Bắt đầu copy font ${fontFamily}...`);
@@ -402,7 +402,7 @@ const FontManager = {
         const projectName = document.getElementById('d_current-project')?.value || document.getElementById('current-project')?.value;
         if (!projectName) return UI.notify('Vui lòng mở một dự án trước!', 'error');
 
-        if (!confirm(`Bạn có chắc chắn muốn gỡ bỏ font "${fontName}" ra khỏi dự án "${projectName}" không?`)) return;
+        if (!await UI.confirm(`Bạn có chắc chắn muốn gỡ bỏ font "${fontName}" ra khỏi dự án "${projectName}" không?`)) return;
 
         try {
             const res = await (await fetch(`api.php?action=removeFont`, {
@@ -446,7 +446,7 @@ const FontManager = {
         const checkedBoxes = document.querySelectorAll(`.font-convert-checkbox[data-font="${fontId}"]:checked`);
         if (checkedBoxes.length === 0) return UI.notify('Vui lòng chọn ít nhất một biến thể font để convert!', 'error');
         
-        if (!confirm(`Bạn có chắc muốn convert và cài đặt ${checkedBoxes.length} biến thể của font "${fontFamily}" vào dự án "${projectName}"?`)) return;
+        if (!await UI.confirm(`Bạn có chắc muốn convert và cài đặt ${checkedBoxes.length} biến thể của font "${fontFamily}" vào dự án "${projectName}"?`)) return;
 
         UI.showModal('deploy-modal');
         UI.updateDeployStatus('Đang chuẩn bị...', 10, `Bắt đầu tải các tệp tin font từ thư viện local...`);

@@ -37,15 +37,15 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                     Công cụ ảnh
                 </div>
-                <div class="nav-item" onclick="App.showAIChecker()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                    Kiểm tra AI Models
-                </div>
                 <div class="nav-item" onclick="App.showCacheClearer()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
                     Xóa cache trình duyệt
                 </div>
                 <div class="menu-divider"></div>
+                <div class="nav-item" onclick="App.showDemoServers()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    Server Demo
+                </div>
                 <div class="nav-item" onclick="App.showGlobalConfig()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                     Setting
@@ -81,8 +81,8 @@
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                         Triển khai dự án
                     </button>
-                    <button class="btn btn-ghost" onclick="App.loadProjects('')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <button class="btn btn-ghost" onclick="App.refreshSystemCache()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.8 1.04 6.44 2.73L21 8M21 3v5h-5"/></svg>
                         Làm mới
                     </button>
                 </div>
@@ -117,6 +117,9 @@
                         <div class="projects-content-area">
                             <div class="section-header">
                                 <h2 class="section-title" id="content-title">Danh sách dự án</h2>
+                                <button class="btn btn-ghost" onclick="App.createCustomMonthFolder()" style="font-size:0.8rem; padding:6px 12px;">
+                                    ➕ Tạo thư mục tháng
+                                </button>
                             </div>
 
                             <div id="project-list" class="grid-container">
@@ -129,71 +132,34 @@
 
                 <!-- VIEW: PROJECT DETAIL (FULL PAGE) -->
                 <div id="view-project-detail" class="view-section" style="display:none;">
-                    <div class="section-header detail-section-header">
+                    <div class="section-header detail-section-header topbar">
                         <div class="flex-align-center-gap20">
-                            <button class="btn btn-ghost btn-back" onclick="App.showDashboard()">
+                            <button class="btn btn-ghost btn-back back-btn" onclick="App.showDashboard()">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Quay lại
                             </button>
                             <h2 class="section-title detail-title" id="detail-project-name">Tên dự án</h2>
                         </div>
-                        <div id="detail-project-status"></div>
+                        <span class="badge-env" id="detail-project-status">● DEMO ĐANG CHẠY</span>
                     </div>
 
-                    <div class="project-master-tabs">
-                        <button class="btn btn-ghost project-tab-btn active" onclick="UI.switchProjectTab(this, 'd_tab-config')">⚙️ Cấu hình &amp; Deploy</button>
-                        <button class="btn btn-ghost project-tab-btn" onclick="UI.switchProjectTab(this, 'd_tab-fonts')">🖋️ Quản lý Fonts</button>
-                        <button class="btn btn-ghost project-tab-btn" onclick="UI.switchProjectTab(this, 'd_tab-webp')">🖼️ Convert Ảnh WebP</button>
-                        <button class="btn btn-ghost project-tab-btn" onclick="UI.switchProjectTab(this, 'd_tab-trim')">✂️ Trim Ảnh</button>
-                        <button class="btn btn-ghost project-tab-btn" onclick="UI.switchProjectTab(this, 'd_tab-auto-media')">🤖 Tự động Map Ảnh</button>
-                        <button class="btn btn-ghost project-tab-btn" onclick="UI.switchProjectTab(this, 'd_tab-seed')">🌱 Tạo Dữ Liệu Mẫu</button>
+                    <div class="project-master-tabs tabs">
+                        <button class="btn btn-ghost project-tab-btn tab active" onclick="UI.switchProjectTab(this, 'd_tab-config')">⚙️ Cấu hình &amp; Deploy</button>
+                        <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-fonts')">🖋️ Quản lý Fonts</button>
+                        <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-webp')">🖼️ Convert Ảnh WebP</button>
+                        <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-trim')">✂️ Trim Ảnh</button>
+                        <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-auto-media')">🤖 Tự động Map Ảnh</button>
+                        <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-seed')">🌱 Tạo Dữ Liệu Mẫu</button>
                     </div>
 
                     <!-- TAB: CONFIG & DEPLOY -->
-                    <div id="d_tab-config" class="project-tab-content project-master-layout">
-                        <!-- Left: Info & Config -->
+                    <div id="d_tab-config" class="project-tab-content project-master-layout content-grid">
+                        <div class="master-actions-sidebar" id="d_master-action-buttons">
+                            <!-- Dynamically populated sections matching sample -->
+                        </div>
+
                         <div class="master-config-area">
                             <div id="d_master-deployed-info" class="deployed-info-container"></div>
-
-                            <div class="hosting-config-header">
-                                <label class="label-m0">⚙️ CẤU HÌNH HOSTING</label>
-                                <button class="btn btn-ghost btn-sm btn-quick-paste" onclick="UI.showModal('quick-paste-modal')">
-                                    ⚡ Nhập nhanh cấu hình
-                                </button>
-                            </div>
-
-                            <div class="card-container card-padded">
-                                <form id="detail-config-form">
-                                    <input type="hidden" id="d_current-project">
-                                    <div class="form-grid-2">
-                                        <div class="form-group"><label>Host / IP (FTP)</label><input type="text" id="d_ftp_host"></div>
-                                        <div class="form-group"><label>Web Domain</label><input type="text" id="d_web_domain"></div>
-                                    </div>
-                                    <div class="form-grid-2">
-                                        <div class="form-group"><label>FTP User</label><input type="text" id="d_ftp_user"></div>
-                                        <div class="form-group"><label>DA User</label><input type="text" id="d_da_user"></div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Password (FTP/DA)</label>
-                                        <div class="password-wrapper">
-                                            <input type="password" id="d_ftp_pass">
-                                            <span class="toggle-password" onclick="UI.togglePassword('d_ftp_pass', this)">
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="form-group"><label>FTP Root Path</label><input type="text" id="d_ftp_root"></div>
-                                    
-                                    <div class="form-submit-row">
-                                        <button type="submit" class="btn btn-primary btn-submit-large">Lưu cấu hình</button>
-                                    </div>
-                                </form>
-                            </div>
-                            
-                            <!-- Lịch sử thao tác (Detail View) -->
                             <div id="d_master-history-info"></div>
-                        </div>
-                        <div class="master-actions-sidebar">
-                            <div id="d_master-action-buttons" class="master-btn-grid"></div>
                         </div>
                     </div>
 
@@ -574,43 +540,6 @@
                     </div>
                 </div>
 
-                <!-- VIEW: AI MODELS CHECKER -->
-                <div id="view-ai-checker" class="view-section" style="display:none;">
-                    <div class="section-header">
-                        <h2 class="section-title">📊 Chi tiết AI Models & Chi phí</h2>
-                    </div>
-                    
-                    <div class="card-container" style="background:var(--card); padding:24px; border-radius:20px; border:1px solid var(--border); margin-top:20px;">
-                        <!-- Custom Tabs -->
-                        <div style="display:flex; gap:10px; margin-bottom:24px; border-bottom:1px solid var(--border); padding-bottom:15px;">
-                            <button id="tab-btn-gemini" class="btn btn-ghost active" onclick="AIChecker.switchTab('gemini')" style="border-radius:8px 8px 0 0; border:none; padding:10px 20px; display:flex; align-items:center;">
-                                <svg width="18" height="18" viewBox="0 0 24 24" style="margin-right:8px;"><path fill="#4285F4" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><circle fill="#4285F4" cx="12" cy="12" r="5"/></svg>
-                                Gemini
-                            </button>
-                            <button id="tab-btn-claude" class="btn btn-ghost" onclick="AIChecker.switchTab('claude')" style="border-radius:8px 8px 0 0; border:none; padding:10px 20px; display:flex; align-items:center;">
-                                <svg width="18" height="18" viewBox="0 0 24 24" style="margin-right:8px;"><path fill="#d97757" d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
-                                Claude
-                            </button>
-                        </div>
-
-                        <!-- Hidden Inputs (Still used for Logic) -->
-                        <input type="hidden" id="gemini-api-key">
-                        <input type="hidden" id="claude-api-key">
-
-                        <div id="ai-checker-content">
-                            <div id="ai-loading" style="display:none; text-align:center; padding:40px;">
-                                <div class="spinner" style="margin:0 auto 15px;"></div>
-                                <div style="color:var(--muted);">Đang tải dữ liệu model...</div>
-                            </div>
-                            
-                            <div id="ai-results-table-container" style="overflow-x:auto;">
-                                <!-- Table will be rendered here -->
-                                <p style="color:var(--muted); text-align:center; padding:40px;">Đang khởi tạo dữ liệu...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
- 
                 <!-- VIEW: BROWSER CACHE CLEARER -->
                 <div id="view-cache-clearer" class="view-section" style="display:none;">
                     <div class="section-header">
@@ -635,6 +564,17 @@
                     </div>
                 </div>
 
+                <!-- VIEW: DEMO SERVERS MANAGER -->
+                <div id="view-demo-servers" class="view-section" style="display:none;">
+                    <div class="section-header">
+                        <h2 class="section-title">☁️ Quản lý Server Demo</h2>
+                        <button class="btn btn-primary" onclick="App.addDemoServer()">➕ Thêm Server</button>
+                    </div>
+                    <div id="demo-servers-list" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px;">
+                        <!-- JS Render -->
+                    </div>
+                </div>
+
                 <!-- VIEW: GLOBAL CONFIG (SETTING) -->
                 <div id="view-global-config" class="view-section" style="display:none;">
                     <div class="section-header">
@@ -643,43 +583,6 @@
                     
                     <div class="card-container card-padded" style="margin-top:20px;">
                         <form id="global-config-form">
-                            <div class="form-grid-2">
-                                <div class="form-group">
-                                    <label>Host / IP (FTP)</label>
-                                    <input type="text" id="g_ftp_host" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Tên miền (Mặc định)</label>
-                                    <input type="text" id="g_web_domain" placeholder="demo.domain.com">
-                                </div>
-                            </div>
-
-                            <div class="form-grid-2">
-                                <div class="form-group">
-                                    <label>DA Port</label>
-                                    <input type="text" id="g_da_port" value="1111">
-                                </div>
-                                <div class="form-group">
-                                    <label>Username (FTP/DA)</label>
-                                    <input type="text" id="g_ftp_user" required>
-                                </div>
-                            </div>
-
-                            <div class="form-grid-2">
-                                <div class="form-group">
-                                    <label>Password (FTP/DA)</label>
-                                    <div class="password-wrapper">
-                                        <input type="password" id="g_ftp_pass" required>
-                                        <span class="toggle-password" onclick="UI.togglePassword('g_ftp_pass', this)">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>FTP Root Path</label>
-                                    <input type="text" id="g_ftp_root" placeholder="/public_html">
-                                </div>
-                            </div>
 
                             <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
                                 <label style="color: var(--primary); margin-bottom:12px; font-size:0.7rem;">☁️ CLOUDFLARE API (PRODUCTION)</label>
@@ -750,6 +653,15 @@
                                         <label>🌱 Thư viện Ảnh Mẫu (Tạo Dữ Liệu Mẫu)</label>
                                         <input type="text" id="g_images_pool_path" placeholder="D:/RBWStack/www/images">
                                     </div>
+                                </div>
+                                <div class="form-group" style="margin-top: 10px;">
+                                    <label>📁 Cấu hình Định dạng Thư mục Tháng (Mặc định)</label>
+                                    <select id="g_month_folder_format" class="custom-select">
+                                        <option value="YYYY_MM">YYYY_MM (Ví dụ: 2026_08 - Chuẩn mặc định)</option>
+                                        <option value="YYYY/thangMM">YYYY/thangMM (Ví dụ: 2026/thang08)</option>
+                                        <option value="thangMM">thangMM (Ví dụ: thang08)</option>
+                                        <option value="YYYY/YYtMM">YYYY/YYtMM (Ví dụ: 2026/26t08)</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="form-submit-row" style="margin-top: 25px; border-top: 1px solid var(--border); padding-top: 20px;">
@@ -837,8 +749,10 @@
                 <input type="text" id="manual_db_suffix" placeholder="Mặc định: Tên dự án">
             </div>
             <div class="form-group" style="margin-top: 15px;">
-                <label>Tên miền Demo đích (Tùy chọn, để trống sẽ dùng mặc định)</label>
-                <input type="text" id="custom_demo_domain" placeholder="VD: demo92v3.nasanivietnam.info">
+                <label>Chọn Server Demo</label>
+                <select id="pre_deploy_demo_server_id" class="form-control" style="background:#1a1c23; border:1px solid #333; color:#fff; padding:8px; border-radius:4px; width:100%; outline:none;">
+                    <!-- Populated by JS -->
+                </select>
             </div>
             <div class="form-group" style="margin-top: 15px;">
                 <label style="display:flex; align-items:center; gap:8px; text-transform:none; cursor:pointer; color:#fff; font-weight:normal;">
@@ -909,6 +823,53 @@
         </div>
     </div>
 
+    <!-- Detail Hosting Config Modal -->
+    <div id="detail-config-modal" class="modal-overlay">
+        <div class="modal" style="max-width: 650px; width: 95%;">
+            <div class="modal-header-flex">
+                <h2>⚙️ Cấu hình Hosting</h2>
+                <button class="btn btn-close-circle" onclick="UI.hideModal('detail-config-modal')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="quick-paste-box">
+                <div class="flex-between-center" style="margin-bottom: 6px;">
+                    <label class="label-m0" style="color:var(--primary);">⚡ PASTE NHANH CẤU HÌNH</label>
+                </div>
+                <textarea id="d_quick_paste" placeholder="Dán thông tin hosting tại đây (DA / FTP info)..." style="height: 60px;"></textarea>
+                <button type="button" class="btn btn-primary btn-sm-full" onclick="UI.parseQuickConfig('detail')">Phân tích &amp; Đổ dữ liệu</button>
+            </div>
+
+            <form id="detail-config-form">
+                <input type="hidden" id="d_current-project">
+                <div class="form-grid-2">
+                    <div class="form-group"><label>Host / IP (FTP)</label><input type="text" id="d_ftp_host" placeholder="ftp.domain.com"></div>
+                    <div class="form-group"><label>Web Domain</label><input type="text" id="d_web_domain" placeholder="domain.com"></div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-group"><label>FTP User</label><input type="text" id="d_ftp_user"></div>
+                    <div class="form-group"><label>DA User</label><input type="text" id="d_da_user"></div>
+                </div>
+                <div class="form-group">
+                    <label>Password (FTP/DA)</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="d_ftp_pass">
+                        <span class="toggle-password" onclick="UI.togglePassword('d_ftp_pass', this)">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </span>
+                    </div>
+                </div>
+                <div class="form-group"><label>FTP Root Path</label><input type="text" id="d_ftp_root" placeholder="/public_html"></div>
+                
+                <div class="modal-footer-actions">
+                    <button type="button" class="btn btn-ghost" onclick="UI.hideModal('detail-config-modal')">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Quick Paste Modal -->
     <div id="quick-paste-modal" class="modal-overlay">
         <div class="modal" style="max-width: 500px;">
@@ -923,6 +884,45 @@ Host: 123.123.123.123
 User: u123456
 Pass: password123..." style="height:200px;"></textarea>
                 <button type="button" class="btn btn-primary btn-sm-full" style="padding:12px;" onclick="UI.parseQuickConfig('detail')">Phân tích & Đổ dữ liệu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo Server Quick Paste Modal -->
+    <div id="demo-quick-paste-modal" class="modal-overlay">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header-flex">
+                <h2>⚡ Dán nhanh cấu hình Demo</h2>
+                <button class="btn btn-close-circle" onclick="UI.hideModal('demo-quick-paste-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+            <div class="quick-paste-box" style="margin:0; border:none; background:transparent; padding:0;">
+                <textarea id="demo_quick_paste_text" placeholder="Dán văn bản cấu hình vào đây..." style="height:200px;"></textarea>
+                <input type="hidden" id="demo_quick_paste_target_id">
+                <button type="button" class="btn btn-primary btn-sm-full" style="padding:12px;" onclick="App.processDemoQuickPaste()">Phân tích & Đổ dữ liệu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Local DB Confirm Modal -->
+    <div id="local-db-confirm-modal" class="modal-overlay" style="z-index: 10006;">
+        <div class="modal" style="max-width: 520px;">
+            <div class="modal-header-flex">
+                <h2>⚠️ Database Đã Tồn Tại</h2>
+                <button class="btn btn-close-circle" onclick="UI.hideModal('local-db-confirm-modal')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div style="margin: 15px 0;">
+                <p id="local-db-confirm-message" style="font-size:0.9rem; color:var(--text-primary); line-height:1.6;"></p>
+                <div style="margin-top:12px; font-size:0.8rem; color:var(--text-muted); background:rgba(255,255,255,0.03); border:1px solid var(--border); padding:12px; border-radius:8px;">
+                    💡 <b>Lựa chọn của bạn:</b><br>
+                    • <b>Đồng ý (Ghi đè DB):</b> Xóa DB cũ và nạp lại từ file .sql.<br>
+                    • <b>Bỏ qua (Giữ DB cũ):</b> Giữ DB hiện tại và tự động cập nhật file .env.
+                </div>
+            </div>
+            <div class="project-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="btn-local-db-skip" class="btn btn-ghost">Bỏ qua (Giữ DB cũ)</button>
+                <button id="btn-local-db-overwrite" class="btn btn-primary" style="background:linear-gradient(135deg,#FF5E8F,#FF7E5F);">Ghi đè Database</button>
             </div>
         </div>
     </div>
@@ -961,6 +961,7 @@ Pass: password123..." style="height:200px;"></textarea>
             </div>
             <form id="change-type-form" onsubmit="event.preventDefault(); App.executeChangeType();">
                 <input type="hidden" id="ct-project-name">
+                <input type="hidden" id="ct-project-category">
                 <div class="form-group">
                     <label>Module chính</label>
                     <select id="ct-module" class="form-control">
@@ -1000,6 +1001,7 @@ Pass: password123..." style="height:200px;"></textarea>
             </div>
             <form id="change-php-form" onsubmit="event.preventDefault(); App.executeChangePhpVersion();">
                 <input type="hidden" id="cpp-project-name">
+                <input type="hidden" id="cpp-project-category">
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label>Chọn phiên bản PHP</label>
                     <select id="cpp-php-index" class="form-control" style="width: 100%; height: 45px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); color: #fff; border-radius: 8px; padding: 0 12px;">

@@ -170,9 +170,9 @@ class ProjectDeployer
 
         $content = file_get_contents($envPath);
         foreach ($updates as $key => $value) {
-            // Match KEY=VALUE or KEY="VALUE"
             $pattern = "/^{$key}=.*/m";
-            $replacement = "{$key}={$value}";
+            $safeValue = str_replace('$', '\$', $value);
+            $replacement = "{$key}={$safeValue}";
             
             if (preg_match($pattern, $content)) {
                 $content = preg_replace($pattern, $replacement, $content);

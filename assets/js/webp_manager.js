@@ -273,7 +273,7 @@ const WebpManager = {
 			return;
 		}
 
-		if (!confirm('Bạn có chắc chắn muốn hoàn tác tất cả các hình ảnh đã convert về định dạng gốc?')) {
+		if (!await UI.confirm('Bạn có chắc chắn muốn hoàn tác tất cả các hình ảnh đã convert về định dạng gốc?')) {
 			return;
 		}
 

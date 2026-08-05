@@ -81,7 +81,7 @@ class DeploymentService
             $exe7z = $this->get7zExecutable();
             if ($exe7z) {
                 $exclude = '-xr!".agents" -xr!"thumbs" -xr!"watermarks" -xr!"caches" -xr!"dist.zip" -xr!"dist.sql" -xr!"vite.config.js" -xr!"README.md" -xr!".gitignore"';
-                $cmd = "$exe7z a -tzip -mx=3 -bsp1 -y -ssw \"$zipFile\" $exclude .";
+                $cmd = "$exe7z a -tzip -mx=3 -bso0 -bsp0 -y -ssw \"$zipFile\" $exclude .";
                 $returnVar = $this->runCommandWithProgress($cmd, $zipFile, $jobId, $projectPath);
                 if ($returnVar === 0 && is_file($zipFile) && filesize($zipFile) > 0) {
                     $finalSize = $this->formatBytes(filesize($zipFile));
@@ -182,26 +182,30 @@ class DeploymentService
             $lastReportedPercent = -1;
 
             while (!feof($pipes[1]) || !feof($pipes[2])) {
-                $read = [$pipes[1], $pipes[2]];
+                $read = [];
+                if (!feof($pipes[1])) $read[] = $pipes[1];
+                if (!feof($pipes[2])) $read[] = $pipes[2];
+                
+                if (empty($read)) break;
+
                 $write = null;
                 $except = null;
                 
-                if (stream_select($read, $write, $except, 1) > 0) {
+                $selectRes = @stream_select($read, $write, $except, 1);
+                if ($selectRes === false) {
+                    // Error occurred (e.g. pipe closed abruptly), break to avoid infinite loop
+                    break;
+                }
+                
+                if ($selectRes > 0) {
                     foreach ($read as $pipe) {
                         $content = fread($pipe, 8192);
                         if ($content === false || $content === '') continue;
                         
                         if ($pipe === $pipes[1]) {
                             $stdout .= $content;
-                            
-                            // Parse 7-zip progress e.g. " 45% "
-                            if ($jobId && function_exists('writeJobLog') && preg_match_all('/\b([0-9]{1,3})%/', $stdout, $matches)) {
-                                $latestPercent = (int)end($matches[1]);
-                                // Report every 10% to avoid spamming the log
-                                if ($latestPercent > $lastReportedPercent && $latestPercent % 10 === 0 && $latestPercent <= 100 && $latestPercent > 0) {
-                                    writeJobLog($jobId, ['status' => 'info', 'log' => "⏳ Tiến trình nén: $latestPercent%..."]);
-                                    $lastReportedPercent = $latestPercent;
-                                }
+                            if (strlen($stdout) > 524288) { // 512KB limit
+                                $stdout = substr($stdout, -524288);
                             }
                         } else {
                             $stderr .= $content;

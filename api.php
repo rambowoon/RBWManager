@@ -10,6 +10,22 @@ ini_set('display_errors', 0);
 @ini_set('memory_limit', '512M');
 ignore_user_abort(true);
 
+function getDemoConfigForProject($projectConfig = []) {
+    $globalPath = __DIR__ . '/data/demo_config.json';
+    $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
+    $demoId = $projectConfig['deployed']['demo']['demo_server_id'] ?? (!empty($projectConfig['deployed']['demo']['url']) ? 'legacy' : ($gConfig['default_demo_id'] ?? 'legacy'));
+    $config = $gConfig;
+    if (!empty($gConfig['demo_list'])) {
+        foreach ($gConfig['demo_list'] as $d) {
+            if ($d['id'] === $demoId) {
+                $config = array_merge($gConfig, $d);
+                break;
+            }
+        }
+    }
+    return $config;
+}
+
 $cliInputData = null;
 if (PHP_SAPI === 'cli') {
     $debugLogFile = __DIR__ . '/logs/debug_bg_job.log';
@@ -53,6 +69,19 @@ if (PHP_SAPI === 'cli') {
             $jobId = $cliInputData['jobId'];
         }
         @unlink($_POST['payloadFile']);
+        
+        // TRICK TO CLOSE CONNECTION IN HTTP BACKGROUND
+        while (ob_get_level()) ob_end_clean();
+        header("Connection: close\r\n");
+        header("Content-Encoding: none\r\n");
+        ignore_user_abort(true);
+        ob_start();
+        echo "Background job started.";
+        $size = ob_get_length();
+        header("Content-Length: $size");
+        ob_end_flush();     
+        flush();            
+        if (session_id()) session_write_close();
     } else {
         @file_put_contents($debugLogFile, "[$timestamp] ❌ LỖI HTTP BACKGROUND: Payload file không tồn tại: " . $_POST['payloadFile'] . "\n", FILE_APPEND);
     }
@@ -533,8 +562,9 @@ switch ($action) {
         $category = $_GET['category'] ?? '';
         $refresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';
         $projects = $scanner->getProjects($category, $refresh);
-        $configs = $configManager->getAll();
-        foreach ($projects as &$p) { $p['config'] = $configs[$p['name']] ?? null; }
+        foreach ($projects as &$p) { 
+            $p['config'] = $configManager->getForProject($p['name'], $p['category'] ?? null); 
+        }
         echo json_encode(['status' => 'success', 'data' => $projects]);
         break;
 
@@ -551,7 +581,8 @@ switch ($action) {
 
     case 'saveConfig':
         $data = json_decode(file_get_contents('php://input'), true);
-        echo json_encode($configManager->save($data['name'], $data['config']) ? ['status' => 'success'] : ['status' => 'error']);
+        $category = $data['category'] ?? null;
+        echo json_encode($configManager->save($data['name'], $data['config'], $category) ? ['status' => 'success'] : ['status' => 'error']);
         break;
 
     case 'saveGlobalConfig':
@@ -566,14 +597,36 @@ switch ($action) {
         echo json_encode(['status' => 'success', 'data' => $config]);
         break;
 
+    case 'createMonthCategory':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $monthFolder = trim($data['monthFolder'] ?? '');
+        if (!$monthFolder) {
+            echo json_encode(['status' => 'error', 'message' => 'Tên thư mục tháng không được để trống']);
+            break;
+        }
+        $monthPath = $baseDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $monthFolder);
+        if (!is_dir($monthPath)) {
+            if (@mkdir($monthPath, 0777, true)) {
+                $scanner->buildCache();
+                echo json_encode(['status' => 'success', 'message' => "Đã tạo thư mục tháng '$monthFolder' thành công!"]);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => "Không thể tạo thư mục '$monthFolder'"]);
+            }
+        } else {
+            echo json_encode(['status' => 'success', 'message' => "Thư mục '$monthFolder' đã tồn tại."]);
+        }
+        break;
+
     case 'deleteConfig':
         $data = json_decode(file_get_contents('php://input'), true);
-        echo json_encode($configManager->delete($data['name']) ? ['status' => 'success'] : ['status' => 'error']);
+        $category = $data['category'] ?? null;
+        echo json_encode($configManager->delete($data['name'], $category) ? ['status' => 'success'] : ['status' => 'error']);
         break;
 
     case 'getProjectConfig':
         $name = $_GET['name'] ?? '';
-        echo json_encode(['status' => 'success', 'data' => $configManager->getForProject($name)]);
+        $category = $_GET['category'] ?? null;
+        echo json_encode(['status' => 'success', 'data' => $configManager->getForProject($name, $category)]);
         break;
 
     case 'deployNewProject':
@@ -696,8 +749,12 @@ switch ($action) {
 
             // 5. Update .env
             writeJobLog($jobId, ['status' => 'info', 'log' => "Đang cấu hình file .env..."]);
+            $sitePath = '/' . str_replace('\\', '/', $category) . '/' . $projectName . '/';
             $envUpdates = [
-                'SITE_PATH' => '/' . str_replace('\\', '/', $category) . '/' . $projectName . '/', // e.g. 2026_05/ranzilla_0765526w
+                'SITE_PATH' => $sitePath,
+                'APP_URL' => '"http://localhost${SITE_PATH}"',
+                'DB_HOST' => '127.0.0.1',
+                'DB_PORT' => '3306',
                 'DB_DATABASE' => $dbName,
                 'DB_USERNAME' => 'root',
                 'DB_PASSWORD' => ''
@@ -706,6 +763,14 @@ switch ($action) {
 
             // Cleanup SQL file
             @unlink($sqlFile);
+
+            $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
+            $projectConfig['configured_local'] = true;
+            $projectConfig['lock_demo'] = false;
+            $projectConfig['lock_production'] = false;
+
+            $configManager->save($projectName, $projectConfig, $category);
+            $configManager->addHistory($projectName, 'Triển khai dự án mới', "Khởi tạo thành công từ Source mẫu (Database: $dbName).", $category);
 
             writeJobLog($jobId, ['status' => 'success', 'message' => "Triển khai dự án $projectName thành công!"]);
             echo json_encode(['status' => 'success']);
@@ -726,9 +791,9 @@ switch ($action) {
             break;
         }
 
-        $projectConfig = $configManager->getForProject($projectName) ?: [];
+        $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
 
-        $config = file_exists(__DIR__ . '/data/demo_config.json') ? json_decode(file_get_contents(__DIR__ . '/data/demo_config.json'), true) : null;
+        $config = getDemoConfigForProject($projectConfig);
         if (!$config) {
             echo json_encode(['status' => 'error', 'message' => 'Cấu hình chung chưa thiết lập']);
             break;
@@ -855,7 +920,7 @@ switch ($action) {
         // Cập nhật lại mật khẩu đúng vào project config để lưu vết
         if (!isset($projectConfig['deployed']['demo'])) $projectConfig['deployed']['demo'] = [];
         $projectConfig['deployed']['demo']['db_pass'] = $dbPass;
-        $configManager->save($projectName, $projectConfig);
+        $configManager->save($projectName, $projectConfig, $category);
 
         // 6. Kiểm tra xem database đã có dữ liệu hay chưa
         $hasData = !empty($checkRes['has_data']);
@@ -899,6 +964,7 @@ switch ($action) {
     case 'deployDemo':
         $data = readJsonInput();
         $projectName = $data['name'] ?? '';
+        $category = $data['category'] ?? '';
         $jobId = $data['jobId'] ?? null;
         $isDemo = ($action === 'deployDemo');
         if (PHP_SAPI !== 'cli' && empty($data['_background'])) {
@@ -913,11 +979,26 @@ switch ($action) {
             break;
         }
 
-        $projectConfig = $configManager->getForProject($projectName);
+        $projectConfig = $configManager->getForProject($projectName, $category);
         
         if ($isDemo && !empty($projectConfig['lock_demo'])) { writeJobLog($jobId, ['status' => 'error', 'message' => 'Deploy Demo bị khóa']); exit; }
 
-        $config = $isDemo ? (file_exists(__DIR__ . '/data/demo_config.json') ? json_decode(file_get_contents(__DIR__ . '/data/demo_config.json'), true) : null) : ($projectConfig['prod'] ?? null);
+        if ($isDemo && !empty($data['demo_server_id'])) {
+            $demoId = $data['demo_server_id'];
+            $globalPath = __DIR__ . '/data/demo_config.json';
+            $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
+            $config = $gConfig;
+            if (!empty($gConfig['demo_list'])) {
+                foreach ($gConfig['demo_list'] as $d) {
+                    if ($d['id'] === $demoId) {
+                        $config = array_merge($gConfig, $d);
+                        break;
+                    }
+                }
+            }
+        } else {
+            $config = $isDemo ? getDemoConfigForProject($projectConfig) : ($projectConfig['prod'] ?? null);
+        }
         if (!$config) { writeJobLog($jobId, ['status' => 'error', 'message' => 'Host chưa cấu hình']); exit; }
 
         if ($isDemo && !empty($data['custom_domain'])) {
@@ -1086,15 +1167,16 @@ switch ($action) {
                 'db_name' => $dbName, 
                 'db_user' => $dbName, 
                 'db_pass' => $config['db_pass'] ?? '', 
-                'deploy_time' => date('Y-m-d H:i:s')
+                'deploy_time' => date('Y-m-d H:i:s'),
+                'demo_server_id' => $config['id'] ?? ($config['default_demo_id'] ?? 'legacy')
             ];
             
             if ($isDemo) $projectConfig['lock_demo'] = true;
             if (!empty($data['password_updated'])) {
-                $configManager->addHistory($projectName, 'Đồng bộ mật khẩu DB', 'Tự động cập nhật mật khẩu mới thành công');
+                $configManager->addHistory($projectName, 'Đồng bộ mật khẩu DB', 'Tự động cập nhật mật khẩu mới thành công', $category);
             }
-            $configManager->save($projectName, $projectConfig);
-            $configManager->addHistory($projectName, 'Deploy ' . ($isDemo ? 'Demo' : 'Production'), 'Thành công');
+            $configManager->save($projectName, $projectConfig, $category);
+            $configManager->addHistory($projectName, 'Deploy ' . ($isDemo ? 'Demo' : 'Production'), 'Thành công', $category);
 
             writeJobLog($jobId, ['status' => 'success', 'message' => 'Deployment thành công!', 'logs' => [$daLogString]]);
             echo json_encode(['status' => 'success']);
@@ -1125,6 +1207,7 @@ switch ($action) {
 
     case 'pushTools':
         $data = json_decode(file_get_contents('php://input'), true);
+        $category = $data['category'] ?? '';
         $jobId = $data['jobId'] ?? null;
         $globalPath = __DIR__ . '/data/demo_config.json';
         $config = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : null;
@@ -1135,23 +1218,24 @@ switch ($action) {
         try {
             $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $project['relPath']);
             writeJobLog($jobId, ['status' => 'success', 'message' => 'Tools synced successfully.']);
-            $configManager->addHistory($data['name'], 'Sync Tools', 'Đã tải lên Bridge');
+            $configManager->addHistory($data['name'], 'Sync Tools', 'Đã tải lên Bridge', $category);
             echo json_encode(['status' => 'success']);
         } catch (Exception $e) { writeJobLog($jobId, ['status' => 'error', 'message' => $e->getMessage()]); echo json_encode(['status' => 'error']); }
         break;
 
     case 'publishToProduction':
         $data = json_decode(file_get_contents('php://input'), true);
+        $category = $data['category'] ?? '';
         $jobId = $data['jobId'] ?? null;
         $projectName = $data['name'] ?? '';
-        $projectConfig = $configManager->getForProject($projectName);
+        $projectConfig = $configManager->getForProject($projectName, $category);
         
         // Load Global Config for Cloudflare Credentials
         $globalPath = __DIR__ . '/data/demo_config.json';
         $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
         
         $prodConfig = array_merge($projectConfig['prod'] ?? [], $projectConfig['deployed']['production'] ?? []);
-        $demoConfig = array_merge($gConfig, $projectConfig['deployed']['demo'] ?? []);
+        $demoConfig = array_merge(getDemoConfigForProject($projectConfig), $projectConfig['deployed']['demo'] ?? []);
         
         $projects = $scanner->getProjects($data['category'] ?? null);
         $project = null;
@@ -1275,8 +1359,8 @@ switch ($action) {
                 ];
                 
                 $projectConfig['lock_production'] = true; 
-                $configManager->save($projectName, $projectConfig);
-                $configManager->addHistory($projectName, 'Publish Production', 'Full Setup hoàn tất');
+                $configManager->save($projectName, $projectConfig, $category);
+                $configManager->addHistory($projectName, 'Publish Production', 'Full Setup hoàn tất', $category);
                 
                 writeJobLog($jobId, ['status' => 'success', 'message' => 'Cloud transfer & Full Setup hoàn tất!']);
                 echo json_encode(['status' => 'success']);
@@ -1317,6 +1401,7 @@ switch ($action) {
 
     case 'downloadPackage':
         $data = readJsonInput();
+        $category = $data['category'] ?? '';
         $projectName = $data['name'] ?? '';
         $jobId = $data['jobId'] ?? null;
         
@@ -1334,7 +1419,7 @@ switch ($action) {
 
         $res = $packagingService->downloadFromDemo($projectName, $data['category'], $jobId);
         if ($res['status'] === 'success') {
-            $configManager->addHistory($projectName, 'Download Package', 'Tải mã nguồn thành công');
+            $configManager->addHistory($projectName, 'Download Package', 'Tải mã nguồn thành công', $category);
             writeJobLog($jobId, ['status' => 'success', 'message' => 'Tải package thành công', 'url' => $res['url'] ?? '']);
         } else {
             writeJobLog($jobId, ['status' => 'error', 'message' => $res['message'] ?? 'Thất bại']);
@@ -1347,21 +1432,23 @@ switch ($action) {
 
     case 'cleanupTools':
         $data = json_decode(file_get_contents('php://input'), true);
-        $projectConfig = $configManager->getForProject($data['name']);
-        $config = ($data['type'] === 'demo') ? json_decode(file_get_contents(__DIR__ . '/data/demo_config.json'), true) : ($projectConfig['prod'] ?? []);
+        $category = $data['category'] ?? null;
+        $projectConfig = $configManager->getForProject($data['name'], $category);
+        $config = ($data['type'] === 'demo') ? getDemoConfigForProject($projectConfig) : ($projectConfig['prod'] ?? []);
         $projects = $scanner->getProjects($data['category'] ?? null);
         $project = null;
         foreach ($projects as $p) { if ($p['name'] === $data['name']) { $project = $p; break; } }
         $res = $deployService->cleanupBridge($config, ($data['type'] === 'demo' ? $project['relPath'] : ''), ($data['type'] === 'demo'));
         $decoded = json_decode($res, true);
         if ($decoded && $decoded['status'] === 'success') {
-            $configManager->addHistory($data['name'], 'Dọn dẹp Bridge (' . $data['type'] . ')', 'Hoàn tất');
+            $configManager->addHistory($data['name'], 'Dọn dẹp Bridge (' . $data['type'] . ')', 'Hoàn tất', $category);
         }
         echo $res;
         break;
 
     case 'integrateAMP':
         $data = json_decode(file_get_contents('php://input'), true);
+        $category = $data['category'] ?? '';
         $projectName = $data['name'] ?? '';
         $jobId = $data['jobId'] ?? null;
 
@@ -1385,7 +1472,7 @@ switch ($action) {
         })();
 
         if (is_array($integrateResult) && ($integrateResult['status'] ?? '') === 'success') {
-            $configManager->addHistory($projectName, 'Tích hợp AMP NASANI', 'Hoàn tất');
+            $configManager->addHistory($projectName, 'Tích hợp AMP NASANI', 'Hoàn tất', $category);
             echo json_encode([
                 'status'  => 'success',
                 'message' => 'Tích hợp AMP thành công!',
@@ -1399,7 +1486,8 @@ switch ($action) {
 
     case 'installSSL':
         $data = json_decode(file_get_contents('php://input'), true);
-        $projectConfig = $configManager->getForProject($data['name']);
+        $category = $data['category'] ?? '';
+        $projectConfig = $configManager->getForProject($data['name'], $category);
         $res = RemoteClient::requestSSLViaDA($projectConfig['prod']);
         
         // Cải tiến kiểm tra: Chấp nhận error=0 (text) HOẶC có chứa từ khóa thành công trong JSON
@@ -1409,7 +1497,7 @@ switch ($action) {
                      
         $status = $isSuccess ? 'success' : 'error';
         if ($status === 'success') {
-            $configManager->addHistory($data['name'], 'Cài đặt SSL', 'Gửi yêu cầu thành công');
+            $configManager->addHistory($data['name'], 'Cài đặt SSL', 'Gửi yêu cầu thành công', $category);
         }
         echo json_encode(['status' => $status, 'message' => $res]);
         break;
@@ -1418,7 +1506,7 @@ switch ($action) {
         $data = json_decode(file_get_contents('php://input'), true);
         $projectName = $data['name'] ?? '';
         
-        $projectConfig = $configManager->getForProject($projectName);
+        $projectConfig = $configManager->getForProject($projectName, $category);
         $config = $projectConfig['prod'] ?? [];
         
         if (empty($config)) {
@@ -1432,10 +1520,11 @@ switch ($action) {
 
     case 'changePhpVersion':
         $data = json_decode(file_get_contents('php://input'), true);
+        $category = $data['category'] ?? '';
         $projectName = $data['name'] ?? '';
         $phpVersionIndex = $data['php_version_index'] ?? '1'; // 1, 2, 3, etc.
         
-        $projectConfig = $configManager->getForProject($projectName);
+        $projectConfig = $configManager->getForProject($projectName, $category);
         $config = $projectConfig['prod'] ?? [];
         
         if (empty($config)) {
@@ -1453,13 +1542,14 @@ switch ($action) {
                      
         $status = $isSuccess ? 'success' : 'error';
         if ($status === 'success') {
-            $configManager->addHistory($projectName, 'Thay đổi PHP Version', "Thành công (Index: $phpVersionIndex)");
+            $configManager->addHistory($projectName, 'Thay đổi PHP Version', "Thành công (Index: $phpVersionIndex)", $category);
         }
         echo json_encode(['status' => $status, 'message' => $res]);
         break;
 
     case 'changeDatabaseType':
         $data = json_decode(file_get_contents('php://input'), true);
+        $category = $data['category'] ?? '';
         $projectName = $data['name'];
         $module = $data['module'] ?? 'product';
         $old = $data['old_type'] ?? '';
@@ -1543,7 +1633,7 @@ switch ($action) {
                 }
             }
 
-            $configManager->addHistory($projectName, 'Đổi Type DB (Local)', "Từ $old -> $new ($module)");
+            $configManager->addHistory($projectName, 'Đổi Type DB (Local)', "Từ $old -> $new ($module)", $category);
             echo json_encode(['status' => 'success', 'message' => "Đã cập nhật $totalAffected dòng tại Local Database.", 'details' => $details]);
 
         } catch (PDOException $e) {
@@ -1553,12 +1643,13 @@ switch ($action) {
 
     case 'toggleActionLock':
         $data = json_decode(file_get_contents('php://input'), true);
-        $projectConfig = $configManager->getForProject($data['name']);
+        $category = $data['category'] ?? '';
+        $projectConfig = $configManager->getForProject($data['name'], $category);
         $key = ($data['type'] === 'demo') ? 'lock_demo' : 'lock_production';
         $projectConfig[$key] = !empty($projectConfig[$key]) ? false : true;
-        $configManager->save($data['name'], $projectConfig);
+        $configManager->save($data['name'], $projectConfig, $category);
         $actionName = $projectConfig[$key] ? 'Khóa' : 'Mở khóa';
-        $configManager->addHistory($data['name'], $actionName . ' ' . ($data['type'] === 'demo' ? 'Demo' : 'Production'), 'Thành công');
+        $configManager->addHistory($data['name'], $actionName . ' ' . ($data['type'] === 'demo' ? 'Demo' : 'Production'), 'Thành công', $category);
         echo json_encode(['status' => 'success', 'locked' => $projectConfig[$key]]);
         break;
 
@@ -1727,6 +1818,182 @@ switch ($action) {
             @exec("code \"" . $path . "\" > /dev/null 2>&1 &");
         }
         echo json_encode(['status' => 'success']);
+        break;
+
+    case 'setupLocalSource':
+        $data = json_decode(file_get_contents('php://input'), true) ?? [];
+        $projectName = $data['name'] ?? '';
+        $category = $data['category'] ?? '';
+        $forceOverwriteDb = isset($data['forceOverwriteDb']) ? $data['forceOverwriteDb'] : null;
+
+        $project = $scanner->getProjectByName($projectName, $category);
+        if (!$project) {
+            $catPath = $category ? str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $category) . DIRECTORY_SEPARATOR : '';
+            $projectDir = $baseDir . DIRECTORY_SEPARATOR . $catPath . $projectName;
+            if (is_dir($projectDir)) {
+                $project = [
+                    'name' => $projectName,
+                    'path' => $projectDir,
+                    'category' => $category,
+                    'relPath' => ($category ? $category . '/' : '') . $projectName,
+                    'type' => 'project'
+                ];
+            }
+        }
+
+        if (!$project || !is_dir($project['path'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Thư mục dự án không tồn tại trên hệ thống local!']);
+            break;
+        }
+
+        $projectPath = $project['path'];
+
+        // Tên Database chuẩn hóa: e.g. 2026_08_ngocanhclinic_0553526w
+        $cleanProjectName = preg_replace('/[^a-z0-9_]/', '', strtolower($projectName));
+        if (!empty($category)) {
+            $dbName = str_replace(['/', '\\'], '_', $category) . '_' . $cleanProjectName;
+        } else {
+            $dbName = $cleanProjectName;
+        }
+
+        // 1. Quét tìm file .sql trong thư mục dự án
+        $sqlFiles = [];
+        try {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($projectPath, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+            foreach ($iterator as $fileInfo) {
+                if ($fileInfo->isFile() && strtolower($fileInfo->getExtension()) === 'sql') {
+                    $rel = str_replace('\\', '/', ltrim(str_replace($projectPath, '', $fileInfo->getRealPath()), '\\/'));
+                    if (strpos($rel, 'vendor/') === 0 || strpos($rel, 'node_modules/') === 0 || strpos($rel, 'backups/') === 0) continue;
+                    $sqlFiles[] = $fileInfo->getRealPath();
+                }
+            }
+        } catch (Exception $e) {}
+
+        $targetSqlFile = null;
+        if (!empty($sqlFiles)) {
+            $folderName = strtolower(basename($projectPath));
+            foreach ($sqlFiles as $sf) {
+                $baseName = strtolower(pathinfo($sf, PATHINFO_FILENAME));
+                $cleanBase = preg_replace('/[^a-z0-9]/', '', $baseName);
+                if ($cleanBase === $cleanProjectName || $baseName === $folderName || strpos($cleanBase, $cleanProjectName) !== false) {
+                    $targetSqlFile = $sf;
+                    break;
+                }
+            }
+            if (!$targetSqlFile) {
+                usort($sqlFiles, function($a, $b) { return strlen($a) <=> strlen($b); });
+                $targetSqlFile = $sqlFiles[0];
+            }
+        }
+
+        // 2. Kiểm tra DB đã tồn tại chưa bằng MySQLi
+        $dbHost = 'localhost';
+        $dbUser = 'root';
+        $dbPass = '';
+
+        $mysqli = @new \mysqli($dbHost, $dbUser, $dbPass);
+        if ($mysqli->connect_error) {
+            $dbHost = '127.0.0.1';
+            $mysqli = @new \mysqli($dbHost, $dbUser, $dbPass);
+        }
+
+        if ($mysqli->connect_error) {
+            echo json_encode(['status' => 'error', 'message' => 'Kết nối MySQL/phpMyAdmin thất bại: ' . $mysqli->connect_error]);
+            break;
+        }
+
+        $resDb = $mysqli->query("SHOW DATABASES LIKE '" . $mysqli->real_escape_string($dbName) . "'");
+        $dbExists = ($resDb && $resDb->num_rows > 0);
+        $mysqli->close();
+
+        if ($dbExists && $forceOverwriteDb === null) {
+            echo json_encode([
+                'status' => 'db_exists_prompt',
+                'db_name' => $dbName,
+                'sql_file' => $targetSqlFile ? basename($targetSqlFile) : 'Không có file .sql',
+                'message' => "Database '$dbName' đã tồn tại trên phpMyAdmin."
+            ]);
+            break;
+        }
+
+        $importLog = '';
+
+        try {
+            // 3. Nếu ghi đè -> Drop DB cũ
+            if ($dbExists && $forceOverwriteDb === true) {
+                $mDrop = new \mysqli($dbHost, $dbUser, $dbPass);
+                @$mDrop->query("DROP DATABASE IF EXISTS `" . $mDrop->real_escape_string($dbName) . "`");
+                $mDrop->close();
+            }
+
+            // 4. Tạo Database
+            if (!$dbExists || $forceOverwriteDb === true) {
+                $projectDeployer->createDatabase($dbName, $dbHost, $dbUser, $dbPass);
+                if ($targetSqlFile && file_exists($targetSqlFile)) {
+                    $projectDeployer->importSql($dbName, $targetSqlFile, $dbHost, $dbUser, $dbPass);
+                    $importLog = "Tạo & nạp DB '$dbName' từ " . basename($targetSqlFile);
+                } else {
+                    $importLog = "Tạo mới DB '$dbName' (không file SQL)";
+                }
+            } else {
+                $importLog = "Bỏ qua DB (Giữ nguyên Database '$dbName' hiện tại)";
+            }
+
+            // 5. Copy .agents folder vào dự án (nếu có)
+            $agentsDir = __DIR__ . DIRECTORY_SEPARATOR . '.agents';
+            if (is_dir($agentsDir)) {
+                try {
+                    $projectDeployer->copyRecursive($agentsDir, $projectPath . DIRECTORY_SEPARATOR . '.agents');
+                } catch (Exception $e) {}
+            }
+
+            // 6. Cấu hình file .env
+            $envPath = $projectPath . DIRECTORY_SEPARATOR . '.env';
+            $envExamplePath = $projectPath . DIRECTORY_SEPARATOR . '.env.example';
+
+            if (!file_exists($envPath) && file_exists($envExamplePath)) {
+                @copy($envExamplePath, $envPath);
+            }
+
+            $sitePath = '/' . str_replace('\\', '/', trim($project['relPath'], '/\\')) . '/';
+
+            $envUpdates = [
+                'SITE_PATH' => $sitePath,
+                'APP_URL' => '"http://localhost${SITE_PATH}"',
+                'DB_HOST' => '127.0.0.1',
+                'DB_PORT' => '3306',
+                'DB_DATABASE' => $dbName,
+                'DB_USERNAME' => 'root',
+                'DB_PASSWORD' => ''
+            ];
+
+            if (file_exists($envPath)) {
+                $projectDeployer->updateEnv($envPath, $envUpdates);
+            } else {
+                $newEnvContent = "";
+                foreach ($envUpdates as $k => $val) {
+                    $newEnvContent .= "$k=$val\n";
+                }
+                file_put_contents($envPath, $newEnvContent);
+            }
+
+            // 7. Lưu trạng thái đã cấu hình & khóa nút
+            $projectConfig = $configManager->getForProject($projectName, $category);
+            $projectConfig['configured_local'] = true;
+            $configManager->save($projectName, $projectConfig, $category);
+            $configManager->addHistory($projectName, 'Cấu hình Source Local', $importLog, $category);
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => '✅ Cấu hình Source Local thành công! DB: ' . $dbName . ' (' . $importLog . ')'
+            ]);
+
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => 'Lỗi cấu hình Source Local: ' . $e->getMessage()]);
+        }
         break;
 
     case 'searchFonts':
@@ -2815,7 +3082,7 @@ switch ($action) {
     case 'clearProjectImages':
         $projectName = $_POST['name'] ?? ($_GET['name'] ?? '');
         $category = $_POST['category'] ?? ($_GET['category'] ?? '');
-        $projectConfig = $configManager->getForProject($projectName);
+        $projectConfig = $configManager->getForProject($projectName, $category);
 
         $config = file_exists(__DIR__ . '/data/demo_config.json') ? json_decode(file_get_contents(__DIR__ . '/data/demo_config.json'), true) : null;
         if (!$config) {

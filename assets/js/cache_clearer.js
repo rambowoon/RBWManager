@@ -5,7 +5,7 @@ const CacheClearer = {
 		
 		const url = urlInput.value.trim();
 		if (!url) {
-			alert('Vui lòng nhập đường dẫn URL!');
+			await UI.alert('Vui lòng nhập đường dẫn URL!');
 			return;
 		}
 

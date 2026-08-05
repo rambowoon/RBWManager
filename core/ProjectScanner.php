@@ -42,8 +42,19 @@ class ProjectScanner {
         $needBuild = $forceRefresh || !file_exists($cacheFile);
 
         if (!$needBuild && is_dir($this->baseDir)) {
-            if (filemtime($this->baseDir) > filemtime($cacheFile)) {
+            $cacheMTime = file_exists($cacheFile) ? filemtime($cacheFile) : 0;
+            if (filemtime($this->baseDir) > $cacheMTime) {
                 $needBuild = true;
+            } else {
+                $subDirs = @scandir($this->baseDir) ?: [];
+                foreach ($subDirs as $sd) {
+                    if ($sd === '.' || $sd === '..') continue;
+                    $fullSd = $this->baseDir . DIRECTORY_SEPARATOR . $sd;
+                    if (is_dir($fullSd) && filemtime($fullSd) > $cacheMTime) {
+                        $needBuild = true;
+                        break;
+                    }
+                }
             }
         }
 
