@@ -116,7 +116,7 @@ const App = {
 	},
 
 	showCacheClearer() {
-		this.setActiveNav(4);
+		this.setActiveNav(3);
 		this.hideAllViews();
 		document.getElementById('view-cache-clearer').style.display = 'block';
 	},
