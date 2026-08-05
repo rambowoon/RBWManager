@@ -1452,7 +1452,7 @@ switch ($action) {
         $projectName = $data['name'] ?? '';
         $jobId = $data['jobId'] ?? null;
 
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy dự án: ' . $projectName]);
             break;
@@ -1561,7 +1561,7 @@ switch ($action) {
         }
 
         // 1. Tìm đường dẫn project local
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Project not found locally.']);
             break;
@@ -1654,8 +1654,9 @@ switch ($action) {
         break;
 
     case 'getProjectSchemaList':
+        $category = $_GET['category'] ?? '';
         $projectName = $_GET['name'] ?? '';
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Project not found']);
             break;
@@ -1665,9 +1666,10 @@ switch ($action) {
         break;
 
     case 'loadModuleSchema':
+        $category = $_GET['category'] ?? '';
         $projectName = $_GET['name'] ?? '';
         $file = $_GET['file'] ?? '';
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         if (!$project || !$file) {
             echo json_encode(['status' => 'error', 'message' => 'Project or file not found']);
             break;
@@ -1677,12 +1679,13 @@ switch ($action) {
         break;
 
     case 'saveModuleSchema':
+        $category = $data['category'] ?? '';
         $data = json_decode(file_get_contents('php://input'), true);
         $projectName = $data['name'] ?? '';
         $file = $data['file'] ?? '';
         $configData = $data['config'] ?? [];
 
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         if (!$project || !$file) {
             echo json_encode(['status' => 'error', 'message' => 'Project or file not found']);
             break;
@@ -1708,7 +1711,7 @@ switch ($action) {
         $projectName = $_GET['name'] ?? '';
         $typeName = trim($_GET['type'] ?? '');
 
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         if (!$project || $typeName === '') {
             echo json_encode(['status' => 'error', 'message' => 'Project or type not found']);
             break;
@@ -1773,8 +1776,9 @@ switch ($action) {
         break;
 
     case 'openProject':
+        $category = $_GET['category'] ?? '';
         $name = $_GET['name'] ?? '';
-        $project = $scanner->getProjectByName($name);
+        $project = $scanner->getProjectByName($name, $category ?? null);
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Project not found']);
             break;
@@ -2220,7 +2224,7 @@ switch ($action) {
         $fontId = $data['fontId'] ?? ''; 
         $selectedVariants = $data['variants'] ?? [];
 
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         $globalPath = __DIR__ . '/data/demo_config.json';
         $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
         $fontSource = $gConfig['font_source_path'] ?? '';
@@ -2326,7 +2330,7 @@ switch ($action) {
 
     case 'getFontsCss':
         $projectName = $_GET['name'] ?? '';
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Project not found']);
             break;
@@ -2341,7 +2345,7 @@ switch ($action) {
         $projectName = $data['name'] ?? '';
         $fontName = $data['fontName'] ?? '';
 
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         if (!$project || empty($fontName)) {
             echo json_encode(['status' => 'error', 'message' => 'Thiếu thông tin dự án hoặc tên font']);
             break;
@@ -2405,7 +2409,7 @@ switch ($action) {
             }
         }
 
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         if (!$project || !$importUrl) {
             echo json_encode(['status' => 'error', 'message' => 'Thiếu thông tin dự án hoặc URL']);
             break;
@@ -2512,7 +2516,7 @@ switch ($action) {
         $fontFamily = $data['fontFamily'] ?? '';
         $files = $data['files'] ?? []; // Array of { fileName, data (base64), weight, style, ext }
 
-        $project = $scanner->getProjectByName($projectName);
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
         if (!$project || empty($files)) {
             echo json_encode(['status' => 'error', 'message' => 'Thiếu thông tin dự án hoặc dữ liệu font']);
             break;

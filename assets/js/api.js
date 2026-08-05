@@ -31,12 +31,12 @@ const Api = {
         return this.fetch(`getProjectConfig&name=${name}&category=${category}`);
     },
 
-    async getProjectSchemaList(name) {
-        return this.fetch(`getProjectSchemaList&name=${name}`);
+    async getProjectSchemaList(name, category = App.currentCategory) {
+        return this.fetch(`getProjectSchemaList&name=&category=`);
     },
 
-    async loadModuleSchema(name, file) {
-        return this.fetch(`loadModuleSchema&name=${name}&file=${file}`);
+    async loadModuleSchema(name, file, category = App.currentCategory) {
+        return this.fetch(`loadModuleSchema&name=&file=&category=`);
     },
 
     async getTypeImageSize(name, type) {
