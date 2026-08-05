@@ -501,6 +501,7 @@ const App = {
 			const res = await (
 				await fetch('api.php?action=deleteConfig', {
 					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ name }),
 				})
 			).json();
@@ -893,6 +894,7 @@ const App = {
 				const res = await (
 					await fetch(`api.php?action=installSSL`, {
 						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ name, category }),
 					})
 				).json();
@@ -928,6 +930,7 @@ const App = {
 			const res = await (
 				await fetch(`api.php?action=toggleLock`, {
 					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ name }),
 				})
 			).json();
@@ -956,6 +959,7 @@ const App = {
 			const res = await (
 				await fetch(`api.php?action=toggleActionLock`, {
 					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ name, type, category }),
 				})
 			).json();
@@ -1127,6 +1131,7 @@ const App = {
 			const res = await (
 				await fetch(`api.php?action=cleanupTools`, {
 					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ name, category, type }),
 				})
 			).json();
