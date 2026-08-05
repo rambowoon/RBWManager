@@ -376,7 +376,7 @@ const App = {
 			this.globalData.ftp_pass = defaultDemo.ftp_pass;
 			this.globalData.ftp_root = defaultDemo.ftp_root;
 		}
-		const res = await (await fetch('api.php?action=saveGlobalConfig', { method: 'POST', body: JSON.stringify(this.globalData) })).json();
+		const res = await (await fetch('api.php?action=saveGlobalConfig', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.globalData) })).json();
 		if (res.status === 'success') {
 			UI.notify('Đã lưu danh sách Demo thành công!', 'success');
 		}
@@ -480,6 +480,7 @@ const App = {
 		const res = await (
 			await fetch('api.php?action=saveGlobalConfig', {
 				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(this.globalData),
 			})
 		).json();
@@ -598,6 +599,7 @@ const App = {
 		const res = await (
 			await fetch('api.php?action=saveConfig', {
 				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ name, config, category: this.currentCategory }),
 			})
 		).json();
