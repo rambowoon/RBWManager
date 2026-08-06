@@ -233,7 +233,7 @@ function parseFontFilename($filename) {
     
     $style = preg_match('/italic/i', $f) ? 'italic' : 'normal';
     
-    $cleanFamily = preg_replace('/[-_]?(extrabold|800|semibold|demibold|600|bold|700|extralight|200|light|300|thin|100|medium|500|black|heavy|900|regular|italic|normal|it|rg)/i', '', $f);
+    $cleanFamily = preg_replace('/[-_]?\b(extrabold|800|semibold|demibold|600|bold|700|extralight|200|light|300|thin|100|medium|500|black|heavy|900|regular|italic|normal|it|rg)\b/i', '', $f);
     $cleanFamily = trim($cleanFamily, '-_ ');
     if (empty($cleanFamily)) {
         $cleanFamily = $f;
@@ -2073,7 +2073,8 @@ switch ($action) {
                                 $familyPrefix = $parsed['family'];
 
                                 $cleanFam = removeVietnameseDiacritics($familyPrefix);
-                                if (strpos(strtolower($cleanFam), $normalizedQuery) !== false) {
+                                $normalizedFam = str_replace(['_', '-', ' '], '', strtolower($cleanFam));
+                                if (strpos($normalizedFam, $normalizedQuery) !== false) {
                                     $fontId = ($parentFolder === '' ? $familyPrefix : ($parentFolder . '/' . $familyPrefix));
                                     $weight = $parsed['weight'];
                                     $style = $parsed['style'];
