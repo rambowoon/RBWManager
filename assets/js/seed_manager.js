@@ -153,6 +153,16 @@ const SeedManager = {
 		// Xác định sub-key đang active
 		const activeCard = document.querySelector('.seed-subtype-card.active');
 		const subKey = activeSubKey || (activeCard ? activeCard.dataset.subKey : null);
+		const st = this.subTypes[subKey];
+
+		if (st && !st.has_images) {
+			grid.innerHTML = `
+				<div class="seed-img-empty">
+					<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m3 15 2 2 4-4"/></svg>
+					<p>Loại dữ liệu này không sử dụng hình ảnh. Bạn có thể bấm <b>Tạo dữ liệu mẫu</b> để tự động tạo dữ liệu văn bản.</p>
+				</div>`;
+			return;
+		}
 
 		if (this.allImages.length === 0) {
 			grid.innerHTML = `
@@ -242,7 +252,20 @@ const SeedManager = {
 
 	// ─── Run seed ───
 	async runSeed(useAi = false) {
-		const subKeys = Object.keys(this.selectedImages).filter((k) => this.selectedImages[k].length > 0);
+		let subKeys = Object.keys(this.selectedImages).filter((k) => this.selectedImages[k].length > 0);
+
+		if (subKeys.length === 0) {
+			const activeCard = document.querySelector('.seed-subtype-card.active');
+			if (activeCard) {
+				const activeSubKey = activeCard.dataset.subKey;
+				const st = this.subTypes[activeSubKey];
+				if (st && !st.has_images) {
+					subKeys = [activeSubKey];
+					this.selectedImages[activeSubKey] = [];
+				}
+			}
+		}
+
 		if (subKeys.length === 0) {
 			UI.notify('Vui lòng chọn ít nhất 1 sub-type và ảnh', 'error');
 			return;
