@@ -88,6 +88,18 @@ class ProjectDeployer
         exec($cmd, $output, $returnVar);
 
         if ($returnVar !== 0) {
+            // Fallback to native PHP ZipArchive if tar fails
+            if (class_exists('ZipArchive')) {
+                $zip = new \ZipArchive;
+                $res = $zip->open($zipPath);
+                if ($res === TRUE) {
+                    $zip->extractTo($dstPath);
+                    $zip->close();
+                    return true;
+                } else {
+                    throw new \Exception("Lỗi giải nén (Tar Code $returnVar, ZipArchive Code $res): " . implode("\n", $output));
+                }
+            }
             throw new \Exception("Lỗi giải nén (Code $returnVar): " . implode("\n", $output));
         }
 
