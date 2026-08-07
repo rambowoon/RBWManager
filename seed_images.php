@@ -937,7 +937,15 @@ Yêu cầu:
                             if ($optType === 'number') {
                                 $optData[$optKey] = rand(10, 1000);
                             } elseif ($optType === 'text') {
-                                $optData[$optKey] = $randomTitle(3);
+                                $optTitle = $optCfg['title'] ?? $optKey;
+                                $lowerTitle = mb_strtolower($optTitle, 'UTF-8');
+                                if (strpos($lowerTitle, 'điện thoại') !== false || strpos($lowerTitle, 'hotline') !== false) {
+                                    $optData[$optKey] = $randomPhone();
+                                } elseif (strpos($lowerTitle, 'địa chỉ') !== false) {
+                                    $optData[$optKey] = 'Số ' . rand(1, 999) . ' ' . $randomTitle(2) . ', Quận ' . rand(1, 12) . ', TP. HCM';
+                                } else {
+                                    $optData[$optKey] = $optTitle . ' ' . rand(1, 999);
+                                }
                             } elseif ($optType === 'code') {
                                 $optData[$optKey] = 'CODE' . rand(100, 999);
                             } elseif ($optType === 'link-youtube') {
