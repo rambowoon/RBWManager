@@ -505,6 +505,9 @@ class RamboWoonBridge
             $keysToUpdate[] = 'TURNSTILE_SITEKEY';
             $keysToUpdate[] = 'TURNSTILE_SECRETKEY';
         }
+        if (!empty($appConfig['skip_lock'])) { // skip_lock is true for Demo
+            $keysToUpdate[] = 'TURNSTILE_ACTIVE';
+        }
 
         foreach ($lines as $line) {
             $trimmed = trim($line);
@@ -548,6 +551,8 @@ class RamboWoonBridge
                 $val = $cleanUrl . '${SITE_PATH}';
             } else if ($key === 'ENVIRONMENT') {
                 $val = "production";
+            } else if ($key === 'TURNSTILE_ACTIVE' && !empty($appConfig['skip_lock'])) {
+                $val = "true";
             } else if ($key === 'TURNSTILE_SITEKEY' && !empty($appConfig['is_production'])) {
                 if (!empty($appConfig['turnstile_sitekey'])) $val = $appConfig['turnstile_sitekey'];
             } else if ($key === 'TURNSTILE_SECRETKEY' && !empty($appConfig['is_production'])) {
@@ -564,6 +569,10 @@ class RamboWoonBridge
         if (!in_array('DB_PASSWORD', $processedKeys) && !empty($dbConfig['pass'])) $newLines[] = "DB_PASSWORD=" . $dbConfig['pass'];
         if (!in_array('DB_HOST', $processedKeys)) $newLines[] = "DB_HOST=localhost";
         if (!in_array('ENVIRONMENT', $processedKeys)) $newLines[] = "ENVIRONMENT=production";
+
+        if (!empty($appConfig['skip_lock'])) { // Demo
+            if (!in_array('TURNSTILE_ACTIVE', $processedKeys)) $newLines[] = "TURNSTILE_ACTIVE=true";
+        }
 
         if (!empty($appConfig['is_production']) && !empty($appConfig['turnstile_sitekey'])) {
             if (!in_array('TURNSTILE_SITEKEY', $processedKeys)) $newLines[] = "TURNSTILE_SITEKEY=" . $appConfig['turnstile_sitekey'];
