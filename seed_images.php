@@ -930,8 +930,23 @@ Yêu cầu:
                     }
                     
                     // options2
-                    if (!empty($raw['options2'])) {
-                        $optionsVal = json_encode(['mau_sac' => 'Màu ' . rand(1, 10), 'kich_thuoc' => 'Size ' . rand(35, 45)]);
+                    if (!empty($raw['options2']) && is_array($raw['options2'])) {
+                        $optData = [];
+                        foreach ($raw['options2'] as $optKey => $optCfg) {
+                            $optType = $optCfg['type'] ?? 'text';
+                            if ($optType === 'number') {
+                                $optData[$optKey] = rand(10, 1000);
+                            } elseif ($optType === 'text') {
+                                $optData[$optKey] = $randomTitle(3);
+                            } elseif ($optType === 'code') {
+                                $optData[$optKey] = 'CODE' . rand(100, 999);
+                            } elseif ($optType === 'link-youtube') {
+                                $optData[$optKey] = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+                            } else {
+                                $optData[$optKey] = 'Data ' . rand(1, 100);
+                            }
+                        }
+                        $optionsVal = json_encode($optData, JSON_UNESCAPED_UNICODE);
                         if (in_array('options2', $columns)) { $cols[] = 'options2'; $vals[] = $optionsVal; }
                     }
 
