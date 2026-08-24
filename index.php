@@ -1279,38 +1279,67 @@ Pass: password123..." style="height:200px;"></textarea>
     </div>
 
 
-    <!-- MODAL: AI SEED PROMPT -->
+    <!-- MODAL: AI SEED PROMPT & DESIGN REFERENCE -->
     <div id="seed-ai-modal" class="modal-overlay">
-        <div class="modal" style="max-width: 450px;">
+        <div class="modal" style="max-width: 520px;">
             <div class="modal-header-flex">
-                <h2>Tạo bằng AI (Gemini)</h2>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1.2rem;">✨</span>
+                    <h2>Tạo Dữ Liệu bằng AI (Gemini Vision)</h2>
+                </div>
                 <button class="btn-close-circle" onclick="UI.hideModal('seed-ai-modal')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
             </div>
-            <div class="modal-body" style="padding: 20px 0;">
-                <p style="font-size:0.85rem; color:var(--muted); margin-bottom:15px; line-height:1.4;">
-                    Nhập mô tả thông tin ngành nghề/lĩnh vực (ví dụ: Dịch vụ mai táng, Sản phẩm đồ gia dụng...). AI sẽ tự động tạo tên tiêu đề và mô tả phù hợp cho các bản ghi dữ liệu mẫu.
-                </p>
-                <div class="form-group">
-                    <label>Mô tả ngành nghề/lĩnh vực</label>
-                    <input type="text" id="seed-ai-prompt" placeholder="Ví dụ: Thiết bị nhà bếp thông minh" class="form-control" style="width:100%; height:40px; margin-top:5px;">
+            <div class="modal-body" style="padding: 15px 0;">
+                <!-- DESIGN IMAGE UPLOAD / PASTE SECTION -->
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>🎨 Ảnh mẫu Design (Figma / Screenshot UI)</span>
+                        <span style="font-size:0.7rem; color:var(--primary); font-weight:600; text-transform:none;">✨ Hỗ trợ Ctrl + V</span>
+                    </label>
+                    <div id="seed-design-dropzone" class="seed-design-dropzone" onclick="document.getElementById('seed-design-file-input').click()">
+                        <input type="file" id="seed-design-file-input" accept="image/*" style="display:none;" onchange="SeedManager.handleDesignFileSelect(this)">
+                        
+                        <div id="seed-design-empty" class="seed-design-placeholder">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--primary); opacity:0.8;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            <p style="font-size:0.85rem; font-weight:600; color:#fff; margin:6px 0 2px;">Kéo thả ảnh hoặc bấm để tải lên</p>
+                            <span style="font-size:0.75rem; color:var(--muted);">Hoặc nhấn <strong>Ctrl + V</strong> để dán ảnh chụp màn hình Figma</span>
+                        </div>
+
+                        <div id="seed-design-preview-wrap" class="seed-design-preview-wrap" style="display:none;">
+                            <img id="seed-design-preview-img" src="" alt="Design Preview" class="seed-design-preview-img">
+                            <div class="seed-design-preview-info">
+                                <span id="seed-design-filename" class="seed-design-name">design_screenshot.png</span>
+                                <button type="button" class="btn btn-ghost btn-sm btn-danger-text" onclick="event.stopPropagation(); SeedManager.removeDesignImage()" title="Xóa ảnh này">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Xóa
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:6px; line-height:1.4;">
+                        💡 AI sẽ đọc tiêu đề, trích xuất các bài mẫu có trong ảnh design, và tự động viết thêm các bài còn lại cho đủ số lượng bạn đã chọn.
+                    </p>
                 </div>
-                <div class="form-group" style="margin-top: 15px;">
-                    <label>Chọn model AI (Gemini)</label>
-                    <select id="seed-ai-model" class="form-control" style="width:100%; height:40px; margin-top:5px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:#fff; border-radius:8px; padding:0 12px;">
-                        <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
-                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label>Mô tả bổ sung / Tên ngành nghề (Tùy chọn)</label>
+                    <input type="text" id="seed-ai-prompt" placeholder="Ví dụ: Salon làm tóc nam Quốc Kỳ, Thiết bị bếp thông minh..." class="form-control" style="width:100%; height:38px;">
+                </div>
+
+                <div class="form-group">
+                    <label>Chọn model AI</label>
+                    <select id="seed-ai-model" class="form-control" style="width:100%; height:38px; background:var(--surface-2); border:1px solid var(--border); color:#fff; border-radius:8px; padding:0 12px;">
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Khuyên dùng - Siêu nhanh & Vision chuẩn)</option>
                         <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Độ chính xác cao nhất)</option>
                     </select>
                 </div>
             </div>
             <div class="modal-footer-actions">
                 <button class="btn btn-ghost" onclick="UI.hideModal('seed-ai-modal')">Hủy</button>
-                <button id="seed-ai-confirm-btn" class="btn btn-primary" onclick="SeedManager.runSeed(true)">🚀 Bắt đầu tạo bằng AI</button>
+                <button id="seed-ai-confirm-btn" class="btn btn-primary" onclick="SeedManager.runSeed(true)">✨ Phân tích Design &amp; Tạo dữ liệu</button>
             </div>
         </div>
     </div>

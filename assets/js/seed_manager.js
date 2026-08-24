@@ -6,6 +6,7 @@ const SeedManager = {
 	selectedImages: {},  // { subKey: [file, ...] }
 	allImages: [],       // danh sách ảnh đã scan
 	currentFolder: 'project_images',
+	designImage: null,   // { data: base64, mime: 'image/png', name: '...' }
 
 	async init(projectName) {
 		if (!projectName) return;
@@ -13,6 +14,7 @@ const SeedManager = {
 		this.selectedImages = {};
 		this.subTypes = {};
 		this.allImages = [];
+		this.designImage = null;
 		this.bindEvents();
 		await this.loadTypes(this.currentMainKey);
 	},
@@ -34,9 +36,105 @@ const SeedManager = {
 			await this.scanFolder();
 		});
 
-		// Seed count
 		// Seed run button
 		document.getElementById('btn-seed-run')?.addEventListener('click', () => this.runSeed());
+
+		// Bind Design dropzone and paste events
+		this.bindDesignDropAndPaste();
+	},
+
+	bindDesignDropAndPaste() {
+		const dropzone = document.getElementById('seed-design-dropzone');
+		if (!dropzone) return;
+
+		// Drag & Drop
+		['dragenter', 'dragover'].forEach(eventName => {
+			dropzone.addEventListener(eventName, (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				dropzone.classList.add('drag-over');
+			});
+		});
+
+		['dragleave', 'drop'].forEach(eventName => {
+			dropzone.addEventListener(eventName, (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				dropzone.classList.remove('drag-over');
+			});
+		});
+
+		dropzone.addEventListener('drop', (e) => {
+			const dt = e.dataTransfer;
+			const files = dt.files;
+			if (files && files.length > 0 && files[0].type.startsWith('image/')) {
+				this.setDesignFile(files[0]);
+			}
+		});
+
+		// Paste listener (Ctrl + V)
+		document.addEventListener('paste', (e) => {
+			// Chỉ xử lý paste khi modal AI Seed đang hiển thị
+			const modal = document.getElementById('seed-ai-modal');
+			if (!modal || modal.style.display === 'none' || getComputedStyle(modal).display === 'none') return;
+
+			const items = e.clipboardData?.items;
+			if (!items) return;
+
+			for (let i = 0; i < items.length; i++) {
+				if (items[i].type.indexOf('image') !== -1) {
+					const blob = items[i].getAsFile();
+					if (blob) {
+						this.setDesignFile(blob, 'pasted_figma_design.png');
+						UI.notify('📋 Đã dán ảnh design từ clipboard!', 'info');
+						break;
+					}
+				}
+			}
+		});
+	},
+
+	handleDesignFileSelect(input) {
+		if (input.files && input.files[0]) {
+			this.setDesignFile(input.files[0]);
+		}
+	},
+
+	setDesignFile(file, customName) {
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			const base64Url = e.target.result;
+			const mime = base64Url.split(';')[0].split(':')[1] || file.type || 'image/png';
+			const rawBase64 = base64Url.split(',')[1];
+
+			this.designImage = {
+				data: rawBase64,
+				mime: mime,
+				name: customName || file.name || 'design_screenshot.png'
+			};
+
+			const emptyEl = document.getElementById('seed-design-empty');
+			const previewWrap = document.getElementById('seed-design-preview-wrap');
+			const previewImg = document.getElementById('seed-design-preview-img');
+			const nameEl = document.getElementById('seed-design-filename');
+
+			if (emptyEl) emptyEl.style.display = 'none';
+			if (previewWrap) previewWrap.style.display = 'flex';
+			if (previewImg) previewImg.src = base64Url;
+			if (nameEl) nameEl.textContent = this.designImage.name;
+		};
+		reader.readAsDataURL(file);
+	},
+
+	removeDesignImage() {
+		this.designImage = null;
+		const emptyEl = document.getElementById('seed-design-empty');
+		const previewWrap = document.getElementById('seed-design-preview-wrap');
+		const fileInput = document.getElementById('seed-design-file-input');
+
+		if (emptyEl) emptyEl.style.display = 'flex';
+		if (previewWrap) previewWrap.style.display = 'none';
+		if (fileInput) fileInput.value = '';
 	},
 
 	// ─── Load types config ───
@@ -301,6 +399,7 @@ const SeedManager = {
 			use_ai: useAi,
 			ai_model: aiModel,
 			ai_prompt: aiPrompt,
+			design_image: useAi && this.designImage ? this.designImage : null,
 		};
 
 		try {

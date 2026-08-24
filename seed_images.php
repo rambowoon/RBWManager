@@ -297,13 +297,31 @@ try {
             return $text;
         };
 
-        // Helper function to fetch from Gemini
-        $getAiContentFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, int $count, bool $needsContent = false) {
+        $designImage = $payload['design_image'] ?? null; // ['data' => base64, 'mime' => 'image/png']
+
+        // Helper function to fetch from Gemini (Supports Vision Multimodal & Design Context Expansion)
+        $getAiContentFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, int $count, bool $needsContent = false, ?array $designImg = null) {
             $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . urlencode($apiKey);
             
             $contentRequirement = $needsContent ? "\n- 'content': bài viết chi tiết, dài khoảng 2-3 đoạn văn, mô tả đầy đủ thông tin. Có thể dùng thẻ HTML cơ bản (ví dụ <br>, <strong>)." : "";
 
-            $promptText = "Hãy tạo một JSON array chứa đúng $count phần tử dữ liệu mẫu tiếng Việt phù hợp với ngành nghề/mô tả sau: '$prompt' (dành cho loại danh mục: '$subTypeTitle').
+            if (!empty($designImg['data']) && !empty($designImg['mime'])) {
+                $promptText = "Bạn là AI chuyên gia phân tích bản thiết kế UI/UX và trích xuất dữ liệu website thực tế từ ảnh chụp Figma/Mockup.
+Dưới đây là ảnh chụp màn hình thiết kế giao diện của dự án.
+
+NHIỆM VỤ CỦA BẠN:
+1. Quan sát kỹ ảnh thiết kế đính kèm, nhận diện ngành nghề, tên thương hiệu và khối giao diện đang hiển thị liên quan đến loại mục: '$subTypeTitle' (hoặc mô tả: '$prompt').
+2. Trích xuất chính xác các bài viết / danh mục / mục dữ liệu đang xuất hiện trên bản thiết kế (tiêu đề, tên, mô tả).
+3. Nếu số lượng bài trích xuất được từ ảnh ít hơn $count phần tử, bạn hãy tự động hiểu ngữ cảnh/pattern của thiết kế và SÁNG TẠO THÊM các bài viết mới có cùng phong cách, cùng chủ đề để đủ đúng $count phần tử.
+4. Trả về đúng một JSON array chứa đúng $count phần tử với các thuộc tính:
+- 'name': tiêu đề/tên ngắn gọn (Ví dụ theo thiết kế: 'Follow Fanpage', 'Follow tiktok', 'Youtube', 'Follow Instagram'...).
+- 'desc': đoạn mô tả ngắn gọn, chi tiết và hấp dẫn dài từ 1 đến 3 câu.{$contentRequirement}
+
+YÊU CẦU QUAN TRỌNG:
+1. Bạn CHỈ phản hồi nội dung là một chuỗi JSON array hợp lệ.
+2. KHÔNG giải thích, KHÔNG viết bất kỳ chữ nào khác ngoài JSON array. KHÔNG đặt trong block ```json ... ```.";
+            } else {
+                $promptText = "Hãy tạo một JSON array chứa đúng $count phần tử dữ liệu mẫu tiếng Việt phù hợp với ngành nghề/mô tả sau: '$prompt' (dành cho loại danh mục: '$subTypeTitle').
 Mỗi phần tử trong mảng phải chứa các thuộc tính sau:
 - 'name': tiêu đề/tên ngắn gọn của sản phẩm/bài viết/hình ảnh (ví dụ: 'Nồi chiên không dầu Philips HD9252'). Tên phải mang tính thực tế, đa dạng, KHÔNG trùng lặp.
 - 'desc': đoạn mô tả ngắn gọn, chi tiết và hấp dẫn dài từ 2 đến 3 câu.{$contentRequirement}
@@ -311,10 +329,21 @@ Mỗi phần tử trong mảng phải chứa các thuộc tính sau:
 YÊU CẦU QUAN TRỌNG:
 1. Bạn CHỈ phản hồi nội dung là một chuỗi JSON array hợp lệ.
 2. KHÔNG giải thích, KHÔNG viết bất kỳ chữ nào khác ngoài JSON array. KHÔNG đặt trong block ```json ... ``` nếu có thể.";
+            }
+
+            $parts = [["text" => $promptText]];
+            if (!empty($designImg['data']) && !empty($designImg['mime'])) {
+                $parts[] = [
+                    "inline_data" => [
+                        "mime_type" => $designImg['mime'],
+                        "data" => $designImg['data']
+                    ]
+                ];
+            }
 
             $payload = json_encode([
                 "contents" => [
-                    ["parts" => [["text" => $promptText]]]
+                    ["parts" => $parts]
                 ],
                 "generationConfig" => [
                     "responseMimeType" => "application/json"
@@ -327,7 +356,7 @@ YÊU CẦU QUAN TRỌNG:
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 45);
             
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -362,7 +391,7 @@ YÊU CẦU QUAN TRỌNG:
         };
 
         // Helper function to fetch category names from Gemini
-        $getAiCategoriesFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, string $level, int $count, array $excludeNames = []) {
+        $getAiCategoriesFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, string $level, int $count, array $excludeNames = [], ?array $designImg = null) {
             $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . urlencode($apiKey);
             
             $excludeStr = '';
@@ -370,16 +399,28 @@ YÊU CẦU QUAN TRỌNG:
                 $excludeStr = "\n5. TUYỆT ĐỐI KHÔNG sử dụng các tên sau (vì đã bị trùng): " . implode(', ', array_slice($excludeNames, 0, 50));
             }
 
-            $promptText = "Hãy tạo một JSON array chứa đúng $count tên danh mục cấp '$level' bằng tiếng Việt, phù hợp với ngành nghề/mô tả sau: '$prompt' (dành cho loại đối tượng: '$subTypeTitle').
+            $designInstruction = (!empty($designImg['data']) && !empty($designImg['mime'])) ? " Hãy quan sát ảnh thiết kế đính kèm để trích xuất hoặc suy luận tên danh mục cho chuẩn xác với giao diện thực tế." : "";
+
+            $promptText = "Hãy tạo một JSON array chứa đúng $count tên danh mục cấp '$level' bằng tiếng Việt, phù hợp với ngành nghề/mô tả sau: '$prompt' (dành cho loại đối tượng: '$subTypeTitle').{$designInstruction}
 Yêu cầu:
 1. Các tên danh mục phải là TỪ KHÓA BAO QUÁT, mang tính phân loại chung (Ví dụ: 'Điện thoại', 'Tin thể thao', 'Dịch vụ tư vấn').
 2. TUYỆT ĐỐI KHÔNG đặt tên danh mục giống với tên sản phẩm/bài viết cụ thể (Ví dụ: KHÔNG dùng 'iPhone 14 Pro', KHÔNG dùng 'Tư vấn pháp luật lao động ngày 14/2').
 3. Ngắn gọn (2-5 từ), đa dạng và KHÔNG trùng lặp.
 4. Chỉ phản hồi nội dung là một chuỗi JSON array các chuỗi. Ví dụ: [\"Danh mục A\", \"Danh mục B\"]. KHÔNG giải thích thêm.{$excludeStr}";
 
+            $parts = [["text" => $promptText]];
+            if (!empty($designImg['data']) && !empty($designImg['mime'])) {
+                $parts[] = [
+                    "inline_data" => [
+                        "mime_type" => $designImg['mime'],
+                        "data" => $designImg['data']
+                    ]
+                ];
+            }
+
             $payload = json_encode([
                 "contents" => [
-                    ["parts" => [["text" => $promptText]]]
+                    ["parts" => $parts]
                 ],
                 "generationConfig" => [
                     "responseMimeType" => "application/json"
@@ -392,7 +433,7 @@ Yêu cầu:
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 45);
             
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -454,7 +495,7 @@ Yêu cầu:
                     
                     try {
                         $needsContent = !empty($raw['content']) || !empty($raw['content_cke']);
-                        $aiData = $getAiContentFromGemini($apiKey, $aiModel, $prompt, $subTypeTitle, $count, $needsContent);
+                        $aiData = $getAiContentFromGemini($apiKey, $aiModel, $prompt, $subTypeTitle, $count, $needsContent, $designImage);
                     } catch (\Throwable $aiErr) {
                         throw new Exception("Lỗi tạo dữ liệu bằng AI cho loại '{$subTypeTitle}': " . $aiErr->getMessage());
                     }
@@ -591,7 +632,7 @@ Yêu cầu:
                                 // Giới hạn gọi AI tối đa 40 để tránh đứt gãy JSON
                                 $aiNeeded = min($needed, 40);
                                 try {
-                                    $aiCatData = $getAiCategoriesFromGemini($apiKey, $aiModel, $prompt, $subTypeTitle, $level, $aiNeeded, $allGeneratedNames);
+                                    $aiCatData = $getAiCategoriesFromGemini($apiKey, $aiModel, $prompt, $subTypeTitle, $level, $aiNeeded, $allGeneratedNames, $designImage);
                                     if (is_array($aiCatData)) {
                                         foreach ($aiCatData as $catName) {
                                             $allGeneratedNames[] = trim($catName);
