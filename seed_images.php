@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Asia/Ho_Chi_Minh');
 /**
  * seed_images.php - Scan thư mục ảnh để dùng trong Tạo Dữ Liệu Mẫu
  * GET ?action=scan_folder&project_name=&folder=project_images|custom_pool

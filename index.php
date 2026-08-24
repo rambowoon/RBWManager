@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RamboWoon Manager | Admin Dashboard</title>
     <link rel="icon" type="image/png" href="favicon.png">
+    <script>
+        (function() {
+            var savedTheme = localStorage.getItem('rbw_theme') || 'mint';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -77,6 +83,67 @@
                 </div>
 
                 <div class="header-right flex-center-gap">
+                    <!-- THEME DROPDOWN -->
+                    <div class="theme-dropdown-wrapper">
+                        <button class="theme-toggle-btn" id="theme-menu-btn" onclick="UI.toggleThemeMenu(event)" title="Đổi màu giao diện (Theme)">
+                            <span class="theme-current-dot" id="theme-current-dot"></span>
+                            <span id="theme-current-label">Xanh Mint</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </button>
+                        <div class="theme-menu" id="theme-menu-dropdown">
+                            <div class="theme-menu-item" data-theme-val="mint" onclick="UI.setTheme('mint')">
+                                <span class="theme-dot dot-mint"></span>
+                                <span>Xanh Mint</span>
+                                <span class="theme-check-icon">✓</span>
+                            </div>
+                            <div class="theme-menu-item" data-theme-val="emerald" onclick="UI.setTheme('emerald')">
+                                <span class="theme-dot dot-emerald"></span>
+                                <span>Lục Bảo (Emerald)</span>
+                                <span class="theme-check-icon">✓</span>
+                            </div>
+                            <div class="theme-menu-item" data-theme-val="cyan" onclick="UI.setTheme('cyan')">
+                                <span class="theme-dot dot-cyan"></span>
+                                <span>Băng Tuyết (Cyan)</span>
+                                <span class="theme-check-icon">✓</span>
+                            </div>
+                            <div class="theme-menu-item" data-theme-val="ocean" onclick="UI.setTheme('ocean')">
+                                <span class="theme-dot dot-ocean"></span>
+                                <span>Xanh Biển (Ocean)</span>
+                                <span class="theme-check-icon">✓</span>
+                            </div>
+                            <div class="theme-menu-item" data-theme-val="indigo" onclick="UI.setTheme('indigo')">
+                                <span class="theme-dot dot-indigo"></span>
+                                <span>Chàm (Indigo)</span>
+                                <span class="theme-check-icon">✓</span>
+                            </div>
+                            <div class="theme-menu-item" data-theme-val="purple" onclick="UI.setTheme('purple')">
+                                <span class="theme-dot dot-purple"></span>
+                                <span>Tím Neon</span>
+                                <span class="theme-check-icon">✓</span>
+                            </div>
+                            <div class="theme-menu-item" data-theme-val="rose" onclick="UI.setTheme('rose')">
+                                <span class="theme-dot dot-rose"></span>
+                                <span>Hồng Ruby (Rose)</span>
+                                <span class="theme-check-icon">✓</span>
+                            </div>
+                            <div class="theme-menu-item" data-theme-val="orange" onclick="UI.setTheme('orange')">
+                                <span class="theme-dot dot-orange"></span>
+                                <span>Cam Cyber</span>
+                                <span class="theme-check-icon">✓</span>
+                            </div>
+                            <div class="theme-menu-item" data-theme-val="amber" onclick="UI.setTheme('amber')">
+                                <span class="theme-dot dot-amber"></span>
+                                <span>Hoàng Kim (Amber)</span>
+                                <span class="theme-check-icon">✓</span>
+                            </div>
+                            <div class="theme-menu-item" data-theme-val="red" onclick="UI.setTheme('red')">
+                                <span class="theme-dot dot-red"></span>
+                                <span>Đỏ Crimson</span>
+                                <span class="theme-check-icon">✓</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <button class="btn btn-primary" onclick="App.showDeployProjectModal()">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                         Triển khai dự án
@@ -583,6 +650,25 @@
                     
                     <div class="card-container card-padded" style="margin-top:20px;">
                         <form id="global-config-form">
+
+                            <div style="padding-top: 5px; margin-bottom: 15px;">
+                                <label style="color: var(--primary); margin-bottom:12px; font-size:0.7rem;">🎨 GIAO DIỆN &amp; MÀU SẮC (THEME)</label>
+                                <div class="form-group">
+                                    <label>Chọn Theme màu hệ thống</label>
+                                    <select id="g_theme_selector" onchange="UI.setTheme(this.value)">
+                                        <option value="mint">🌿 Xanh Mint (Mint Green Glow - Mặc định)</option>
+                                        <option value="emerald">🌲 Lục Bảo (Emerald Green)</option>
+                                        <option value="cyan">❄️ Băng Tuyết (Cyber Cyan)</option>
+                                        <option value="ocean">🌊 Xanh Biển (Ocean Blue)</option>
+                                        <option value="indigo">🌌 Chàm (Electric Indigo)</option>
+                                        <option value="purple">🔮 Tím Neon (Cyber Purple)</option>
+                                        <option value="rose">🌹 Hồng Ruby (Neon Rose)</option>
+                                        <option value="orange">🟠 Cam Cyber (Neon Orange)</option>
+                                        <option value="amber">👑 Hoàng Kim (Sunset Amber)</option>
+                                        <option value="red">🔥 Đỏ Rực (Crimson Red)</option>
+                                    </select>
+                                </div>
+                            </div>
 
                             <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
                                 <label style="color: var(--primary); margin-bottom:12px; font-size:0.7rem;">☁️ CLOUDFLARE API (PRODUCTION)</label>

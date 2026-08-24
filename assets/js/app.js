@@ -269,6 +269,9 @@ const App = {
 				if (document.getElementById('g_month_folder_format')) {
 					document.getElementById('g_month_folder_format').value = config.month_folder_format || 'YYYY_MM';
 				}
+				if (document.getElementById('g_theme_selector')) {
+					document.getElementById('g_theme_selector').value = localStorage.getItem('rbw_theme') || 'mint';
+				}
 			}
 		} catch (err) {
 			await UI.alert('Lỗi tải cấu hình chung');

@@ -3,6 +3,7 @@
  * RamboWoon Manager API - Full Version
  */
 
+date_default_timezone_set('Asia/Ho_Chi_Minh');
 error_reporting(0);
 ini_set('display_errors', 0);
 @set_time_limit(0);

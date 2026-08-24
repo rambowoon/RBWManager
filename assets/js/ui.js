@@ -524,7 +524,7 @@ const UI = {
 					</div>
 				</div>
 				<div class="chip-row">
-					<div class="chip ${isConfiguredLocal ? "locked" : "util"}" onclick="${isConfiguredLocal ? "UI.notify('Dự án này đã được cấu hình Source Local!', 'info')" : `App.setupLocalSource('${safeName}', '${safeCat}')`}"><div class="ic" style="background:${isConfiguredLocal ? "rgba(255,255,255,0.05)" : "rgba(79,157,255,0.15)"};color:${isConfiguredLocal ? "#98A0B8" : "#4F9DFF"};">${isConfiguredLocal ? "✓" : "🔧"}</div><div class="lbl">${isConfiguredLocal ? "Đã cấu hình Source" : "Cấu hình Source Local"}</div></div>
+					<div class="chip ${isConfiguredLocal ? "locked" : "util"}" onclick="${isConfiguredLocal ? "UI.notify('Dự án này đã được cấu hình Source Local!', 'info')" : `App.setupLocalSource('${safeName}', '${safeCat}')`}"><div class="ic" style="background:${isConfiguredLocal ? "rgba(255,255,255,0.05)" : "var(--primary-glow)"};color:${isConfiguredLocal ? "var(--text-muted)" : "var(--primary)"};">${isConfiguredLocal ? "✓" : "🔧"}</div><div class="lbl">${isConfiguredLocal ? "Đã cấu hình Source" : "Cấu hình Source Local"}</div></div>
 					<div class="chip neutral" onclick="App.openAntigravity('${safeName}')"><div class="ic">▶</div><div class="lbl">Mở bằng Antigravity</div></div>
 					<div class="chip neutral" onclick="SchemaBuilder.init('${safeName}')"><div class="ic">▤</div><div class="lbl">Visual Schema</div></div>
 					<div class="chip neutral" onclick="App.pushTools('${safeName}', '${safeCat}')"><div class="ic">⚡</div><div class="lbl">Sync Tools</div></div>
@@ -962,4 +962,85 @@ const UI = {
 			SeedManager.init(projectName);
 		}
 	},
+
+	// ===== THEME MANAGEMENT =====
+	themeLabels: {
+		mint: "Xanh Mint",
+		emerald: "Lục Bảo",
+		cyan: "Băng Tuyết",
+		ocean: "Xanh Biển",
+		indigo: "Chàm Indigo",
+		purple: "Tím Neon",
+		rose: "Hồng Ruby",
+		orange: "Cam Cyber",
+		amber: "Hoàng Kim",
+		red: "Đỏ Crimson"
+	},
+
+	initTheme() {
+		const currentTheme = localStorage.getItem('rbw_theme') || 'mint';
+		this.applyThemeUI(currentTheme);
+
+		// Global click listener to close theme dropdown when clicking outside
+		document.addEventListener('click', (e) => {
+			const wrapper = document.querySelector('.theme-dropdown-wrapper');
+			const dropdown = document.getElementById('theme-menu-dropdown');
+			if (wrapper && dropdown && !wrapper.contains(e.target)) {
+				dropdown.classList.remove('show');
+			}
+		});
+	},
+
+	toggleThemeMenu(e) {
+		if (e) e.stopPropagation();
+		const dropdown = document.getElementById('theme-menu-dropdown');
+		if (dropdown) {
+			dropdown.classList.toggle('show');
+		}
+	},
+
+	setTheme(themeName) {
+		if (!this.themeLabels[themeName]) themeName = 'mint';
+		localStorage.setItem('rbw_theme', themeName);
+		document.documentElement.setAttribute('data-theme', themeName);
+		this.applyThemeUI(themeName);
+
+		const dropdown = document.getElementById('theme-menu-dropdown');
+		if (dropdown) dropdown.classList.remove('show');
+
+		this.showToast(`Đã chuyển sang giao diện ${this.themeLabels[themeName]}`, 'success');
+	},
+
+	applyThemeUI(themeName) {
+		document.documentElement.setAttribute('data-theme', themeName);
+
+		const labelEl = document.getElementById('theme-current-label');
+		if (labelEl && this.themeLabels[themeName]) {
+			labelEl.textContent = this.themeLabels[themeName];
+		}
+
+		const selectorEl = document.getElementById('g_theme_selector');
+		if (selectorEl) {
+			selectorEl.value = themeName;
+		}
+
+		// Update active check in menu
+		const items = document.querySelectorAll('.theme-menu-item');
+		items.forEach((item) => {
+			const val = item.getAttribute('data-theme-val');
+			if (val === themeName) {
+				item.classList.add('active');
+			} else {
+				item.classList.remove('active');
+			}
+		});
+	}
 };
+
+// Initialize theme on load
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', () => UI.initTheme());
+} else {
+	UI.initTheme();
+}
+
