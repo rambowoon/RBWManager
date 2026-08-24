@@ -350,28 +350,44 @@ YÊU CẦU QUAN TRỌNG:
                 ]
             ]);
 
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 45);
-            
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $err = curl_error($ch);
-            curl_close($ch);
+            $executeGeminiCurl = function(string $targetModel) use ($apiKey, $payload): array {
+                $url = "https://generativelanguage.googleapis.com/v1beta/models/$targetModel:generateContent?key=" . urlencode($apiKey);
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 45);
+                
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $err = curl_error($ch);
+                curl_close($ch);
 
-            if ($err) {
-                throw new Exception("Lỗi kết nối cURL tới Gemini: " . $err);
+                return ['code' => $httpCode, 'body' => $response, 'error' => $err];
+            };
+
+            $res = $executeGeminiCurl($model);
+            // Auto Fallback nếu model được chọn trả về lỗi (ví dụ preview endpoint chưa mở)
+            if ($res['code'] !== 200 && ($model === 'gemini-3.5-flash' || $model === 'gemini-3.1-flash-lite')) {
+                $res = $executeGeminiCurl('gemini-2.5-flash');
+                if ($res['code'] !== 200) {
+                    $res = $executeGeminiCurl('gemini-1.5-flash');
+                }
             }
 
-            if ($httpCode !== 200) {
-                $resObj = json_decode($response, true);
-                $errMsg = $resObj['error']['message'] ?? "HTTP Code $httpCode";
+            if ($res['error']) {
+                throw new Exception("Lỗi kết nối cURL tới Gemini: " . $res['error']);
+            }
+
+            if ($res['code'] !== 200) {
+                $resObj = json_decode($res['body'], true);
+                $errMsg = $resObj['error']['message'] ?? "HTTP Code " . $res['code'];
                 throw new Exception("Lỗi từ Gemini API ($model): " . $errMsg);
             }
+
+            $response = $res['body'];
 
             $resObj = json_decode($response, true);
             $text = $resObj['candidates'][0]['content']['parts'][0]['text'] ?? '';

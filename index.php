@@ -1330,10 +1330,11 @@ Pass: password123..." style="height:200px;"></textarea>
                 <div class="form-group">
                     <label>Chọn model AI</label>
                     <select id="seed-ai-model" class="form-control" style="width:100%; height:38px; background:var(--surface-2); border:1px solid var(--border); color:#fff; border-radius:8px; padding:0 12px;">
-                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Khuyên dùng - Siêu nhanh & Vision chuẩn)</option>
+                        <option value="gemini-3.5-flash">Gemini 3.5 Flash (Tốc độ tối đa & Thông minh nhất)</option>
+                        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (Siêu nhẹ)</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Ổn định & Vision chuẩn)</option>
                         <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Độ chính xác cao nhất)</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Độ chính xác cao)</option>
                     </select>
                 </div>
             </div>
