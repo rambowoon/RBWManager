@@ -176,7 +176,7 @@ const UI = {
 
 			card.innerHTML = `
                 <div class="item-card-inner">
-                    <div class="item-card-header" style="flex:1; min-width:0; margin-bottom:0;">
+                    <div class="item-card-header">
                         <div class="item-card-icon">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                         </div>

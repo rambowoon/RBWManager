@@ -185,6 +185,7 @@ const App = {
 			if (data.status === 'success') {
 				this.projects = data.data || [];
 				UI.renderProjects(this.getProcessedProjects(), category);
+				this._applyViewModeUI(this.projectViewMode);
 				this.updateStats();
 				
 				if (category !== '') {
