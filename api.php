@@ -2722,15 +2722,16 @@ switch ($action) {
             $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
             if (!in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp'])) continue;
 
-            $isLogo = (stripos($file, 'logo') !== false);
-            $isFavicon = (stripos($file, 'favicon') !== false);
+            $nameOnly = pathinfo($file, PATHINFO_FILENAME);
+            $nameOnlyLower = strtolower($nameOnly);
+            $isLogo = ($nameOnlyLower === 'logo');
+            $isFavicon = ($nameOnlyLower === 'favicon' || stripos($file, 'favicon') !== false);
 
             if ($isFavicon) continue;
 
             // If already WebP and not a logo, do nothing
             if ($ext === 'webp' && !$isLogo) continue;
 
-            $nameOnly = pathinfo($file, PATHINFO_FILENAME);
             $webpName = $nameOnly . '.webp';
             $webpPath = $imagesDir . DIRECTORY_SEPARATOR . $webpName;
 
@@ -2867,9 +2868,10 @@ switch ($action) {
 
         $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
         $nameOnly = pathinfo($fileName, PATHINFO_FILENAME);
+        $nameOnlyLower = strtolower($nameOnly);
 
-        $isLogo = (stripos($fileName, 'logo') !== false);
-        $isFavicon = (stripos($fileName, 'favicon') !== false);
+        $isLogo = ($nameOnlyLower === 'logo');
+        $isFavicon = ($nameOnlyLower === 'favicon' || stripos($fileName, 'favicon') !== false);
 
         if ($isFavicon) {
             echo json_encode(['status' => 'error', 'message' => 'Tệp favicon không được phép chuyển đổi sang WebP']);

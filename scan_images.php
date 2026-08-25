@@ -181,12 +181,12 @@ try {
             $grouped[$subType][] = $item;
         }
 
-        // Special rule: in type-photo, favicon group also scans any png/ico image containing 'logo' by default.
+        // Special rule: in type-photo, favicon group also scans any png/ico image with exact name 'logo' by default.
         if (
             $mainKey === 'type-photo'
             && isset($grouped['favicon'])
             && in_array($ext, ['png', 'ico'], true)
-            && str_contains(strtolower($f), 'logo')
+            && strtolower(pathinfo($f, PATHINFO_FILENAME)) === 'logo'
             && !in_array('favicon', array_column($matchedSubTypes, 'sub_type'), true)
         ) {
             $grouped['favicon'][] = [

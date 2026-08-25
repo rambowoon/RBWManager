@@ -93,7 +93,10 @@ const WebpManager = {
 			row.onmouseover = () => row.style.background = 'rgba(255,255,255,0.02)';
 			row.onmouseout = () => row.style.background = 'transparent';
 
-			const isLogoOrFavicon = (img.name.toLowerCase().includes('logo') || img.name.toLowerCase().includes('favicon'));
+			const nameOnly = (img.name.split('.').slice(0, -1).join('.') || img.name).toLowerCase();
+			const isExactLogo = (nameOnly === 'logo');
+			const isFavicon = (nameOnly === 'favicon' || img.name.toLowerCase().includes('favicon'));
+			const isLogoOrFavicon = (isExactLogo || isFavicon);
 			const isWebp = img.ext === 'webp';
 
 			let statusHtml = '';
