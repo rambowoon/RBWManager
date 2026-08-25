@@ -9,9 +9,14 @@ const App = {
 	async init() {
 		this.bindEvents();
 		
-		// Init Sort dropdown value
-		const sortEl = document.getElementById('project-sort-select');
-		if (sortEl) sortEl.value = this.projectSortType;
+		// Init Sort custom dropdown label
+		this._applySortLabel(this.projectSortType);
+
+		// Close sort dropdown on outside click
+		document.addEventListener('click', (e) => {
+			const wrap = document.getElementById('sort-dropdown-wrap');
+			if (wrap && !wrap.contains(e.target)) this._closeSortDropdown();
+		});
 
 		// Init view mode buttons
 		this._applyViewModeUI(this.projectViewMode);
@@ -237,10 +242,36 @@ const App = {
 
 	onProjectSortChange(sortType) {
 		this.projectSortType = sortType;
-		try {
-			localStorage.setItem('rbw_project_sort', sortType);
-		} catch (e) {}
+		try { localStorage.setItem('rbw_project_sort', sortType); } catch (e) {}
+		this._applySortLabel(sortType);
+		this._closeSortDropdown();
 		UI.renderProjects(this.getProcessedProjects(), this.currentCategory);
+	},
+
+	toggleSortDropdown(e) {
+		e.stopPropagation();
+		const menu = document.getElementById('sort-dropdown-menu');
+		const btn = document.getElementById('sort-dropdown-btn');
+		if (!menu) return;
+		const isOpen = menu.classList.contains('open');
+		if (isOpen) { this._closeSortDropdown(); } 
+		else { menu.classList.add('open'); if(btn) btn.classList.add('open'); }
+	},
+
+	_closeSortDropdown() {
+		const menu = document.getElementById('sort-dropdown-menu');
+		const btn = document.getElementById('sort-dropdown-btn');
+		if (menu) menu.classList.remove('open');
+		if (btn) btn.classList.remove('open');
+	},
+
+	_applySortLabel(sortType) {
+		const labels = { date_desc: 'Mới nhất trước', date_asc: 'Cũ nhất trước', name_asc: 'Tên: A → Z', name_desc: 'Tên: Z → A' };
+		const labelEl = document.getElementById('sort-label-text');
+		if (labelEl) labelEl.textContent = labels[sortType] || 'Sắp xếp';
+		document.querySelectorAll('.sort-opt').forEach(el => {
+			el.classList.toggle('active', el.dataset.val === sortType);
+		});
 	},
 
 	onProjectSearch(query) {

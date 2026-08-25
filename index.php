@@ -193,15 +193,31 @@
                                         <input type="text" id="project-search-input" placeholder="Tìm dự án..." oninput="App.onProjectSearch(this.value)">
                                     </div>
 
-                                    <!-- Sort Dropdown -->
-                                    <div class="project-sort-wrap">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
-                                        <select id="project-sort-select" onchange="App.onProjectSortChange(this.value)">
-                                            <option value="date_desc">🕒 Mới nhất trước</option>
-                                            <option value="date_asc">⏳ Cũ nhất trước</option>
-                                            <option value="name_asc">🔤 Tên: A → Z</option>
-                                            <option value="name_desc">🔤 Tên: Z → A</option>
-                                        </select>
+                                    <!-- Sort Custom Dropdown -->
+                                    <div class="project-sort-wrap" id="sort-dropdown-wrap">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+                                        <button class="sort-dropdown-btn" id="sort-dropdown-btn" onclick="App.toggleSortDropdown(event)">
+                                            <span id="sort-label-text">Mới nhất trước</span>
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                        </button>
+                                        <div class="sort-dropdown-menu" id="sort-dropdown-menu">
+                                            <div class="sort-opt" data-val="date_desc" onclick="App.onProjectSortChange('date_desc')">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                Mới nhất trước
+                                            </div>
+                                            <div class="sort-opt" data-val="date_asc" onclick="App.onProjectSortChange('date_asc')">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 14"/></svg>
+                                                Cũ nhất trước
+                                            </div>
+                                            <div class="sort-opt" data-val="name_asc" onclick="App.onProjectSortChange('name_asc')">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/></svg>
+                                                Tên: A → Z
+                                            </div>
+                                            <div class="sort-opt" data-val="name_desc" onclick="App.onProjectSortChange('name_desc')">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="9" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                                                Tên: Z → A
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- View Toggle -->

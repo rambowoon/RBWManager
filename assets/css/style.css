@@ -72,11 +72,21 @@ header { height: 65px; padding: 0 28px; background: var(--header-bg); backdrop-f
 .project-search-wrap input::placeholder { color: rgba(255,255,255,0.3); }
 
 /* Sort */
-.project-sort-wrap { display: flex; align-items: center; gap: 7px; padding: 0 11px; cursor: pointer; }
+.project-sort-wrap { display: flex; align-items: center; gap: 7px; padding: 0 4px 0 11px; cursor: pointer; position: relative; }
 .project-sort-wrap:hover { border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); }
-.project-sort-wrap svg { color: rgba(255,255,255,0.4); flex-shrink: 0; }
-.project-sort-wrap select { background: transparent; border: none; outline: none; color: rgba(255,255,255,0.85); font-size: 0.81rem; font-weight: 600; cursor: pointer; }
-.project-sort-wrap select option { background: #1a1a2e; color: #fff; }
+.project-sort-wrap > svg { color: rgba(255,255,255,0.4); flex-shrink: 0; }
+.sort-dropdown-btn { display: flex; align-items: center; gap: 6px; background: transparent; border: none; outline: none; color: rgba(255,255,255,0.85); font-size: 0.81rem; font-weight: 600; cursor: pointer; white-space: nowrap; padding: 0 4px 0 0; height: 34px; }
+.sort-dropdown-btn svg { color: rgba(255,255,255,0.4); transition: transform 0.2s ease; }
+.sort-dropdown-btn.open svg { transform: rotate(180deg); }
+.sort-dropdown-menu { display: none; position: absolute; top: calc(100% + 6px); left: -1px; min-width: 170px; background: #16172a; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 5px; z-index: 9999; box-shadow: 0 12px 32px rgba(0,0,0,0.5); animation: menuFadeIn 0.15s ease; }
+.sort-dropdown-menu.open { display: block; }
+@keyframes menuFadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+.sort-opt { display: flex; align-items: center; gap: 9px; padding: 8px 11px; border-radius: 7px; font-size: 0.81rem; font-weight: 500; color: rgba(255,255,255,0.65); cursor: pointer; transition: all 0.15s ease; }
+.sort-opt svg { flex-shrink: 0; color: rgba(255,255,255,0.35); }
+.sort-opt:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.sort-opt:hover svg { color: rgba(255,255,255,0.7); }
+.sort-opt.active { color: var(--primary); background: var(--primary-glow); }
+.sort-opt.active svg { color: var(--primary); }
 
 /* View toggle */
 .view-toggle-wrap { display: flex; align-items: center; overflow: hidden; padding: 3px; gap: 2px; }
