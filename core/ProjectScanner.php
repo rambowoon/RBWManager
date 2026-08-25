@@ -209,12 +209,15 @@ class ProjectScanner {
                         continue;
                     }
                     
+                    $mtime = is_dir($path) ? (@filemtime($path) ?: 0) : 0;
                     $projects[] = [
                         'name' => $item,
                         'path' => $path,
                         'category' => '',
                         'relPath' => $item,
-                        'type' => 'project'
+                        'type' => 'project',
+                        'mtime' => $mtime,
+                        'modified_at' => $mtime > 0 ? date('d/m/Y H:i', $mtime) : ''
                     ];
                 }
             }
@@ -234,12 +237,15 @@ class ProjectScanner {
                                 continue;
                             }
                             
+                            $mtime = is_dir($path) ? (@filemtime($path) ?: 0) : 0;
                             $projects[] = [
                                 'name' => $item,
                                 'path' => $path,
                                 'category' => $cat,
                                 'relPath' => $cat . '/' . $item,
-                                'type' => 'project'
+                                'type' => 'project',
+                                'mtime' => $mtime,
+                                'modified_at' => $mtime > 0 ? date('d/m/Y H:i', $mtime) : ''
                             ];
                         }
                     }
@@ -262,12 +268,15 @@ class ProjectScanner {
                             continue;
                         }
                         
+                        $mtime = is_dir($path) ? (@filemtime($path) ?: 0) : 0;
                         $projects[] = [
                             'name' => $item,
                             'path' => $path,
                             'category' => $category,
                             'relPath' => $category . '/' . $item,
-                            'type' => 'project'
+                            'type' => 'project',
+                            'mtime' => $mtime,
+                            'modified_at' => $mtime > 0 ? date('d/m/Y H:i', $mtime) : ''
                         ];
                     }
                 }

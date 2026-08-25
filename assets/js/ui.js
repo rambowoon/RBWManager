@@ -182,6 +182,7 @@ const UI = {
                     <div class="item-card-main flex-1-minw0">
                         <div class="item-card-title">${p.name}</div>
                         <div class="item-card-desc">${p.relPath}</div>
+                        ${p.modified_at ? `<div class="item-card-date"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${p.modified_at}</div>` : ''}
                     </div>
                     <button class="btn btn-ghost btn-action-trigger" onclick="event.stopPropagation(); UI.openMenu(event, '${safeName}', '${safeCat}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>

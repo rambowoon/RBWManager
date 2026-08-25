@@ -2,10 +2,16 @@ const App = {
 	projects: [],
 	currentCategory: null,
 	globalData: null,
+	projectSortType: localStorage.getItem('rbw_project_sort') || 'date_desc',
+	projectSearchQuery: '',
 
 	async init() {
 		this.bindEvents();
 		
+		// Init Sort dropdown value
+		const sortEl = document.getElementById('project-sort-select');
+		if (sortEl) sortEl.value = this.projectSortType;
+
 		// Load global config
 		try {
 			const gRes = await fetch('api.php?action=getGlobalConfig');
@@ -168,8 +174,8 @@ const App = {
 
 			const data = await Api.getProjects(category);
 			if (data.status === 'success') {
-				this.projects = data.data;
-				UI.renderProjects(this.projects, category);
+				this.projects = data.data || [];
+				UI.renderProjects(this.getProcessedProjects(), category);
 				this.updateStats();
 				
 				if (category !== '') {
@@ -185,6 +191,57 @@ const App = {
 		} catch (err) {
 			await UI.alert('Lỗi tải danh sách dự án');
 		}
+	},
+
+	getProcessedProjects() {
+		let list = Array.isArray(this.projects) ? [...this.projects] : [];
+		
+		// 1. Filter by Search query
+		if (this.projectSearchQuery) {
+			const q = this.projectSearchQuery;
+			list = list.filter(p => {
+				const name = (p.name || '').toLowerCase();
+				const relPath = (p.relPath || '').toLowerCase();
+				return name.includes(q) || relPath.includes(q);
+			});
+		}
+
+		// 2. Sort by chosen sortType
+		const sortType = this.projectSortType || 'date_desc';
+		list.sort((a, b) => {
+			const mtimeA = Number(a.mtime || 0);
+			const mtimeB = Number(b.mtime || 0);
+			const nameA = (a.name || '').toLowerCase();
+			const nameB = (b.name || '').toLowerCase();
+
+			if (sortType === 'date_desc') {
+				if (mtimeB !== mtimeA) return mtimeB - mtimeA;
+				return nameA.localeCompare(nameB);
+			} else if (sortType === 'date_asc') {
+				if (mtimeA !== mtimeB) return mtimeA - mtimeB;
+				return nameA.localeCompare(nameB);
+			} else if (sortType === 'name_asc') {
+				return nameA.localeCompare(nameB);
+			} else if (sortType === 'name_desc') {
+				return nameB.localeCompare(nameA);
+			}
+			return 0;
+		});
+
+		return list;
+	},
+
+	onProjectSortChange(sortType) {
+		this.projectSortType = sortType;
+		try {
+			localStorage.setItem('rbw_project_sort', sortType);
+		} catch (e) {}
+		UI.renderProjects(this.getProcessedProjects(), this.currentCategory);
+	},
+
+	onProjectSearch(query) {
+		this.projectSearchQuery = (query || '').trim().toLowerCase();
+		UI.renderProjects(this.getProcessedProjects(), this.currentCategory);
 	},
 
 	updateStats() {

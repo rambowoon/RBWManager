@@ -182,11 +182,32 @@
 
                         <!-- Right Content: Projects -->
                         <div class="projects-content-area">
-                            <div class="section-header">
-                                <h2 class="section-title" id="content-title">Danh sách dự án</h2>
-                                <button class="btn btn-ghost" onclick="App.createCustomMonthFolder()" style="font-size:0.8rem; padding:6px 12px;">
-                                    ➕ Tạo thư mục tháng
-                                </button>
+                            <div class="section-header project-section-header">
+                                <div class="section-header-left">
+                                    <h2 class="section-title" id="content-title">Danh sách dự án</h2>
+                                </div>
+                                <div class="project-toolbar-actions">
+                                    <!-- Search Box -->
+                                    <div class="project-search-wrap">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                                        <input type="text" id="project-search-input" placeholder="Tìm dự án..." oninput="App.onProjectSearch(this.value)">
+                                    </div>
+
+                                    <!-- Sort Dropdown -->
+                                    <div class="project-sort-wrap">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+                                        <select id="project-sort-select" onchange="App.onProjectSortChange(this.value)">
+                                            <option value="date_desc">🕒 Mới nhất trước</option>
+                                            <option value="date_asc">⏳ Cũ nhất trước</option>
+                                            <option value="name_asc">🔤 Tên: A → Z</option>
+                                            <option value="name_desc">🔤 Tên: Z → A</option>
+                                        </select>
+                                    </div>
+
+                                    <button class="btn btn-ghost" onclick="App.createCustomMonthFolder()" style="font-size:0.8rem; padding:6px 12px; height:34px;">
+                                        ➕ Tạo thư mục
+                                    </button>
+                                </div>
                             </div>
 
                             <div id="project-list" class="grid-container">
