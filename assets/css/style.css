@@ -66,7 +66,7 @@ header { height: 65px; padding: 0 28px; background: var(--header-bg); backdrop-f
 
 /* Search */
 .project-search-wrap { display: flex; align-items: center; gap: 7px; padding: 0 12px; }
-.project-search-wrap:focus-within { border-color: var(--primary); background: var(--primary-glow); box-shadow: 0 0 0 3px var(--primary-glow); }
+.project-search-wrap:focus-within { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.07); }
 .project-search-wrap svg { color: rgba(255,255,255,0.3); flex-shrink: 0; transition: color 0.2s ease; }
 .project-search-wrap:focus-within svg { color: var(--primary); }
 .project-search-wrap input { background: transparent; border: none; outline: none; color: #fff; font-size: 0.82rem; width: 155px; transition: width 0.2s ease; }
