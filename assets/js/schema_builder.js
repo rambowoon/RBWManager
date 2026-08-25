@@ -1713,21 +1713,24 @@ const SchemaBuilder = {
 
 		container.innerHTML = `
             <div style="margin-bottom:15px; font-size:0.8rem; color:var(--muted);">
-                Kéo thả hoặc sử dụng mũi tên để sắp xếp thứ tự xuất hiện của các Type trong file.
+                ✨ Kéo thả hoặc sử dụng mũi tên để sắp xếp thứ tự xuất hiện của các Type trong file.
             </div>
             <div id="sb-structure-items" style="display:flex; flex-direction:column; gap:8px;">
                 ${keys
 					.map(
 						(k, index) => `
-                    <div class="sb-structure-item" style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); padding:10px 15px; border-radius:8px; border:1px solid var(--border);">
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <span style="color:var(--muted); font-size:0.7rem; font-family:monospace;">#${index + 1}</span>
-                            <span style="font-weight:600; color:var(--primary);">${k}</span>
-                            <span style="font-size:0.7rem; color:var(--muted);">(${this.currentData[k].title_main || "No Title"})</span>
+                    <div class="sb-structure-item" draggable="true" data-key="${k}" data-index="${index}">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div class="sb-drag-handle" title="Kéo để sắp xếp">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <span style="color:var(--muted); font-size:0.75rem; font-family:monospace; min-width:24px;">#${index + 1}</span>
+                            <span style="font-weight:700; color:var(--primary); font-size:0.88rem;">${k}</span>
+                            <span style="font-size:0.75rem; color:var(--muted);">(${this.currentData[k].title_main || "No Title"})</span>
                         </div>
                         <div style="display:flex; gap:5px;">
-                            <button class="btn btn-ghost btn-sm" onclick="SchemaBuilder.moveModule('${k}', 'up')" ${index === 0 ? "disabled" : ""} style="padding:2px 8px;">↑</button>
-                            <button class="btn btn-ghost btn-sm" onclick="SchemaBuilder.moveModule('${k}', 'down')" ${index === keys.length - 1 ? "disabled" : ""} style="padding:2px 8px;">↓</button>
+                            <button class="btn btn-ghost btn-sm" onclick="SchemaBuilder.moveModule('${k}', 'up')" ${index === 0 ? "disabled" : ""} style="padding:4px 9px;" title="Chuyển lên">↑</button>
+                            <button class="btn btn-ghost btn-sm" onclick="SchemaBuilder.moveModule('${k}', 'down')" ${index === keys.length - 1 ? "disabled" : ""} style="padding:4px 9px;" title="Chuyển xuống">↓</button>
                         </div>
                     </div>
                 `,
@@ -1735,6 +1738,88 @@ const SchemaBuilder = {
 					.join("")}
             </div>
         `;
+
+		this.initStructureDragAndDrop();
+	},
+
+	initStructureDragAndDrop() {
+		const items = document.querySelectorAll("#sb-structure-items .sb-structure-item");
+		let draggedItem = null;
+
+		items.forEach((item) => {
+			item.addEventListener("dragstart", (e) => {
+				draggedItem = item;
+				item.classList.add("dragging");
+				e.dataTransfer.effectAllowed = "move";
+				e.dataTransfer.setData("text/plain", item.dataset.key);
+			});
+
+			item.addEventListener("dragend", () => {
+				if (draggedItem) draggedItem.classList.remove("dragging");
+				draggedItem = null;
+				items.forEach((i) => i.classList.remove("drag-over-top", "drag-over-bottom"));
+			});
+
+			item.addEventListener("dragover", (e) => {
+				e.preventDefault();
+				if (!draggedItem || draggedItem === item) return;
+
+				const rect = item.getBoundingClientRect();
+				const midY = rect.top + rect.height / 2;
+				if (e.clientY < midY) {
+					item.classList.add("drag-over-top");
+					item.classList.remove("drag-over-bottom");
+				} else {
+					item.classList.add("drag-over-bottom");
+					item.classList.remove("drag-over-top");
+				}
+				e.dataTransfer.dropEffect = "move";
+			});
+
+			item.addEventListener("dragleave", () => {
+				item.classList.remove("drag-over-top", "drag-over-bottom");
+			});
+
+			item.addEventListener("drop", (e) => {
+				e.preventDefault();
+				item.classList.remove("drag-over-top", "drag-over-bottom");
+				if (!draggedItem || draggedItem === item) return;
+
+				const sourceKey = draggedItem.dataset.key;
+				const targetKey = item.dataset.key;
+				const rect = item.getBoundingClientRect();
+				const placeBefore = e.clientY < rect.top + rect.height / 2;
+
+				SchemaBuilder.reorderModules(sourceKey, targetKey, placeBefore);
+			});
+		});
+	},
+
+	reorderModules(sourceKey, targetKey, placeBefore) {
+		const keys = Object.keys(this.currentData);
+		const sourceIndex = keys.indexOf(sourceKey);
+		if (sourceIndex === -1) return;
+
+		// Remove source key
+		keys.splice(sourceIndex, 1);
+
+		// Find target index and insert
+		const targetIndex = keys.indexOf(targetKey);
+		if (targetIndex === -1) return;
+
+		const insertIndex = placeBefore ? targetIndex : targetIndex + 1;
+		keys.splice(insertIndex, 0, sourceKey);
+
+		// Rebuild object
+		const newData = {};
+		keys.forEach((k) => {
+			newData[k] = this.currentData[k];
+		});
+
+		this.currentData = newData;
+		this.renderForm();
+		this.renderStructure();
+		UI.notify(`Đã cập nhật vị trí Type: ${sourceKey}`, "success");
 	},
 
 	moveModule(key, direction) {
@@ -1759,6 +1844,7 @@ const SchemaBuilder = {
 
 		this.currentData = newData;
 		this.renderForm();
+		this.renderStructure();
 		UI.notify(
 			`Đã chuyển ${key} ${direction === "up" ? "lên" : "xuống"}`,
 			"success",
