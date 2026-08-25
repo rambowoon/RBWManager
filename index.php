@@ -214,6 +214,8 @@
                                         </button>
                                     </div>
 
+                                    <div class="toolbar-sep"></div>
+
                                     <button class="btn btn-ghost" onclick="App.createCustomMonthFolder()" style="font-size:0.8rem; padding:6px 12px; height:34px;">
                                         ➕ Tạo thư mục
                                     </button>
