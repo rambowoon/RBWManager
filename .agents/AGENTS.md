@@ -6,8 +6,9 @@
 
 ## 2. Ưu tiên sử dụng MCP Tools
 - **Luôn ưu tiên tận dụng các công cụ MCP khả dụng** để xử lý tác vụ:
+  - Sử dụng `codebase-memory` (`detect_changes` / `index_repository` / `search_graph`): Luôn tự động đồng bộ và truy xuất kiến trúc/quan hệ hàm, class trong toàn bộ dự án.
   - Sử dụng `sequential-thinking` cho các bài toán phân tích logic phức tạp, debug sâu.
-  - Sử dụng `codebase-memory` / `memory` để truy xuất, ghi nhớ ngữ cảnh dự án và quan hệ kiến trúc.
+  - Sử dụng `memory` để ghi nhớ các ngữ cảnh đặc thù của dự án.
   - Sử dụng `figma` để đọc design/tokens khi làm việc với giao diện Figma.
   - Sử dụng `firecrawl` khi cần cào dữ liệu, tra cứu tài liệu web hoặc tài liệu kỹ thuật bên ngoài.
 
@@ -15,7 +16,3 @@
 - Thao tác trực tiếp lên file, ưu tiên code hoàn chỉnh, không dùng placeholder (TODO/...).
 - Tránh chạy vòng lặp terminal không cần thiết trừ khi tác vụ yêu cầu xác minh lỗi, test cú pháp hoặc chạy git commit/push.
 - Phản hồi tập trung vào kết quả công việc, súc tích và dễ theo dõi.
-
-## 4. Strict Model Lock
-- Sử dụng duy nhất model đang được người dùng chọn ở giao diện ngoài cho mọi tác vụ.
-- Không tự ý gọi sub-agents thuộc dòng model khác cấu hình hiện tại để tránh phân mảnh ngữ cảnh và tối ưu chi phí token.
