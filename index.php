@@ -204,11 +204,22 @@
                                         </select>
                                     </div>
 
+                                    <!-- View Toggle -->
+                                    <div class="view-toggle-wrap">
+                                        <button id="view-btn-card" class="view-toggle-btn active" onclick="App.onViewModeChange('card')" title="Dạng Card">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+                                        </button>
+                                        <button id="view-btn-list" class="view-toggle-btn" onclick="App.onViewModeChange('list')" title="Dạng List">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
+                                        </button>
+                                    </div>
+
                                     <button class="btn btn-ghost" onclick="App.createCustomMonthFolder()" style="font-size:0.8rem; padding:6px 12px; height:34px;">
                                         ➕ Tạo thư mục
                                     </button>
                                 </div>
                             </div>
+
 
                             <div id="project-list" class="grid-container">
                                 <!-- Dynamic content here -->

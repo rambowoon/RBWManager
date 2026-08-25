@@ -175,24 +175,26 @@ const UI = {
 			card.onclick = () => App.openConfig(p.name, category);
 
 			card.innerHTML = `
-                <div class="item-card-header">
-                    <div class="item-card-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                <div class="item-card-inner">
+                    <div class="item-card-header" style="flex:1; min-width:0; margin-bottom:0;">
+                        <div class="item-card-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                        </div>
+                        <div class="item-card-main flex-1-minw0">
+                            <div class="item-card-title">${p.name}</div>
+                            ${p.modified_at ? `<div class="item-card-date"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${p.modified_at}</div>` : ''}
+                        </div>
+                        <button class="btn btn-ghost btn-action-trigger" onclick="event.stopPropagation(); UI.openMenu(event, '${safeName}', '${safeCat}')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                        </button>
                     </div>
-                    <div class="item-card-main flex-1-minw0">
-                        <div class="item-card-title">${p.name}</div>
-                        ${p.modified_at ? `<div class="item-card-date"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${p.modified_at}</div>` : ''}
+                    <div class="item-card-footer">
+                        <span class="badge ${badgeClass}">${badgeText}</span>
+                        <button class="btn btn-primary ${isLockedDemo ? "btn-deploy-locked" : ""} btn-deploy-small" 
+                            onclick="event.stopPropagation(); ${isLockedDemo ? "UI.notify('Dự án này đang bị KHÓA!', 'error')" : `App.deployDemo('${safeName}', '${safeCat}')`}">
+                            🚀 Deploy
+                        </button>
                     </div>
-                    <button class="btn btn-ghost btn-action-trigger" onclick="event.stopPropagation(); UI.openMenu(event, '${safeName}', '${safeCat}')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                    </button>
-                </div>
-                <div class="item-card-footer">
-                    <span class="badge ${badgeClass}">${badgeText}</span>
-                    <button class="btn btn-primary ${isLockedDemo ? "btn-deploy-locked" : ""} btn-deploy-small" 
-                        onclick="event.stopPropagation(); ${isLockedDemo ? "UI.notify('Dự án này đang bị KHÓA!', 'error')" : `App.deployDemo('${safeName}', '${safeCat}')`}">
-                        🚀 Deploy
-                    </button>
                 </div>
             `;
 			list.appendChild(card);

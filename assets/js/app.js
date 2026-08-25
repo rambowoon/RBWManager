@@ -4,6 +4,7 @@ const App = {
 	globalData: null,
 	projectSortType: localStorage.getItem('rbw_project_sort') || 'date_desc',
 	projectSearchQuery: '',
+	projectViewMode: localStorage.getItem('rbw_project_view') || 'card',
 
 	async init() {
 		this.bindEvents();
@@ -11,6 +12,9 @@ const App = {
 		// Init Sort dropdown value
 		const sortEl = document.getElementById('project-sort-select');
 		if (sortEl) sortEl.value = this.projectSortType;
+
+		// Init view mode buttons
+		this._applyViewModeUI(this.projectViewMode);
 
 		// Load global config
 		try {
@@ -242,6 +246,22 @@ const App = {
 	onProjectSearch(query) {
 		this.projectSearchQuery = (query || '').trim().toLowerCase();
 		UI.renderProjects(this.getProcessedProjects(), this.currentCategory);
+	},
+
+	onViewModeChange(mode) {
+		this.projectViewMode = mode;
+		try { localStorage.setItem('rbw_project_view', mode); } catch(e) {}
+		this._applyViewModeUI(mode);
+		UI.renderProjects(this.getProcessedProjects(), this.currentCategory);
+	},
+
+	_applyViewModeUI(mode) {
+		const btnCard = document.getElementById('view-btn-card');
+		const btnList = document.getElementById('view-btn-list');
+		if (btnCard) btnCard.classList.toggle('active', mode === 'card');
+		if (btnList) btnList.classList.toggle('active', mode === 'list');
+		const list = document.getElementById('project-list');
+		if (list) list.classList.toggle('list-mode', mode === 'list');
 	},
 
 	updateStats() {
