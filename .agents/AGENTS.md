@@ -1,15 +1,21 @@
-# Gemini 3.5 Flash - Core Execution Rules
+# Multi-Model Execution & Development Rules
 
-## 1. System Execution & Speed Optimization
-- CHỈ DÙNG FLASH, KHÔNG GỌI PRO, KHÔNG GIẢI THÍCH.
-- KIÊN QUYẾT bỏ qua hoàn toàn bước lập kế hoạch (planning phase) đối với các tác vụ chỉnh sửa HTML, CSS và các file đơn lẻ.
-- Viết code và thực thi chỉnh sửa trực tiếp lên file ngay lập tức. Không giải thích dông dài, không liệt kê danh sách công việc trước khi làm.
-- Ưu tiên tối đa tốc độ phản hồi và xuất code ngắn gọn, cô đọng.
+## 1. Tối ưu hóa theo độ phức tạp tác vụ
+- **Tác vụ đơn giản / UI / File đơn lẻ (HTML, CSS, text, chỉnh sửa nhỏ)**: Thực thi chỉnh sửa trực tiếp ngay lập tức, phản hồi ngắn gọn, không giải thích dông dài, không cần lập kế hoạch rườm rà.
+- **Tác vụ phức tạp / Logic hệ thống (Deploy, Database, Refactor đa file, Debug)**: Cho phép suy luận kỹ lưỡng, kiểm tra an toàn dữ liệu trước khi thực thi để đảm bảo độ chính xác tuyệt đối.
 
-## 2. Tool & Terminal Constraints
-- Nghiêm cấm tự động kích hoạt các vòng lặp chạy lệnh terminal (tool loops) để tự kiểm tra hoặc đọc lại log trừ khi người dùng yêu cầu kiểm tra lỗi cụ thể.
-- Hạn chế tối đa các bước suy nghĩ ngầm tự phát (agentic thinking) không cần thiết để giảm thiểu độ trễ.
+## 2. Ưu tiên sử dụng MCP Tools
+- **Luôn ưu tiên tận dụng các công cụ MCP khả dụng** để xử lý tác vụ:
+  - Sử dụng `sequential-thinking` cho các bài toán phân tích logic phức tạp, debug sâu.
+  - Sử dụng `codebase-memory` / `memory` để truy xuất, ghi nhớ ngữ cảnh dự án và quan hệ kiến trúc.
+  - Sử dụng `figma` để đọc design/tokens khi làm việc với giao diện Figma.
+  - Sử dụng `firecrawl` khi cần cào dữ liệu, tra cứu tài liệu web hoặc tài liệu kỹ thuật bên ngoài.
 
-## 3. Strict Routing & Model Lock
-- Luôn sử dụng duy nhất model đang được chọn ở giao diện ngoài cho mọi tác vụ (kể cả review hay kiểm tra lỗi).
-- Nghiêm cấm tự động gọi thêm các sub-agents thuộc dòng model khác cấu hình hiện tại để tránh xung đột hệ thống và tốn token.
+## 3. Quy chuẩn thực thi Code & Terminal
+- Thao tác trực tiếp lên file, ưu tiên code hoàn chỉnh, không dùng placeholder (TODO/...).
+- Tránh chạy vòng lặp terminal không cần thiết trừ khi tác vụ yêu cầu xác minh lỗi, test cú pháp hoặc chạy git commit/push.
+- Phản hồi tập trung vào kết quả công việc, súc tích và dễ theo dõi.
+
+## 4. Strict Model Lock
+- Sử dụng duy nhất model đang được người dùng chọn ở giao diện ngoài cho mọi tác vụ.
+- Không tự ý gọi sub-agents thuộc dòng model khác cấu hình hiện tại để tránh phân mảnh ngữ cảnh và tối ưu chi phí token.
