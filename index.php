@@ -80,9 +80,18 @@
                         <div class="category-breadcrumb">Dự án / <span id="current-category" class="category-current">Toàn bộ</span></div>
                     </div>
                     <div id="dashboard-breadcrumb" class="dashboard-breadcrumb-text">Bảng điều khiển</div>
+                    
+                    <!-- Integrated Project Header (Moved up to top navbar) -->
+                    <div id="project-detail-header" class="flex-align-center-gap15" style="display:none;">
+                        <button class="btn btn-ghost btn-back back-btn" onclick="App.showDashboard()" style="padding: 6px 14px; font-size: 13px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Quay lại
+                        </button>
+                        <h2 class="section-title detail-title" id="detail-project-name" style="margin:0; font-size:1.15rem; font-weight:800; color:#fff; letter-spacing: 0.3px;">Tên dự án</h2>
+                    </div>
                 </div>
 
                 <div class="header-right flex-center-gap">
+                    <span class="badge-env" id="detail-project-status" style="display:none; margin-right: 6px;">● DEMO ĐANG CHẠY</span>
                     <!-- THEME DROPDOWN -->
                     <div class="theme-dropdown-wrapper">
                         <button class="theme-toggle-btn" id="theme-menu-btn" onclick="UI.toggleThemeMenu(event)" title="Đổi màu giao diện (Theme)">
@@ -248,24 +257,16 @@
                 </div>
 
                 <!-- VIEW: PROJECT DETAIL (FULL PAGE) -->
-                <div id="view-project-detail" class="view-section" style="display:none;">
-                    <div class="section-header detail-section-header topbar">
-                        <div class="flex-align-center-gap20">
-                            <button class="btn btn-ghost btn-back back-btn" onclick="App.showDashboard()">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Quay lại
-                            </button>
-                            <h2 class="section-title detail-title" id="detail-project-name">Tên dự án</h2>
-                        </div>
-                        <span class="badge-env" id="detail-project-status">● DEMO ĐANG CHẠY</span>
-                    </div>
-
-                    <div class="project-master-tabs tabs">
+                <div id="view-project-detail" class="view-section" style="display:none; padding-top: 10px;">
+                    <div class="project-master-tabs tabs" style="margin-top: 0; margin-bottom: 20px;">
                         <button class="btn btn-ghost project-tab-btn tab active" onclick="UI.switchProjectTab(this, 'd_tab-config')">⚙️ Cấu hình &amp; Deploy</button>
                         <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-fonts')">🖋️ Quản lý Fonts</button>
                         <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-webp')">🖼️ Convert Ảnh WebP</button>
                         <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-trim')">✂️ Trim Ảnh</button>
                         <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-auto-media')">🤖 Tự động Map Ảnh</button>
                         <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-seed')">🌱 Tạo Dữ Liệu Mẫu</button>
+                        <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-filemanager'); typeof FileManager !== 'undefined' && FileManager.init()">📁 Quản lý File (Host)</button>
+                        <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-synccenter'); typeof SyncCenter !== 'undefined' && SyncCenter.init()">🔄 Sync Center</button>
                     </div>
 
                     <!-- TAB: CONFIG & DEPLOY -->
@@ -498,6 +499,103 @@
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                                     Cập nhật &amp; Dọn rác
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: SYNCCENTER -->
+                    <div id="d_tab-synccenter" class="project-tab-content d-none">
+                        <div class="card-container card-padded fm-shell" style="background: rgba(13, 17, 25, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px;">
+                            <div class="flex-between-center-mb20" style="padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+                                <div class="flex-align-center-gap10">
+                                    <div class="accent-bar-primary" style="width: 4px; height: 18px; border-radius: 2px; background: var(--accent-gradient, #00d2d3);"></div>
+                                    <div>
+                                        <h3 class="card-title-sm" style="font-size: 14px; font-weight: 800; letter-spacing: 0.03em; color: #fff; margin: 0;">TRUNG TÂM ĐỒNG BỘ 2 CHIỀU (SYNC CENTER)</h3>
+                                        <p style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Tự động đối soát và đồng bộ mã nguồn giữa Local Workspace và Demo Hosting</p>
+                                    </div>
+                                </div>
+                                <div class="flex-align-center-gap10">
+                                    <button class="btn btn-outline btn-sm" onclick="SyncCenter.scan()" style="display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Quét & So sánh
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="sync-center-content">
+                                <div style="padding: 50px 20px; text-align: center; color: var(--text-muted, #888); background: rgba(255,255,255,0.01); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.06);">
+                                    <div style="display: inline-flex; width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.03); align-items: center; justify-content: center; margin-bottom: 14px;">
+                                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="opacity: 0.5;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                                    </div>
+                                    <h4 style="color: #cbd5e1; font-size: 15px; margin-bottom: 4px; font-weight: 600;">Sẵn sàng đối soát mã nguồn</h4>
+                                    <p style="font-size: 13px; max-width: 440px; margin: 0 auto; color: #64748b;">Nhấn <b>"Quét & So sánh"</b> để kiểm tra các file đã được AI hoặc thành viên khác chỉnh sửa.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: FILE MANAGER -->
+                    <div id="d_tab-filemanager" class="project-tab-content d-none">
+                        <div class="card-container card-padded fm-shell" style="background: rgba(13, 17, 25, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px;">
+                            <div class="flex-between-center-mb20" style="padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+                                <div class="flex-align-center-gap10">
+                                    <div class="accent-bar-primary" style="width: 4px; height: 18px; border-radius: 2px; background: var(--accent-gradient, #00d2d3);"></div>
+                                    <div>
+                                        <h3 class="card-title-sm" style="font-size: 14px; font-weight: 800; letter-spacing: 0.03em; color: #fff; margin: 0;">QUẢN LÝ FILE TRÊN HOSTING (FTP)</h3>
+                                        <p style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Duyệt, chỉnh sửa và quản lý file trực tiếp trên Server</p>
+                                    </div>
+                                </div>
+                                <div class="flex-align-center-gap10">
+                                    <button class="btn btn-primary" onclick="FileManager.showUploadModal()">☁️ Tải lên</button>
+                                    <button class="btn btn-secondary" onclick="FileManager.showCreateDirModal()">📁 Tạo thư mục</button>
+                                    <button class="btn btn-ghost" onclick="FileManager.loadCurrentPath(); FileManager.loadTree();">🔄 Làm mới</button>
+                                </div>
+                            </div>
+                            
+                            <!-- 2-Column Split: Tree View & File List -->
+                            <div class="fm-layout-split" style="display: flex; gap: 16px; min-height: 520px;">
+                                <!-- Left Sidebar: Directory Tree -->
+                                <div class="fm-tree-sidebar" style="width: 250px; min-width: 210px; max-width: 300px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden;">
+                                    <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #94a3b8); display: flex; align-items: center; gap: 6px;">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> CÂY THƯ MỤC
+                                        </span>
+                                        <button class="btn btn-ghost btn-sm" onclick="FileManager.loadTree()" style="padding: 2px 6px; font-size: 11px;" title="Tải lại cây thư mục">🔄</button>
+                                    </div>
+                                    <div id="fm-tree-container" style="flex: 1; overflow-y: auto; padding: 10px 8px; font-size: 13px;">
+                                        <div style="color: var(--text-muted, #888); text-align: center; padding: 20px 0; font-size: 12px;">Đang tải cây thư mục...</div>
+                                    </div>
+                                </div>
+
+                                <!-- Right Main Pane: Breadcrumb, Search & Table -->
+                                <div class="fm-main-pane" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+                                    <!-- Breadcrumb & Search -->
+                                    <div style="display: flex; justify-content: space-between; align-items: stretch; gap: 12px; height: 38px;">
+                                        <div class="fm-breadcrumb" id="fm-breadcrumb" style="flex: 1; padding: 0 14px; background: rgba(0,0,0,0.2); border-radius: 8px; font-family: monospace; font-size: 0.88rem; border: 1px solid var(--border); overflow-x: auto; white-space: nowrap; display: flex; align-items: center; height: 100%; box-sizing: border-box;">
+                                            <span class="fm-path-segment" onclick="FileManager.navigateTo('/')">/</span>
+                                        </div>
+                                        <div style="min-width: 250px; height: 100%;">
+                                            <input type="text" id="fm-search-input" placeholder="🔍 Tìm kiếm file..." style="width: 100%; height: 100%; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,0.25); color: #fff; font-size: 0.85rem; outline: none; box-sizing: border-box;" oninput="FileManager.filterList(this.value)">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="fm-list-container" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; flex: 1;">
+                                        <table class="table table-webp" style="width: 100%; border-collapse: collapse;">
+                                            <thead>
+                                                <tr style="border-bottom:1px solid var(--border); text-align:left; color:var(--muted); background: rgba(0,0,0,0.1);">
+                                                    <th style="padding: 10px 14px; width: 40px;"></th>
+                                                    <th style="padding: 10px 14px;">Tên File / Thư mục</th>
+                                                    <th style="padding: 10px 14px; width: 120px;">Kích thước</th>
+                                                    <th style="padding: 10px 14px; width: 180px;">Ngày sửa</th>
+                                                    <th style="padding: 10px 14px; width: 100px; text-align: right;">Thao tác</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="fm-file-list">
+                                                <tr>
+                                                    <td colspan="5" style="text-align:center; padding:30px; color:var(--muted);">Đang kết nối FTP...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1087,6 +1185,7 @@ Pass: password123..." style="height:200px;"></textarea>
     <script src="assets/js/image_trim_manager.js?v=<?= time(); ?>"></script>
     <script src="assets/js/auto_media_manager.js?v=<?= time(); ?>"></script>
     <script src="assets/js/seed_manager.js?v=<?= time(); ?>"></script>
+    <script src="assets/js/file_manager.js?v=<?= time(); ?>"></script>
     <script src="assets/js/cache_clearer.js?v=<?= time(); ?>"></script>
     <!-- Change Type Database Modal -->
     <div id="change-type-modal" class="modal-overlay">

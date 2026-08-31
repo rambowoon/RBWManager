@@ -172,6 +172,168 @@ class RemoteClient
         return array_map('trim', $lines);
     }
 
+    public static function listFtpDirectoryDetailed($url, $userPwd)
+    {
+        $url = rtrim($url, '/') . '/';
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_USERPWD, $userPwd);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        if (defined('CURLOPT_USE_SSL')) curl_setopt($ch, CURLOPT_USE_SSL, 3);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        
+        $res = curl_exec($ch);
+        curl_close($ch);
+
+        $months = [
+            'jan' => '01', 'feb' => '02', 'mar' => '03', 'apr' => '04', 'may' => '05', 'jun' => '06',
+            'jul' => '07', 'aug' => '08', 'sep' => '09', 'oct' => '10', 'nov' => '11', 'dec' => '12'
+        ];
+        $formatDate = function($raw) use ($months) {
+            $parts = preg_split('/\s+/', trim($raw));
+            if (count($parts) === 3) {
+                $m = $months[strtolower($parts[0])] ?? null;
+                if ($m) {
+                    $d = str_pad($parts[1], 2, '0', STR_PAD_LEFT);
+                    if (strpos($parts[2], ':') !== false) {
+                        $y = date('Y');
+                        return "$d/$m/$y {$parts[2]}";
+                    } else {
+                        return "$d/$m/{$parts[2]}";
+                    }
+                }
+            }
+            return $raw;
+        };
+
+        $lines = explode("\n", trim($res));
+        $files = [];
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+            
+            // Try standard UNIX format
+            // drwxr-xr-x   2 user     group        4096 Aug 31 10:00 folder
+            if (preg_match('/^([d\-])[rwsx\-t]{9}\s+\d+\s+\S+\s+\S+\s+(\d+)\s+([A-Za-z]{3}\s+\d+\s+[\d:]+)\s+(.+)$/', $line, $m)) {
+                $isDir = $m[1] === 'd';
+                $size = (int)$m[2];
+                $date = $formatDate($m[3]);
+                $name = $m[4];
+                if ($name === '.' || $name === '..') continue;
+                $files[] = [
+                    'name' => $name,
+                    'is_dir' => $isDir,
+                    'size' => $size,
+                    'date' => $date
+                ];
+            } 
+            // Try Windows IIS format
+            // 08-31-24  10:00AM       <DIR>          folder
+            else if (preg_match('/^([0-9\-\/]+\s+[0-9:]+[AMPMampm]+)\s+(<DIR>|[0-9]+)\s+(.+)$/i', $line, $m)) {
+                $date = $m[1];
+                $isDir = strtoupper($m[2]) === '<DIR>';
+                $size = $isDir ? 0 : (int)$m[2];
+                $name = $m[3];
+                if ($name === '.' || $name === '..') continue;
+                $files[] = [
+                    'name' => $name,
+                    'is_dir' => $isDir,
+                    'size' => $size,
+                    'date' => $date
+                ];
+            }
+        }
+        return $files;
+    }
+
+    public static function getFtpFileContent($url, $userPwd)
+    {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_USERPWD, $userPwd);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        if (defined('CURLOPT_USE_SSL')) curl_setopt($ch, CURLOPT_USE_SSL, 3);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        
+        $res = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($res === false) {
+            return ['status' => 'error', 'message' => "CURL Error: $error"];
+        }
+        if (!mb_check_encoding($res, 'UTF-8')) {
+            $res = mb_convert_encoding($res, 'UTF-8', 'auto');
+        }
+        return ['status' => 'success', 'content' => $res];
+    }
+
+    public static function saveFtpFileContent($url, $userPwd, $content)
+    {
+        // Use a temporary file for upload
+        $tmpFile = tempnam(sys_get_temp_dir(), 'ftp_');
+        file_put_contents($tmpFile, $content);
+
+        $fp = fopen($tmpFile, 'r');
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_USERPWD, $userPwd);
+        curl_setopt($ch, CURLOPT_UPLOAD, 1);
+        curl_setopt($ch, CURLOPT_INFILE, $fp);
+        curl_setopt($ch, CURLOPT_INFILESIZE, filesize($tmpFile));
+        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+        curl_setopt($ch, CURLOPT_FTP_CREATE_MISSING_DIRS, 1);
+        if (defined('CURLOPT_USE_SSL')) curl_setopt($ch, CURLOPT_USE_SSL, 3);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        
+        $res = curl_exec($ch);
+        $error = curl_error($ch);
+        curl_close($ch);
+        fclose($fp);
+        @unlink($tmpFile);
+
+        if ($res === false) {
+            return "FTP Error: $error";
+        }
+        return true;
+    }
+
+    public static function deleteViaFTP($url, $userPwd, $isDir = false)
+    {
+        $ch = curl_init();
+        $parsed = parse_url($url);
+        $baseUrl = $parsed['scheme'] . '://' . $parsed['host'] . '/';
+        $path = ltrim($parsed['path'], '/');
+        
+        curl_setopt($ch, CURLOPT_URL, $baseUrl);
+        curl_setopt($ch, CURLOPT_USERPWD, $userPwd);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        
+        $cmd = $isDir ? "RMD $path" : "DELE $path";
+        curl_setopt($ch, CURLOPT_QUOTE, [$cmd]);
+        
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        if (defined('CURLOPT_USE_SSL')) curl_setopt($ch, CURLOPT_USE_SSL, 3);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        
+        $res = curl_exec($ch);
+        $error = curl_error($ch);
+        curl_close($ch);
+        
+        if ($error) {
+            return "FTP Error: $error";
+        }
+        return true;
+    }
+
     private static function executeDA($config, $path, $data = null, $isPost = true)
     {
         // Automatically resolve relative paths (like /public_html) to absolute DirectAdmin paths

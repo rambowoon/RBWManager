@@ -27,6 +27,49 @@ function getDemoConfigForProject($projectConfig = []) {
     return $config;
 }
 
+function autoCleanOldCacheFiles($days = 7) {
+    $cacheBase = __DIR__ . '/cache/remote_edit';
+    if (!is_dir($cacheBase)) return;
+    
+    $lockFile = __DIR__ . '/cache/.last_cleanup';
+    if (file_exists($lockFile) && (time() - filemtime($lockFile) < 86400)) {
+        return; // Only run once every 24 hours to keep requests ultra fast
+    }
+    @file_put_contents($lockFile, (string)time());
+    
+    $cutoff = time() - ($days * 86400);
+    
+    $cleanDir = function($dir) use (&$cleanDir, $cutoff) {
+        $items = @scandir($dir);
+        if ($items === false) return true;
+        $isEmpty = true;
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..' || $item === '.last_cleanup') continue;
+            $path = $dir . '/' . $item;
+            if (is_dir($path)) {
+                $subEmpty = $cleanDir($path);
+                if ($subEmpty) {
+                    @rmdir($path);
+                } else {
+                    $isEmpty = false;
+                }
+            } else {
+                if (@filemtime($path) < $cutoff) {
+                    @unlink($path);
+                } else {
+                    $isEmpty = false;
+                }
+            }
+        }
+        return $isEmpty;
+    };
+    
+    $cleanDir($cacheBase);
+}
+
+// Auto clean cache files older than 7 days
+autoCleanOldCacheFiles(7);
+
 $cliInputData = null;
 if (PHP_SAPI === 'cli') {
     $debugLogFile = __DIR__ . '/logs/debug_bg_job.log';
@@ -187,6 +230,7 @@ function startApiBackgroundJob($action, array $data, $jobId) {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_TIMEOUT, 1);
         curl_setopt($ch, CURLOPT_NOSIGNAL, 1);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, [
             'action' => $action, 
@@ -528,8 +572,8 @@ $deployService = new DeploymentService($baseDir);
 $packagingService = new PackagingService($scanner, $deployService, $configManager);
 $projectDeployer = new ProjectDeployer($baseDir);
 
-$action = $_GET['action'] ?? '';
-$jobId = $_GET['jobId'] ?? ($_POST['jobId'] ?? null);
+$action = $_POST['action'] ?? $_GET['action'] ?? '';
+$jobId = $_POST['jobId'] ?? $_GET['jobId'] ?? null;
 
 header('Content-Type: application/json');
 
@@ -779,6 +823,443 @@ switch ($action) {
         } catch (Exception $e) {
             writeJobLog($jobId, ['status' => 'error', 'message' => $e->getMessage()]);
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'fmList':
+    case 'fmGet':
+    case 'fmSave':
+    case 'fmDelete':
+    case 'fmUpload':
+    case 'fmCreateDir':
+    case 'fmOpenInEditor':
+    case 'fmSyncLocalFile':
+    case 'fmWatchFile':
+    case 'fmCheckSyncStatus':
+    case 'fmSyncCenterCompare':
+    case 'fmSyncCenterExecute':
+        $data = readJsonInput();
+        if (!$data) $data = $_POST;
+        
+        $projectName = $data['name'] ?? $_GET['name'] ?? '';
+        $category = $data['category'] ?? $_GET['category'] ?? '';
+        $path = $data['path'] ?? $_GET['path'] ?? '/';
+        
+        $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
+        $config = getDemoConfigForProject($projectConfig);
+
+        if (!$config || empty($config['ftp_host'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Demo Server chưa được cấu hình FTP']);
+            break;
+        }
+        
+        $host = $config['ftp_host'];
+        $user = $config['ftp_user'];
+        $pass = $config['ftp_pass'];
+        $userPwd = "$user:$pass";
+
+        $projects = $scanner->getProjects($category);
+        $project = null;
+        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        
+        $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
+        if (empty($customDomain)) {
+            $webDomain = str_replace(['https://', 'http://', '/'], '', $config['web_domain']);
+            $folderName = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
+            $ftpRoot = '/domains/' . $webDomain . '/public_html/' . $folderName;
+        } else {
+            $ftpRoot = '/domains/' . $customDomain . '/public_html';
+        }
+        
+        $cleanPath = ltrim($path, '/');
+        // Ensure path starts from the project's root on the demo server
+        $remotePath = rtrim($ftpRoot, '/') . '/' . $cleanPath;
+        $url = "ftp://$host$remotePath";
+        
+        $demoBaseUrl = '';
+        if (empty($customDomain)) {
+            $demoBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$webDomain/$folderName";
+        } else {
+            $demoBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$customDomain";
+        }
+        
+        if ($action === 'fmList') {
+            $files = RemoteClient::listFtpDirectoryDetailed($url, $userPwd);
+            echo json_encode(['status' => 'success', 'data' => $files, 'baseUrl' => rtrim($demoBaseUrl, '/')]);
+        } 
+        elseif ($action === 'fmGet') {
+            $res = RemoteClient::getFtpFileContent($url, $userPwd);
+            echo json_encode($res);
+        }
+        elseif ($action === 'fmSave') {
+            $content = $data['content'] ?? '';
+            $res = RemoteClient::saveFtpFileContent($url, $userPwd, $content);
+            if ($res === true) {
+                echo json_encode(['status' => 'success']);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => $res]);
+            }
+        }
+        elseif ($action === 'fmDelete') {
+            $isDir = !empty($data['isDir']);
+            $res = RemoteClient::deleteViaFTP($url, $userPwd, $isDir);
+            if ($res === true) {
+                echo json_encode(['status' => 'success']);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => $res]);
+            }
+        }
+        elseif ($action === 'fmCreateDir') {
+            $config['ftp_pass'] = $pass; // pass to makeDirViaDA / makeDirViaFTP
+            $res = RemoteClient::makeDirViaFTP($config, $remotePath);
+            echo $res;
+        }
+        elseif ($action === 'fmUpload') {
+            if (!empty($_FILES['file'])) {
+                $tmpFile = $_FILES['file']['tmp_name'];
+                $res = RemoteClient::uploadFtp($url, $userPwd, $tmpFile);
+                if ($res === true) {
+                    echo json_encode(['status' => 'success']);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => $res]);
+                }
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'No file uploaded']);
+            }
+        }
+        elseif ($action === 'fmOpenInEditor') {
+            $res = RemoteClient::getFtpFileContent($url, $userPwd);
+            if ($res['status'] !== 'success') {
+                echo json_encode($res);
+                break;
+            }
+            
+            $cacheDir = __DIR__ . '/cache/remote_edit/' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $category) . '/' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $projectName);
+            $localFile = $cacheDir . '/' . str_replace('/', DIRECTORY_SEPARATOR, $cleanPath);
+            $localParent = dirname($localFile);
+            if (!is_dir($localParent)) {
+                @mkdir($localParent, 0777, true);
+            }
+            file_put_contents($localFile, $res['content']);
+            
+            try {
+                $jobData = [
+                    'name' => $projectName,
+                    'category' => $category,
+                    'path' => $cleanPath,
+                    'url' => $url,
+                    'userPwd' => $userPwd,
+                    'localFile' => $localFile,
+                    '_background' => true
+                ];
+                startApiBackgroundJob('fmWatchFile', $jobData, null);
+            } catch (Throwable $e) {}
+            
+            $urlSafePath = str_replace('\\', '/', $localFile);
+            $ideUrl = 'antigravity://file/' . ltrim($urlSafePath, '/');
+            
+            echo json_encode(['status' => 'success', 'localPath' => $localFile, 'ideUrl' => $ideUrl]);
+        }
+        elseif ($action === 'fmSyncLocalFile') {
+            $cacheDir = __DIR__ . '/cache/remote_edit/' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $category) . '/' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $projectName);
+            $localFile = $cacheDir . '/' . str_replace('/', DIRECTORY_SEPARATOR, $cleanPath);
+            if (!file_exists($localFile)) {
+                echo json_encode(['status' => 'error', 'message' => 'File cục bộ không tồn tại để đồng bộ']);
+                break;
+            }
+            $content = file_get_contents($localFile);
+            $res = RemoteClient::saveFtpFileContent($url, $userPwd, $content);
+            if ($res === true) {
+                echo json_encode(['status' => 'success']);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => $res]);
+            }
+        }
+        elseif ($action === 'fmWatchFile') {
+            $data = readJsonInput();
+            $path = $data['path'] ?? '';
+            $url = $data['url'] ?? '';
+            $userPwd = $data['userPwd'] ?? '';
+            $localFile = $data['localFile'] ?? '';
+            
+            if (empty($localFile) || !file_exists($localFile)) exit;
+            
+            $timeout = time() + (2 * 3600); // 2 hours
+            $mtime = filemtime($localFile);
+            
+            while(time() < $timeout) {
+                clearstatcache();
+                if (!file_exists($localFile)) break;
+                
+                $new = filemtime($localFile);
+                if ($new > $mtime) {
+                    $mtime = $new;
+                    $content = file_get_contents($localFile);
+                    RemoteClient::saveFtpFileContent($url, $userPwd, $content);
+                    file_put_contents($localFile . '.sync', microtime(true));
+                }
+                sleep(2);
+            }
+            exit;
+        }
+        elseif ($action === 'fmCheckSyncStatus') {
+            $data = readJsonInput();
+            if (!$data) $data = $_POST;
+            $path = $data['path'] ?? $_GET['path'] ?? '/';
+            $cleanPath = ltrim($path, '/');
+            $cacheDir = __DIR__ . '/cache/remote_edit/' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $category) . '/' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $projectName);
+            $localFile = $cacheDir . '/' . str_replace('/', DIRECTORY_SEPARATOR, $cleanPath);
+            $syncFile = $localFile . '.sync';
+            if (file_exists($syncFile)) {
+                echo json_encode(['status' => 'success', 'time' => file_get_contents($syncFile)]);
+            } else {
+                echo json_encode(['status' => 'success', 'time' => 0]);
+            }
+        }
+        elseif ($action === 'fmSyncCenterCompare') {
+            $data = readJsonInput();
+            if (!$data) $data = $_POST;
+            
+            $projectName = $data['name'] ?? '';
+            $category = $data['category'] ?? '';
+            $excludes = $data['excludes'] ?? ['bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', '.agents', '.git', '.idea', '.vscode'];
+            
+            $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
+            $config = getDemoConfigForProject($projectConfig);
+            if (!$config || empty($config['ftp_host'])) {
+                echo json_encode(['status' => 'error', 'message' => 'Chưa cấu hình FTP Demo']);
+                break;
+            }
+            
+            $projects = $scanner->getProjects($category);
+            $project = null;
+            foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+            if (!$project) {
+                echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
+                break;
+            }
+            
+            // 1. Scan Local
+            $localFiles = [];
+            $localRoot = rtrim($project['path'], '/\\');
+            $scanLocal = function($dir, $relPrefix = '') use (&$scanLocal, &$localFiles, $excludes, $localRoot) {
+                $items = @scandir($dir);
+                if ($items === false) return;
+                foreach ($items as $item) {
+                    if ($item === '.' || $item === '..') continue;
+                    $path = $dir . '/' . $item;
+                    $relPath = $relPrefix . $item;
+                    if ($relPrefix === '' && in_array($item, $excludes)) continue;
+                    if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql') continue;
+                    $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat'];
+                    if (in_array(strtolower($item), $excludedFiles)) continue;
+                    if (is_dir($path)) {
+                        $scanLocal($path, $relPath . '/');
+                    } else {
+                        $size = filesize($path);
+                        $localFiles[$relPath] = [
+                            'mtime' => filemtime($path),
+                            'size' => $size,
+                            'md5' => ($size < 2097152) ? md5_file($path) : 'sz_' . $size
+                        ];
+                    }
+                }
+            };
+            $scanLocal($localRoot);
+            
+            // 2. Call Bridge via HTTP (Fast path: < 0.1s)
+            $cleanHost = !empty($config['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $config['web_domain']) : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
+            $useSSL = !empty($config['ssl']) || (isset($config['web_domain']) && strpos($config['web_domain'], 'https://') === 0);
+            $scheme = $useSSL ? 'https://' : 'http://';
+            $webSub = $deployService->getWebSubPath($config['ftp_root'] ?? '');
+            $fullSubPath = rtrim($webSub, '/') . '/' . trim($project['relPath'], '/');
+            $bridgeUrl = $scheme . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles';
+            
+            $callBridge = function() use ($bridgeUrl, $excludes) {
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $bridgeUrl);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['excludes' => $excludes]));
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                $res = curl_exec($ch);
+                curl_close($ch);
+                return json_decode($res, true);
+            };
+
+            $remoteData = $callBridge();
+
+            // If bridge is not yet on server or outdated (missing MD5/readme filter support), upload it fast via direct FTP
+            if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v4_md5') {
+                $host = $config['ftp_host'];
+                $user = $config['ftp_user'];
+                $pass = $config['ftp_pass'];
+                $userPwd = "$user:$pass";
+                
+                $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
+                if (empty($customDomain)) {
+                    $webDomain = str_replace(['https://', 'http://', '/'], '', $config['web_domain']);
+                    $folderName = str_replace('\\', '/', trim($project['relPath'], '/\\'));
+                    $ftpRoot = '/domains/' . $webDomain . '/public_html/' . $folderName;
+                } else {
+                    $ftpRoot = '/domains/' . $customDomain . '/public_html';
+                }
+                
+                $bridgeUrlFtp = "ftp://$host" . rtrim($ftpRoot, '/') . '/bridge.php';
+                RemoteClient::saveFtpFileContent($bridgeUrlFtp, $userPwd, file_get_contents(__DIR__ . '/bridge.php'));
+                
+                // Retry HTTP call
+                $remoteData = $callBridge();
+            }
+
+            if (!$remoteData || ($remoteData['status'] ?? '') !== 'success') {
+                echo json_encode(['status' => 'error', 'message' => 'Bridge không phản hồi hoặc gặp lỗi. Vui lòng kiểm tra lại cấu hình Hosting.']);
+                break;
+            }
+            
+            $remoteFiles = $remoteData['files'] ?? [];
+            
+            // 3. Compare with MD5 Hash
+            $comparison = [
+                'local_newer' => [],
+                'remote_newer' => [],
+                'local_only' => [],
+                'remote_only' => [],
+                'conflict' => []
+            ];
+            
+            foreach ($localFiles as $path => $lData) {
+                if (isset($remoteFiles[$path])) {
+                    $rData = $remoteFiles[$path];
+                    
+                    // 1. If MD5 matches, content is 100% identical -> Skip!
+                    if (isset($lData['md5']) && isset($rData['md5']) && $lData['md5'] === $rData['md5']) {
+                        continue;
+                    }
+                    
+                    // 2. MD5 differs -> Content changed, compare mtime
+                    $diff = $lData['mtime'] - $rData['mtime'];
+                    if ($diff > 0) {
+                        $comparison['local_newer'][] = [
+                            'path' => $path,
+                            'local_mtime' => $lData['mtime'],
+                            'remote_mtime' => $rData['mtime']
+                        ];
+                    } elseif ($diff < 0) {
+                        $comparison['remote_newer'][] = [
+                            'path' => $path,
+                            'local_mtime' => $lData['mtime'],
+                            'remote_mtime' => $rData['mtime']
+                        ];
+                    } else {
+                        $comparison['conflict'][] = [
+                            'path' => $path,
+                            'local_mtime' => $lData['mtime'],
+                            'remote_mtime' => $rData['mtime'],
+                            'local_size' => $lData['size'],
+                            'remote_size' => $rData['size']
+                        ];
+                    }
+                } else {
+                    $comparison['local_only'][] = [
+                        'path' => $path,
+                        'local_mtime' => $lData['mtime'],
+                        'remote_mtime' => null
+                    ];
+                }
+            }
+            
+            foreach ($remoteFiles as $path => $rData) {
+                if (!isset($localFiles[$path])) {
+                    $comparison['remote_only'][] = [
+                        'path' => $path,
+                        'local_mtime' => null,
+                        'remote_mtime' => $rData['mtime']
+                    ];
+                }
+            }
+            
+            echo json_encode(['status' => 'success', 'comparison' => $comparison]);
+        }
+        elseif ($action === 'fmSyncCenterExecute') {
+            @set_time_limit(300);
+            $data = readJsonInput();
+            if (!$data) $data = $_POST;
+            
+            $projectName = $data['name'] ?? '';
+            $category = $data['category'] ?? '';
+            $actions = $data['actions'] ?? []; // ['upload' => [...paths], 'download' => [...paths]]
+            
+            $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
+            $config = getDemoConfigForProject($projectConfig);
+            if (!$config || empty($config['ftp_host'])) {
+                echo json_encode(['status' => 'error', 'message' => 'Chưa cấu hình FTP Demo']);
+                break;
+            }
+            
+            $projects = $scanner->getProjects($category);
+            $project = null;
+            foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+            if (!$project) {
+                echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
+                break;
+            }
+            
+            $host = $config['ftp_host'];
+            $user = $config['ftp_user'];
+            $pass = $config['ftp_pass'];
+            $userPwd = "$user:$pass";
+            
+            $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
+            if (empty($customDomain)) {
+                $webDomain = str_replace(['https://', 'http://', '/'], '', $config['web_domain']);
+                $folderName = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
+                $ftpRoot = '/domains/' . $webDomain . '/public_html/' . $folderName;
+            } else {
+                $ftpRoot = '/domains/' . $customDomain . '/public_html';
+            }
+            
+            $localRoot = rtrim(str_replace('\\', '/', $project['path']), '/');
+            $results = [];
+            
+            // Handle Uploads
+            if (!empty($actions['upload'])) {
+                foreach ($actions['upload'] as $path) {
+                    $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
+                    $localFile = $localRoot . '/' . $cleanPath;
+                    $remotePath = rtrim($ftpRoot, '/') . '/' . $cleanPath;
+                    $url = "ftp://$host$remotePath";
+                    if (file_exists($localFile)) {
+                        $content = file_get_contents($localFile);
+                        $res = RemoteClient::saveFtpFileContent($url, $userPwd, $content);
+                        $results[] = ['path' => $cleanPath, 'action' => 'upload', 'status' => $res === true ? 'success' : 'error', 'message' => $res];
+                    }
+                }
+            }
+            
+            // Handle Downloads
+            if (!empty($actions['download'])) {
+                foreach ($actions['download'] as $path) {
+                    $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
+                    $localFile = $localRoot . '/' . $cleanPath;
+                    $remotePath = rtrim($ftpRoot, '/') . '/' . $cleanPath;
+                    $url = "ftp://$host$remotePath";
+                    
+                    $res = RemoteClient::getFtpFileContent($url, $userPwd);
+                    if ($res['status'] === 'success') {
+                        $dir = dirname($localFile);
+                        if (!is_dir($dir)) mkdir($dir, 0777, true);
+                        file_put_contents($localFile, $res['content']);
+                        $results[] = ['path' => $cleanPath, 'action' => 'download', 'status' => 'success'];
+                    } else {
+                        $results[] = ['path' => $cleanPath, 'action' => 'download', 'status' => 'error', 'message' => $res['message']];
+                    }
+                }
+            }
+            
+            echo json_encode(['status' => 'success', 'results' => $results]);
         }
         break;
 

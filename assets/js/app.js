@@ -86,16 +86,34 @@ const App = {
 			const el = document.getElementById(id);
 			if (el) el.style.display = 'none';
 		});
+		const projHeader = document.getElementById('project-detail-header');
+		if (projHeader) projHeader.style.display = 'none';
+		const statusEl = document.getElementById('detail-project-status');
+		if (statusEl) statusEl.style.display = 'none';
+		const navHeader = document.getElementById('nav-header');
+		if (navHeader) navHeader.style.display = 'none';
+		const dashBreadcrumb = document.getElementById('dashboard-breadcrumb');
+		if (dashBreadcrumb) dashBreadcrumb.style.display = 'none';
 	},
 
 	showDashboard() {
 		this.hideAllViews();
 		document.getElementById('view-dashboard').style.display = 'block';
+		if (this.currentCategory) {
+			const navHeader = document.getElementById('nav-header');
+			if (navHeader) navHeader.style.display = 'flex';
+		} else {
+			const dashBreadcrumb = document.getElementById('dashboard-breadcrumb');
+			if (dashBreadcrumb) dashBreadcrumb.style.display = 'block';
+		}
 	},
 
 	async showProjectDetail(name, category) {
 		this.hideAllViews();
 		document.getElementById('view-project-detail').style.display = 'block';
+		
+		const projHeader = document.getElementById('project-detail-header');
+		if (projHeader) projHeader.style.display = 'flex';
 		
 		document.getElementById('detail-project-name').innerText = name;
 		const pathEl = document.getElementById('detail-project-path');
@@ -109,6 +127,7 @@ const App = {
 			const hasProd = !!(config.deployed && config.deployed.production);
 			const statusEl = document.getElementById('detail-project-status');
 			if (statusEl) {
+				statusEl.style.display = 'inline-flex';
 				if (hasProd) {
 					statusEl.innerText = '● PRODUCTION ĐANG CHẠY';
 					statusEl.className = 'badge-env';

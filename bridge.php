@@ -52,6 +52,9 @@ class RamboWoonBridge
             case 'package':
                 $this->package();
                 break;
+            case 'scanFiles':
+                $this->scanFiles();
+                break;
             case 'cloudDeploy':
                 $this->cloudDeploy();
                 break;
@@ -1256,6 +1259,52 @@ class RamboWoonBridge
                 'final' => $decodedProd
             ]);
         }
+        exit;
+    }
+
+    public function scanFiles()
+    {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $excludes = $input['excludes'] ?? [];
+        
+        $files = [];
+        $root = __DIR__;
+        
+        $scanDir = function($dir, $relPrefix = '') use (&$scanDir, &$files, $excludes, $root) {
+            $items = @scandir($dir);
+            if ($items === false) return;
+            
+            foreach ($items as $item) {
+                if ($item === '.' || $item === '..') continue;
+                
+                $path = $dir . '/' . $item;
+                $relPath = $relPrefix . $item;
+                
+                // Check excludes at top level
+                if ($relPrefix === '') {
+                    if (in_array($item, $excludes)) continue;
+                }
+                
+                if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql') continue;
+                $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat'];
+                if (in_array(strtolower($item), $excludedFiles)) continue;
+                
+                if (is_dir($path)) {
+                    $scanDir($path, $relPath . '/');
+                } else {
+                    $size = filesize($path);
+                    $files[$relPath] = [
+                        'mtime' => filemtime($path),
+                        'size' => $size,
+                        'md5' => ($size < 2097152) ? md5_file($path) : 'sz_' . $size
+                    ];
+                }
+            }
+        };
+        
+        $scanDir($root);
+        
+        echo json_encode(['status' => 'success', 'version' => 'v4_md5', 'files' => $files]);
         exit;
     }
 
