@@ -168,17 +168,32 @@
                 <!-- VIEW: DASHBOARD -->
                 <div id="view-dashboard" class="view-section">
                     <div class="stats-grid" id="stats-summary">
-                        <div class="stat-card">
-                            <div class="stat-label">Tổng dự án</div>
-                            <div class="stat-value" id="stat-total-projects">--</div>
+                        <div class="stat-card stat-card-total">
+                            <div class="stat-icon-box">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-label">Tổng dự án</div>
+                                <div class="stat-value" id="stat-total-projects">--</div>
+                            </div>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-label">Đã cấu hình</div>
-                            <div class="stat-value" id="stat-configured" style="color:var(--success)">--</div>
+                        <div class="stat-card stat-card-configured">
+                            <div class="stat-icon-box">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-label">Đã cấu hình</div>
+                                <div class="stat-value" id="stat-configured">--</div>
+                            </div>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-label">Dự án Demo</div>
-                            <div class="stat-value" id="stat-demo" style="color:var(--purple)">--</div>
+                        <div class="stat-card stat-card-demo">
+                            <div class="stat-icon-box">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-label">Dự án Demo</div>
+                                <div class="stat-value" id="stat-demo">--</div>
+                            </div>
                         </div>
                     </div>
 
