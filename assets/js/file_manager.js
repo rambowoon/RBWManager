@@ -109,8 +109,26 @@ var FileManager = {
         if (!wrap) return;
         
         if (dirs.length === 0) {
-            wrap.innerHTML = `<div style="padding: 3px 8px; color: var(--text-muted, #64748b); font-size: 11px; font-style: italic;">(Trống)</div>`;
+            if (parentPath === '/') {
+                wrap.innerHTML = `<div style="padding: 3px 8px; color: var(--text-muted, #64748b); font-size: 11px; font-style: italic;">(Thư mục trống)</div>`;
+            } else {
+                wrap.innerHTML = '';
+                wrap.style.display = 'none';
+                const parentItem = wrap.closest('.fm-tree-item');
+                if (parentItem) {
+                    const toggle = parentItem.querySelector('.fm-tree-toggle');
+                    if (toggle) toggle.style.visibility = 'hidden';
+                    const icon = parentItem.querySelector('.fm-tree-icon');
+                    if (icon) icon.innerText = '📁';
+                }
+            }
             return;
+        }
+
+        const parentItem = wrap.closest('.fm-tree-item');
+        if (parentItem) {
+            const toggle = parentItem.querySelector('.fm-tree-toggle');
+            if (toggle) toggle.style.visibility = 'visible';
         }
         
         dirs.sort((a, b) => a.localeCompare(b));
@@ -154,7 +172,14 @@ var FileManager = {
                 childrenWrap.innerHTML = `<div style="padding: 4px 8px; color: var(--text-muted, #888); font-size: 11px;">Đang tải...</div>`;
                 this.fetchTreeDirs(path, (dirs) => {
                     childrenWrap.dataset.loaded = 'true';
-                    this.renderTreeChildren(safeId, path, dirs);
+                    if (dirs.length === 0) {
+                        el.style.visibility = 'hidden';
+                        if (icon && icon.classList.contains('fm-tree-icon')) icon.innerText = '📁';
+                        childrenWrap.innerHTML = '';
+                        childrenWrap.style.display = 'none';
+                    } else {
+                        this.renderTreeChildren(safeId, path, dirs);
+                    }
                 });
             }
         } else {
