@@ -544,7 +544,6 @@ const UI = {
 					<div class="chip ${isConfiguredLocal ? "locked" : "util"}" onclick="${isConfiguredLocal ? "UI.notify('Dự án này đã được cấu hình Source Local!', 'info')" : `App.setupLocalSource('${safeName}', '${safeCat}')`}"><div class="ic" style="background:${isConfiguredLocal ? "rgba(255,255,255,0.05)" : "var(--primary-glow)"};color:${isConfiguredLocal ? "var(--text-muted)" : "var(--primary)"};">${isConfiguredLocal ? "✓" : "🔧"}</div><div class="lbl">${isConfiguredLocal ? "Đã cấu hình Source" : "Cấu hình Source Local"}</div></div>
 					<div class="chip neutral" onclick="App.openAntigravity('${safeName}')"><div class="ic">▶</div><div class="lbl">Mở bằng Antigravity</div></div>
 					<div class="chip neutral" onclick="SchemaBuilder.init('${safeName}')"><div class="ic">▤</div><div class="lbl">Visual Schema</div></div>
-					<div class="chip neutral" onclick="App.pushTools('${safeName}', '${safeCat}')"><div class="ic">⚡</div><div class="lbl">Sync Tools</div></div>
 					<div class="chip util" onclick="UI.showChangeTypeModal('${safeName}', '${safeCat}')"><div class="ic">🔄</div><div class="lbl">Đổi Type DB</div></div>
 					<div class="chip util" onclick="App.integrateAMP('${safeName}','${safeCat}')"><div class="ic">⚡</div><div class="lbl">Tích hợp AMP</div></div>
 				</div>
@@ -563,6 +562,7 @@ const UI = {
 				<div class="chip-row">
 					<div class="chip ${isLockedDemo ? "locked" : ""}" onclick="${isLockedDemo ? "UI.notify('Dự án đang bị KHÓA!', 'error')" : `App.deployDemo('${safeName}','${safeCat}')`}"><div class="ic" style="background:rgba(255,183,77,0.15);color:#FFCB7A;">▶</div><div class="lbl">Deploy Demo</div></div>
 					<div class="chip ${isLockedDemo ? "locked" : ""}" onclick="${isLockedDemo ? "UI.notify('Dự án đang bị KHÓA!', 'error')" : `App.deployDbDemo('${safeName}','${safeCat}')`}"><div class="ic" style="background:rgba(255,183,77,0.15);color:#FFCB7A;">▤</div><div class="lbl">Deploy DB Demo</div></div>
+					${hasDemo ? `<div class="chip util" onclick="App.pushTools('${safeName}', '${safeCat}')"><div class="ic">⚡</div><div class="lbl">Sync Tools</div></div>` : ""}
 					${hasDemo ? `<div class="chip util" onclick="App.downloadPackage('${safeName}','${safeCat}')"><div class="ic">⭳</div><div class="lbl">Download Package</div></div>` : ""}
 					${hasDemo ? `<div class="chip danger" onclick="App.cleanupTools('${safeName}','${safeCat}', 'demo')"><div class="ic">✎</div><div class="lbl">Dọn dẹp Demo</div></div>` : ""}
 					<div class="chip" onclick="App.toggleActionLock('${safeName}','demo', '${safeCat}')"><div class="ic" style="background:rgba(63,216,160,0.15);color:#5FF0BE;">⚿</div><div class="lbl">${isLockedDemo ? "Mở khóa Demo" : "Khóa Demo"}</div></div>
