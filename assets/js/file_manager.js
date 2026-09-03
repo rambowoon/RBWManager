@@ -1350,7 +1350,7 @@ const SyncCenter = {
         });
     },
 
-    executeAll() {
+    async executeAll() {
         let actions = { upload: [], download: [] };
         
         document.querySelectorAll('.sc-table tbody tr').forEach(row => {
@@ -1371,7 +1371,7 @@ const SyncCenter = {
             return;
         }
         
-        if (!confirm(`Xác nhận đồng bộ?\n- Đẩy lên Demo: ${actions.upload.length} files\n- Kéo về Local: ${actions.download.length} files\n\n🛡️ Hệ thống sẽ TỰ ĐỘNG BACKUP file cũ trước khi ghi đè.`)) return;
+        if (!await UI.confirm(`Xác nhận đồng bộ?\n- Đẩy lên Demo: ${actions.upload.length} files\n- Kéo về Local: ${actions.download.length} files\n\n🛡️ Hệ thống sẽ TỰ ĐỘNG BACKUP file cũ trước khi ghi đè.`)) return;
         
         UI.showToast('Đang thực thi đồng bộ & tạo backup an toàn...', 'info');
         
@@ -1705,8 +1705,8 @@ const SyncCenter = {
         document.body.appendChild(modal);
     },
 
-    executeSingleDiff(path, action) {
-        if (!confirm(`Xác nhận ${action === 'upload' ? 'đẩy bản Local lên ghi đè Demo' : 'kéo bản Demo về ghi đè Local'}?\n\n🛡️ Bản cũ sẽ được tự động backup an toàn.`)) return;
+    async executeSingleDiff(path, action) {
+        if (!await UI.confirm(`Xác nhận ${action === 'upload' ? 'đẩy bản Local lên ghi đè Demo' : 'kéo bản Demo về ghi đè Local'}?\n\n🛡️ Bản cũ sẽ được tự động backup an toàn.`)) return;
 
         const actions = { upload: [], download: [] };
         actions[action].push(path);
@@ -1952,9 +1952,9 @@ const SyncCenter = {
         container.innerHTML = html;
     },
 
-    restoreBackup(backupFile, path, target) {
+    async restoreBackup(backupFile, path, target) {
         const targetName = target === 'local' ? 'Local Workspace' : 'Demo Hosting';
-        if (!confirm(`Xác nhận KHÔI PHỤC file:\n${path}\n\n➔ Đích đến: ${targetName}\n\n🛡️ Bản file hiện tại sẽ được tự động sao lưu an toàn trước khi khôi phục.`)) {
+        if (!await UI.confirm(`Xác nhận KHÔI PHỤC file:\n${path}\n\n➔ Đích đến: ${targetName}\n\n🛡️ Bản file hiện tại sẽ được tự động sao lưu an toàn trước khi khôi phục.`)) {
             return;
         }
 
