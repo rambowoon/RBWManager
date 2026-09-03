@@ -1740,6 +1740,11 @@ const SyncCenter = {
 
     setBackupFilter(type) {
         this.backupFilter = type;
+        document.querySelectorAll('#sc-backup-modal-container .sc-pill-btn').forEach(btn => btn.classList.remove('active'));
+        const targetBtn = document.getElementById(`sc-bk-pill-${type}`);
+        if (targetBtn) {
+            targetBtn.classList.add('active');
+        }
         this.renderBackupList();
     },
 
@@ -1796,16 +1801,16 @@ const SyncCenter = {
                 <!-- Toolbar & Filter -->
                 <div style="padding: 12px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="sc-pill-btn pill-all ${this.backupFilter === 'all' ? 'active' : ''}" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('all')">
+                        <button class="sc-pill-btn pill-all ${this.backupFilter === 'all' ? 'active' : ''}" id="sc-bk-pill-all" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('all')">
                             Tất cả <span class="sc-badge-count">${total}</span>
                         </button>
-                        <button class="sc-pill-btn pill-up ${this.backupFilter === 'remote_before_upload' ? 'active' : ''}" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_upload')">
+                        <button class="sc-pill-btn pill-up ${this.backupFilter === 'remote_before_upload' ? 'active' : ''}" id="sc-bk-pill-remote_before_upload" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_upload')">
                             🛡️ Demo trước khi đè <span class="sc-badge-count">${countUpload}</span>
                         </button>
-                        <button class="sc-pill-btn pill-down ${this.backupFilter === 'local_before_download' ? 'active' : ''}" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('local_before_download')">
+                        <button class="sc-pill-btn pill-down ${this.backupFilter === 'local_before_download' ? 'active' : ''}" id="sc-bk-pill-local_before_download" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('local_before_download')">
                             💻 Local trước khi kéo <span class="sc-badge-count">${countDownload}</span>
                         </button>
-                        <button class="sc-pill-btn pill-conflict ${this.backupFilter === 'remote_before_edit' ? 'active' : ''}" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_edit')">
+                        <button class="sc-pill-btn pill-conflict ${this.backupFilter === 'remote_before_edit' ? 'active' : ''}" id="sc-bk-pill-remote_before_edit" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_edit')">
                             ✎ Sửa trên Web <span class="sc-badge-count">${countEdit}</span>
                         </button>
                     </div>
