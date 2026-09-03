@@ -1137,12 +1137,16 @@ const SyncCenter = {
                     display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
                 }
                 .diff-line {
-                    display: flex; width: 100%; border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+                    display: flex; width: 100%; border-bottom: 1px solid rgba(255, 255, 255, 0.02); box-sizing: border-box;
                 }
                 .diff-line:hover { background: rgba(255, 255, 255, 0.04); }
+                .diff-cell-inner {
+                    display: flex; width: 100%; min-height: 22px; box-sizing: border-box; align-items: stretch;
+                }
+                .diff-cell-inner:hover { background: rgba(255, 255, 255, 0.04); }
                 .diff-num {
                     width: 44px; text-align: right; padding: 2px 8px; color: #475569;
-                    user-select: none; border-right: 1px solid rgba(255, 255, 255, 0.06); flex-shrink: 0;
+                    user-select: none; border-right: 1px solid rgba(255, 255, 255, 0.06); flex-shrink: 0; box-sizing: border-box;
                 }
                 .diff-text {
                     padding: 2px 10px; white-space: pre; flex: 1; min-width: 0; overflow-x: auto;
@@ -1151,8 +1155,9 @@ const SyncCenter = {
                 .diff-add .diff-num { color: #10b981; background: rgba(16, 185, 129, 0.08); }
                 .diff-del { background: rgba(244, 63, 94, 0.16) !important; color: #fb7185 !important; }
                 .diff-del .diff-num { color: #f43f5e; background: rgba(244, 63, 94, 0.08); }
-                .diff-gutter-sym { width: 20px; text-align: center; font-weight: 700; user-select: none; flex-shrink: 0; }
+                .diff-gutter-sym { width: 20px; text-align: center; font-weight: 700; user-select: none; flex-shrink: 0; padding-top: 2px; }
                 .diff-split-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+                .diff-split-table tr { border-bottom: 1px solid rgba(255, 255, 255, 0.02); }
                 .diff-split-table td { padding: 0; vertical-align: top; width: 50%; border-right: 1px solid rgba(255,255,255,0.08); }
                 .diff-split-table td:last-child { border-right: none; }
             </style>
@@ -1522,42 +1527,58 @@ const SyncCenter = {
             diffLines.forEach(item => {
                 if (item.type === 'equal') {
                     rowsHtml += `
-                        <tr class="diff-line">
-                            <td class="diff-line">
-                                <span class="diff-num">${item.oldNum}</span>
-                                <span class="diff-text">${this.escapeHtml(item.oldLine)}</span>
+                        <tr>
+                            <td>
+                                <div class="diff-cell-inner">
+                                    <span class="diff-num">${item.oldNum}</span>
+                                    <span class="diff-gutter-sym" style="color:#475569;"> </span>
+                                    <span class="diff-text">${this.escapeHtml(item.oldLine)}</span>
+                                </div>
                             </td>
-                            <td class="diff-line">
-                                <span class="diff-num">${item.newNum}</span>
-                                <span class="diff-text">${this.escapeHtml(item.newLine)}</span>
+                            <td>
+                                <div class="diff-cell-inner">
+                                    <span class="diff-num">${item.newNum}</span>
+                                    <span class="diff-gutter-sym" style="color:#475569;"> </span>
+                                    <span class="diff-text">${this.escapeHtml(item.newLine)}</span>
+                                </div>
                             </td>
                         </tr>
                     `;
                 } else if (item.type === 'delete') {
                     rowsHtml += `
-                        <tr class="diff-line">
-                            <td class="diff-line diff-del">
-                                <span class="diff-num">${item.oldNum}</span>
-                                <span class="diff-gutter-sym">-</span>
-                                <span class="diff-text">${this.escapeHtml(item.oldLine)}</span>
+                        <tr>
+                            <td>
+                                <div class="diff-cell-inner diff-del">
+                                    <span class="diff-num">${item.oldNum}</span>
+                                    <span class="diff-gutter-sym">-</span>
+                                    <span class="diff-text">${this.escapeHtml(item.oldLine)}</span>
+                                </div>
                             </td>
-                            <td class="diff-line" style="background:rgba(255,255,255,0.01);">
-                                <span class="diff-num" style="opacity:0.3;"></span>
-                                <span class="diff-text"></span>
+                            <td style="background:rgba(255,255,255,0.01);">
+                                <div class="diff-cell-inner">
+                                    <span class="diff-num" style="opacity:0.3;"></span>
+                                    <span class="diff-gutter-sym"> </span>
+                                    <span class="diff-text"></span>
+                                </div>
                             </td>
                         </tr>
                     `;
                 } else if (item.type === 'insert') {
                     rowsHtml += `
-                        <tr class="diff-line">
-                            <td class="diff-line" style="background:rgba(255,255,255,0.01);">
-                                <span class="diff-num" style="opacity:0.3;"></span>
-                                <span class="diff-text"></span>
+                        <tr>
+                            <td style="background:rgba(255,255,255,0.01);">
+                                <div class="diff-cell-inner">
+                                    <span class="diff-num" style="opacity:0.3;"></span>
+                                    <span class="diff-gutter-sym"> </span>
+                                    <span class="diff-text"></span>
+                                </div>
                             </td>
-                            <td class="diff-line diff-add">
-                                <span class="diff-num">${item.newNum}</span>
-                                <span class="diff-gutter-sym">+</span>
-                                <span class="diff-text">${this.escapeHtml(item.newLine)}</span>
+                            <td>
+                                <div class="diff-cell-inner diff-add">
+                                    <span class="diff-num">${item.newNum}</span>
+                                    <span class="diff-gutter-sym">+</span>
+                                    <span class="diff-text">${this.escapeHtml(item.newLine)}</span>
+                                </div>
                             </td>
                         </tr>
                     `;
