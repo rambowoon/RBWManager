@@ -488,12 +488,14 @@ const UI = {
 
 		const sideFmBtn = document.getElementById("side-tab-filemanager");
 		const sideSyncBtn = document.getElementById("side-tab-synccenter");
+		const sideBkBtn = document.getElementById("side-tab-backups");
 		if (sideFmBtn) sideFmBtn.style.display = hasDemo ? "flex" : "none";
 		if (sideSyncBtn) sideSyncBtn.style.display = hasDemo ? "flex" : "none";
+		if (sideBkBtn) sideBkBtn.style.display = hasDemo ? "flex" : "none";
 
 		if (!hasDemo) {
 			const activeTab = document.querySelector('.project-side-tab.active') || document.querySelector('.project-master-tabs .tab.active');
-			if (activeTab && (activeTab.dataset?.tab === 'd_tab-filemanager' || activeTab.dataset?.tab === 'd_tab-synccenter' || activeTab.id === 'tab-btn-filemanager' || activeTab.id === 'tab-btn-synccenter')) {
+			if (activeTab && (activeTab.dataset?.tab === 'd_tab-filemanager' || activeTab.dataset?.tab === 'd_tab-synccenter' || activeTab.dataset?.tab === 'd_tab-backups' || activeTab.id === 'tab-btn-filemanager' || activeTab.id === 'tab-btn-synccenter')) {
 				const firstTabBtn = document.querySelector('.project-side-tab') || document.querySelector('.project-master-tabs .tab');
 				if (firstTabBtn) this.switchProjectTab(firstTabBtn, 'd_tab-config');
 			}
@@ -1010,7 +1012,8 @@ const UI = {
 			'd_tab-auto-media': 'Tự động Map Ảnh',
 			'd_tab-seed': 'Tạo Dữ Liệu Mẫu',
 			'd_tab-filemanager': 'Quản lý File (Host)',
-			'd_tab-synccenter': 'Sync Center'
+			'd_tab-synccenter': 'Sync Center',
+			'd_tab-backups': 'Lịch sử Backup'
 		};
 		const pathEl = document.getElementById('detail-project-path');
 		if (pathEl && tabTitles[tabId]) {
@@ -1032,6 +1035,8 @@ const UI = {
 			const projectName =
 				document.getElementById("d_current-project")?.value || "";
 			SeedManager.init(projectName);
+		} else if (tabId === "d_tab-backups") {
+			if (typeof SyncCenter !== 'undefined') SyncCenter.openBackupHistoryTab();
 		}
 	},
 

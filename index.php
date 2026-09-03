@@ -101,6 +101,10 @@
                         <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">🔄</span>
                         Sync Center
                     </div>
+                    <div id="side-tab-backups" class="nav-item project-side-tab" style="display:none;" data-tab="d_tab-backups" onclick="UI.switchProjectTab(this, 'd_tab-backups'); typeof SyncCenter !== 'undefined' && SyncCenter.openBackupHistoryTab()">
+                        <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">📦</span>
+                        Lịch sử Backup
+                    </div>
                 </div>
             </nav>
 
@@ -592,6 +596,29 @@
                                     <h4 style="color: #cbd5e1; font-size: 15px; margin-bottom: 4px; font-weight: 600;">Sẵn sàng đối soát mã nguồn</h4>
                                     <p style="font-size: 13px; max-width: 440px; margin: 0 auto; color: #64748b;">Nhấn <b>"Quét & So sánh"</b> để kiểm tra các file đã được AI hoặc thành viên khác chỉnh sửa.</p>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: BACKUP & RESTORE HISTORY -->
+                    <div id="d_tab-backups" class="project-tab-content d-none">
+                        <div class="card-container card-padded fm-shell" style="background: rgba(13, 17, 25, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px;">
+                            <div class="flex-between-center-mb20" style="padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+                                <div class="flex-align-center-gap10">
+                                    <div class="accent-bar-primary" style="width: 4px; height: 18px; border-radius: 2px; background: var(--accent-gradient, #00d2d3);"></div>
+                                    <div>
+                                        <h3 class="card-title-sm" style="font-size: 14px; font-weight: 800; letter-spacing: 0.03em; color: #fff; margin: 0;">LỊCH SỬ SAO LƯU &amp; KHÔI PHỤC (BACKUP SNAPSHOTS)</h3>
+                                        <p style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Tự động lưu trữ bản gốc trước mọi thao tác ghi đè — Khôi phục 1-click về Local hoặc Demo</p>
+                                    </div>
+                                </div>
+                                <div class="flex-align-center-gap10">
+                                    <button class="btn btn-ghost btn-sm" onclick="SyncCenter.openBackupHistoryTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); color: #cbd5e1;">
+                                        🔄 Tải lại
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="sc-backup-tab-main">
+                                <!-- Dynamic content rendered by SyncCenter.renderBackupHistoryTab() -->
                             </div>
                         </div>
                     </div>

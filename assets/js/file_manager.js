@@ -1740,6 +1740,15 @@ const SyncCenter = {
     backupSearch: '',
 
     openBackupHistory() {
+        const sideTab = document.getElementById('side-tab-backups');
+        if (sideTab) {
+            UI.switchProjectTab(sideTab, 'd_tab-backups');
+        } else {
+            this.openBackupHistoryTab();
+        }
+    },
+
+    openBackupHistoryTab() {
         const projectName = document.getElementById('detail-project-name')?.innerText?.trim() || (App.currentProject ? App.currentProject.name : '');
         if (!projectName) {
             UI.showToast('Vui lòng chọn dự án trước khi xem lịch sử backup!', 'warning');
@@ -1757,7 +1766,7 @@ const SyncCenter = {
                     return;
                 }
                 this.cachedBackups = res.backups || [];
-                this.renderBackupHistoryModal();
+                this.renderBackupHistoryTab();
             })
             .catch(() => {
                 UI.hideLoading();
@@ -1765,14 +1774,9 @@ const SyncCenter = {
             });
     },
 
-    closeBackupHistoryModal() {
-        const modal = document.getElementById('sc-backup-modal-container');
-        if (modal) modal.remove();
-    },
-
     setBackupFilter(type) {
         this.backupFilter = type;
-        document.querySelectorAll('#sc-backup-modal-container .sc-pill-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('#d_tab-backups .sc-pill-btn, #sc-backup-tab-main .sc-pill-btn').forEach(btn => btn.classList.remove('active'));
         const targetBtn = document.getElementById(`sc-bk-pill-${type}`);
         if (targetBtn) {
             targetBtn.classList.add('active');
@@ -1796,84 +1800,50 @@ const SyncCenter = {
         return list;
     },
 
-    renderBackupHistoryModal() {
-        let existing = document.getElementById('sc-backup-modal-container');
-        if (existing) existing.remove();
-
-        const modal = document.createElement('div');
-        modal.id = 'sc-backup-modal-container';
-        modal.className = 'sc-diff-overlay';
-        modal.onclick = (e) => {
-            if (e.target === modal) SyncCenter.closeBackupHistoryModal();
-        };
+    renderBackupHistoryTab() {
+        const container = document.getElementById('sc-backup-tab-main');
+        if (!container) return;
 
         const total = this.cachedBackups.length;
         const countUpload = this.cachedBackups.filter(b => b.type === 'remote_before_upload').length;
         const countDownload = this.cachedBackups.filter(b => b.type === 'local_before_download').length;
         const countEdit = this.cachedBackups.filter(b => b.type === 'remote_before_edit').length;
 
-        modal.innerHTML = `
-            <div class="sc-diff-dialog" style="max-width: 1200px; height: 85vh;">
-                <!-- Header -->
-                <div class="sc-diff-header">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <span style="font-size:22px;">📦</span>
-                        <div>
-                            <div style="font-size:15px; font-weight:700; color:#fff;">
-                                Lịch sử Sao lưu &amp; Khôi phục (Backup Snapshots)
-                            </div>
-                            <div style="font-size:12px; color:#94a3b8; margin-top:2px;">
-                                Tự động lưu trữ bản gốc trước mọi thao tác ghi đè — Khôi phục 1-click về Local hoặc Demo
-                            </div>
-                        </div>
-                    </div>
-                    <button class="btn btn-ghost" onclick="SyncCenter.closeBackupHistoryModal()" style="height:32px; width:32px; padding:0; border-radius:8px; font-size:16px;">✕</button>
+        container.innerHTML = `
+            <!-- Toolbar & Filter -->
+            <div style="padding: 4px 0 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 18px;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="sc-pill-btn pill-all ${this.backupFilter === 'all' ? 'active' : ''}" id="sc-bk-pill-all" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('all')">
+                        Tất cả <span class="sc-badge-count">${total}</span>
+                    </button>
+                    <button class="sc-pill-btn pill-up ${this.backupFilter === 'remote_before_upload' ? 'active' : ''}" id="sc-bk-pill-remote_before_upload" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_upload')">
+                        🛡️ Demo trước khi đè <span class="sc-badge-count">${countUpload}</span>
+                    </button>
+                    <button class="sc-pill-btn pill-down ${this.backupFilter === 'local_before_download' ? 'active' : ''}" id="sc-bk-pill-local_before_download" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('local_before_download')">
+                        💻 Local trước khi kéo <span class="sc-badge-count">${countDownload}</span>
+                    </button>
+                    <button class="sc-pill-btn pill-conflict ${this.backupFilter === 'remote_before_edit' ? 'active' : ''}" id="sc-bk-pill-remote_before_edit" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_edit')">
+                        ✎ Sửa trên Web <span class="sc-badge-count">${countEdit}</span>
+                    </button>
                 </div>
 
-                <!-- Toolbar & Filter -->
-                <div style="padding: 12px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="sc-pill-btn pill-all ${this.backupFilter === 'all' ? 'active' : ''}" id="sc-bk-pill-all" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('all')">
-                            Tất cả <span class="sc-badge-count">${total}</span>
-                        </button>
-                        <button class="sc-pill-btn pill-up ${this.backupFilter === 'remote_before_upload' ? 'active' : ''}" id="sc-bk-pill-remote_before_upload" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_upload')">
-                            🛡️ Demo trước khi đè <span class="sc-badge-count">${countUpload}</span>
-                        </button>
-                        <button class="sc-pill-btn pill-down ${this.backupFilter === 'local_before_download' ? 'active' : ''}" id="sc-bk-pill-local_before_download" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('local_before_download')">
-                            💻 Local trước khi kéo <span class="sc-badge-count">${countDownload}</span>
-                        </button>
-                        <button class="sc-pill-btn pill-conflict ${this.backupFilter === 'remote_before_edit' ? 'active' : ''}" id="sc-bk-pill-remote_before_edit" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_edit')">
-                            ✎ Sửa trên Web <span class="sc-badge-count">${countEdit}</span>
-                        </button>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-danger btn-sm" id="sc-btn-delete-backups" onclick="SyncCenter.deleteSelectedBackups()" style="display:none; height:34px; padding:0 12px; font-weight:700; background:#ef4444; color:#fff; border:none; border-radius:8px;">
+                        🗑️ Xóa đã chọn (<span id="sc-bk-selected-count">0</span>)
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="SyncCenter.clearAllBackups()" style="height:34px; padding:0 12px; font-size:12px; color:#f87171; border:1px solid rgba(248,113,113,0.3); border-radius:8px;" title="Xóa toàn bộ lịch sử sao lưu của dự án này">
+                        🗑️ Dọn sạch tất cả
+                    </button>
+                    <div style="min-width: 240px;">
+                        <input type="text" placeholder="🔍 Tìm theo đường dẫn file hoặc ngày..." style="width:100%; height:34px; padding:0 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.25); color:#fff; font-size:12.5px; outline:none; box-sizing:border-box;" oninput="SyncCenter.setBackupSearch(this.value)">
                     </div>
-
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <button class="btn btn-danger btn-sm" id="sc-btn-delete-backups" onclick="SyncCenter.deleteSelectedBackups()" style="display:none; height:34px; padding:0 12px; font-weight:700; background:#ef4444; color:#fff; border:none; border-radius:8px;">
-                            🗑️ Xóa đã chọn (<span id="sc-bk-selected-count">0</span>)
-                        </button>
-                        <button class="btn btn-ghost btn-sm" onclick="SyncCenter.clearAllBackups()" style="height:34px; padding:0 12px; font-size:12px; color:#f87171; border:1px solid rgba(248,113,113,0.3); border-radius:8px;" title="Xóa toàn bộ lịch sử sao lưu của dự án này">
-                            🗑️ Dọn sạch tất cả
-                        </button>
-                        <div style="min-width: 220px;">
-                            <input type="text" placeholder="🔍 Tìm theo đường dẫn file hoặc ngày..." style="width:100%; height:34px; padding:0 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.25); color:#fff; font-size:12.5px; outline:none; box-sizing:border-box;" oninput="SyncCenter.setBackupSearch(this.value)">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Body List Container -->
-                <div class="sc-diff-body" id="sc-backup-list-body" style="padding: 16px;"></div>
-
-                <!-- Footer -->
-                <div class="sc-diff-footer">
-                    <div style="font-size:12px; color:#64748b;">
-                        📁 Thư mục lưu trữ: <code>backups/sync_snapshots/</code>
-                    </div>
-                    <button class="btn btn-ghost" onclick="SyncCenter.closeBackupHistoryModal()" style="height:36px; padding:0 16px;">Đóng</button>
                 </div>
             </div>
+
+            <!-- Table Container -->
+            <div id="sc-backup-list-body"></div>
         `;
 
-        document.body.appendChild(modal);
         this.renderBackupList();
     },
 
@@ -2050,7 +2020,7 @@ const SyncCenter = {
             UI.hideLoading();
             if (res.status === 'success') {
                 UI.showToast(res.message || 'Đã xóa bản sao lưu thành công!', 'success');
-                this.openBackupHistory(); // Reload backup list
+                this.openBackupHistoryTab(); // Reload backup list in tab
             } else {
                 UI.showToast('Lỗi khi xóa: ' + res.message, 'error');
             }
@@ -2090,7 +2060,7 @@ const SyncCenter = {
             UI.hideLoading();
             if (res.status === 'success') {
                 UI.showToast(res.message || `Đã khôi phục thành công ${actionVerbLower} ${targetName}!`, 'success');
-                this.openBackupHistory(); // Reload list to show new restore backup
+                this.openBackupHistoryTab(); // Reload list in tab
                 this.scan(); // Rescan Sync Center
             } else {
                 UI.showToast('Lỗi khôi phục: ' + res.message, 'error');
