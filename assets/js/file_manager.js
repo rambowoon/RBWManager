@@ -1831,9 +1831,6 @@ const SyncCenter = {
                     <button class="btn btn-danger btn-sm" id="sc-btn-delete-backups" onclick="SyncCenter.deleteSelectedBackups()" style="display:none; height:34px; padding:0 12px; font-weight:700; background:#ef4444; color:#fff; border:none; border-radius:8px;">
                         🗑️ Xóa đã chọn (<span id="sc-bk-selected-count">0</span>)
                     </button>
-                    <button class="btn btn-ghost btn-sm" onclick="SyncCenter.clearAllBackups()" style="height:34px; padding:0 12px; font-size:12px; color:#f87171; border:1px solid rgba(248,113,113,0.3); border-radius:8px;" title="Xóa toàn bộ lịch sử sao lưu của dự án này">
-                        🗑️ Dọn sạch tất cả
-                    </button>
                     <div style="min-width: 240px;">
                         <input type="text" placeholder="🔍 Tìm theo đường dẫn file hoặc ngày..." style="width:100%; height:34px; padding:0 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.25); color:#fff; font-size:12.5px; outline:none; box-sizing:border-box;" oninput="SyncCenter.setBackupSearch(this.value)">
                     </div>
