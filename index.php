@@ -73,6 +73,10 @@
                         <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">⚙️</span>
                         Cấu hình &amp; Deploy
                     </div>
+                    <div class="nav-item project-side-tab" data-tab="d_tab-schema" onclick="UI.switchProjectTab(this, 'd_tab-schema')">
+                        <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">▤</span>
+                        Visual Schema
+                    </div>
                     <div class="nav-item project-side-tab" data-tab="d_tab-fonts" onclick="UI.switchProjectTab(this, 'd_tab-fonts')">
                         <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">🖋️</span>
                         Quản lý Fonts
@@ -343,6 +347,57 @@
                         <div class="master-config-area">
                             <div id="d_master-deployed-info" class="deployed-info-container"></div>
                             <div id="d_master-history-info"></div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: VISUAL SCHEMA BUILDER -->
+                    <div id="d_tab-schema" class="project-tab-content d-none">
+                        <div class="card-container card-padded" style="background: rgba(13, 17, 25, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; display: flex; flex-direction: column; min-height: calc(100vh - 140px);">
+                            <div class="flex-between-center-mb20" style="padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); flex-wrap: wrap; gap: 12px;">
+                                <div class="flex-align-center-gap10">
+                                    <div class="accent-bar-primary" style="width: 4px; height: 18px; border-radius: 2px; background: var(--accent-gradient, #00d2d3);"></div>
+                                    <div>
+                                        <h3 class="card-title-sm" style="font-size: 14px; font-weight: 800; letter-spacing: 0.03em; color: #fff; margin: 0;">VISUAL SCHEMA BUILDER</h3>
+                                        <p id="sb-project-name" style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Tùy biến trực quan cấu hình Type, Module và Form nhập liệu</p>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                                    <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                                        <span style="font-size: 0.75rem; color: var(--muted); font-weight: bold;">ĐA NGÔN NGỮ</span>
+                                        <label class="sb-switch">
+                                            <input type="checkbox" id="sb-global-lang" onchange="SchemaBuilder.toggleGlobalLang(this.checked)">
+                                            <span class="sb-slider"></span>
+                                        </label>
+                                    </div>
+                                    <select id="sb-file-select" class="form-control" style="width: 220px; height: 36px;" onchange="SchemaBuilder.loadSelectedFile()"></select>
+                                    <button type="button" class="btn btn-primary" id="sb-btn-save-top" onclick="SchemaBuilder.save()" style="height: 36px; padding: 0 16px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                                        💾 Lưu cấu hình
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="sb-content" style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; min-height: 650px; margin-bottom: 12px;">
+                                <div id="sb-form-wrapper" style="overflow-y: auto; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); max-height: calc(100vh - 230px);">
+                                    <div id="sb-form-container"></div>
+                                </div>
+                                <div id="sb-preview-wrapper" style="display: flex; flex-direction: column; background: #000; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); max-height: calc(100vh - 230px);">
+                                    <div style="display: flex; background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border);">
+                                        <button id="sb-tab-preview" class="btn btn-ghost active" onclick="SchemaBuilder.switchTab('preview')" style="border-radius: 0; border: none; border-bottom: 2px solid var(--primary); font-size: 0.75rem; padding: 10px 20px; font-weight: 600;">📄 DỮ LIỆU JSON</button>
+                                        <button id="sb-tab-structure" class="btn btn-ghost" onclick="SchemaBuilder.switchTab('structure')" style="border-radius: 0; border: none; font-size: 0.75rem; padding: 10px 20px; font-weight: 600;">🌿 CẤU TRÚC TYPE</button>
+                                    </div>
+                                    <div id="sb-preview-content" style="flex: 1; overflow-y: auto;">
+                                        <pre id="sb-live-preview" style="padding: 15px; color: #10b981; font-family: monospace; font-size: 0.75rem; margin: 0; white-space: pre-wrap;"></pre>
+                                        <div id="sb-structure-list" style="display: none; padding: 20px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
+                                <div id="sb-status" style="font-size: 0.85rem; color: var(--muted);"></div>
+                                <button type="button" class="btn btn-primary" id="sb-btn-save" onclick="SchemaBuilder.save()" style="padding: 8px 22px; font-weight: 700;">
+                                    💾 Lưu cấu hình
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -1350,53 +1405,6 @@ Pass: password123..." style="height:200px;"></textarea>
         </div>
     </div>
 
-
-    <!-- Schema Builder Modal -->
-    <div id="schema-builder-modal" class="modal-overlay">
-        <div class="modal" style="max-width: 1400px; width: 98%; height: 95vh; display: flex; flex-direction: column; padding: 20px;">
-            <div class="modal-header-flex">
-                <div>
-                    <h2 id="sb-title">Visual Schema Builder</h2>
-                    <p id="sb-project-name" style="color:var(--muted); font-size:0.8rem;"></p>
-                </div>
-                <div style="display:flex; gap:15px; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.05); padding:5px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.1);">
-                        <span style="font-size:0.75rem; color:var(--muted); font-weight:bold;">ĐA NGÔN NGỮ</span>
-                        <label class="sb-switch">
-                            <input type="checkbox" id="sb-global-lang" onchange="SchemaBuilder.toggleGlobalLang(this.checked)">
-                            <span class="sb-slider"></span>
-                        </label>
-                    </div>
-                    <select id="sb-file-select" class="form-control" style="width:200px;" onchange="SchemaBuilder.loadSelectedFile()"></select>
-                    <button class="btn btn-close-circle" onclick="UI.hideModal('schema-builder-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-                </div>
-            </div>
-            
-            <div id="sb-content" style="flex:1; display:grid; grid-template-columns: 1fr 1fr; gap:20px; overflow:hidden; margin:15px 0;">
-                <div id="sb-form-wrapper" style="overflow-y:auto; padding:20px; background:rgba(0,0,0,0.2); border-radius:12px;">
-                    <div id="sb-form-container"></div>
-                </div>
-                <div id="sb-preview-wrapper" style="display:flex; flex-direction:column; background:#000; border-radius:12px; overflow:hidden; border:1px solid var(--border);">
-                    <div style="display:flex; background:rgba(255,255,255,0.05); border-bottom:1px solid var(--border);">
-                        <button id="sb-tab-preview" class="btn btn-ghost active" onclick="SchemaBuilder.switchTab('preview')" style="border-radius:0; border:none; border-bottom:2px solid var(--primary); font-size:0.7rem; padding:10px 20px;">📄 DỮ LIỆU JSON</button>
-                        <button id="sb-tab-structure" class="btn btn-ghost" onclick="SchemaBuilder.switchTab('structure')" style="border-radius:0; border:none; font-size:0.7rem; padding:10px 20px;">🌿 CẤU TRÚC TYPE</button>
-                    </div>
-                    <div id="sb-preview-content" style="flex:1; overflow-y:auto;">
-                        <pre id="sb-live-preview" style="padding:15px; color:#10b981; font-family:monospace; font-size:0.75rem; margin:0; white-space:pre-wrap;"></pre>
-                        <div id="sb-structure-list" style="display:none; padding:20px;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal-footer-actions">
-                <div id="sb-status" style="font-size:0.85rem; color:var(--muted);"></div>
-                <div style="display:flex; gap:12px;">
-                    <button type="button" class="btn btn-ghost" onclick="UI.hideModal('schema-builder-modal')">Hủy</button>
-                    <button type="button" class="btn btn-primary" onclick="SchemaBuilder.save()">💾 Lưu cấu hình</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Add Option Popup -->
     <div id="sb-add-opt-modal" class="modal-overlay" style="z-index:10001; display:none; background:rgba(0,0,0,0.8); backdrop-filter:blur(4px); align-items:center; justify-content:center;">

@@ -576,7 +576,6 @@ const UI = {
 				<div class="chip-row">
 					<div class="chip ${isConfiguredLocal ? "locked" : "util"}" onclick="${isConfiguredLocal ? "UI.notify('Dự án này đã được cấu hình Source Local!', 'info')" : `App.setupLocalSource('${safeName}', '${safeCat}')`}"><div class="ic" style="background:${isConfiguredLocal ? "rgba(255,255,255,0.05)" : "var(--primary-glow)"};color:${isConfiguredLocal ? "var(--text-muted)" : "var(--primary)"};">${isConfiguredLocal ? "✓" : "🔧"}</div><div class="lbl">${isConfiguredLocal ? "Đã cấu hình Source" : "Cấu hình Source Local"}</div></div>
 					<div class="chip neutral" onclick="App.openAntigravity('${safeName}')"><div class="ic">▶</div><div class="lbl">Mở bằng Antigravity</div></div>
-					<div class="chip neutral" onclick="SchemaBuilder.init('${safeName}')"><div class="ic">▤</div><div class="lbl">Visual Schema</div></div>
 					<div class="chip util" onclick="UI.showChangeTypeModal('${safeName}', '${safeCat}')"><div class="ic">🔄</div><div class="lbl">Đổi Type DB</div></div>
 					<div class="chip util" onclick="App.integrateAMP('${safeName}','${safeCat}')"><div class="ic">⚡</div><div class="lbl">Tích hợp AMP</div></div>
 					<div class="chip util" onclick="App.clearProjectCache('${safeName}','${safeCat}')"><div class="ic">🧹</div><div class="lbl">Xóa cache trình duyệt</div></div>
@@ -1006,6 +1005,7 @@ const UI = {
 		// Update breadcrumb title
 		const tabTitles = {
 			'd_tab-config': 'Cấu hình & Deploy',
+			'd_tab-schema': 'Visual Schema',
 			'd_tab-fonts': 'Quản lý Fonts',
 			'd_tab-webp': 'Convert Ảnh WebP',
 			'd_tab-trim': 'Trim Ảnh',
@@ -1021,7 +1021,12 @@ const UI = {
 		}
 
 		// Hook for specific tabs
-		if (tabId === "d_tab-fonts") {
+		if (tabId === "d_tab-schema") {
+			const projectName =
+				document.getElementById("d_current-project")?.value ||
+				document.getElementById("detail-project-name")?.innerText || "";
+			if (typeof SchemaBuilder !== 'undefined') SchemaBuilder.init(projectName);
+		} else if (tabId === "d_tab-fonts") {
 			FontManager.loadCssPreview();
 		} else if (tabId === "d_tab-webp") {
 			WebpManager.loadImages();

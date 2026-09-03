@@ -7,9 +7,8 @@ const SchemaBuilder = {
 
 	async init(projectName) {
 		this.currentProject = projectName;
-		document.getElementById("sb-project-name").innerText =
-			`Project: ${projectName}`;
-		UI.showModal("schema-builder-modal");
+		const nameEl = document.getElementById("sb-project-name");
+		if (nameEl) nameEl.innerText = `Dự án: ${projectName}`;
 
 		if (!this.presets) {
 			await this.loadPresets();
@@ -1537,12 +1536,16 @@ const SchemaBuilder = {
 	},
 
 	async save() {
-		const btn = document.querySelector(
-			"#schema-builder-modal .btn-primary",
-		);
-		const originalText = btn.innerText;
-		btn.innerText = "⌛ Đang lưu (v2)...";
-		btn.disabled = true;
+		const btn =
+			document.getElementById("sb-btn-save") ||
+			document.getElementById("sb-btn-save-top") ||
+			document.querySelector("#d_tab-schema .btn-primary") ||
+			document.querySelector(".btn-primary");
+		const originalText = btn ? btn.innerText : "💾 Lưu cấu hình";
+		if (btn) {
+			btn.innerText = "⌛ Đang lưu...";
+			btn.disabled = true;
+		}
 
 		try {
 			// Deep clone and reorder
@@ -1563,15 +1566,16 @@ const SchemaBuilder = {
 
 			if (res.status === "success") {
 				UI.notify("Đã lưu cấu hình Schema thành công!", "success");
-				// UI.hideModal('schema-builder-modal');
 			} else {
 				UI.notify("Lỗi: " + res.message, "error");
 			}
 		} catch (err) {
 			UI.notify("Không thể kết nối Api.", "error");
 		} finally {
-			btn.innerText = originalText;
-			btn.disabled = false;
+			if (btn) {
+				btn.innerText = originalText;
+				btn.disabled = false;
+			}
 		}
 	},
 
