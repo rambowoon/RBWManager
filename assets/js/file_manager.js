@@ -1734,12 +1734,15 @@ const SyncCenter = {
     backupSearch: '',
 
     openBackupHistory() {
-        const projectName = document.getElementById('detail-project-name')?.innerText;
-        if (!projectName) return;
+        const projectName = document.getElementById('detail-project-name')?.innerText?.trim() || (App.currentProject ? App.currentProject.name : '');
+        if (!projectName) {
+            UI.showToast('Vui lòng chọn dự án trước khi xem lịch sử backup!', 'warning');
+            return;
+        }
 
         UI.showToast('Đang tải danh sách bản sao lưu...', 'info');
 
-        fetch(`api.php?action=fmListBackups&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory)}`)
+        fetch(`api.php?action=fmListBackups&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory || 'projects')}`)
             .then(r => r.json())
             .then(res => {
                 if (res.status !== 'success') {
