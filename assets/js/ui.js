@@ -915,7 +915,7 @@ const UI = {
 			container = document.createElement("div");
 			container.id = "toast-container";
 			container.style.cssText =
-				"position:fixed; bottom:24px; right:24px; z-index:99999; display:flex; flex-direction:column; gap:10px; pointer-events:none;";
+				"position:fixed; bottom:24px; right:24px; z-index:1000000; display:flex; flex-direction:column; gap:10px; pointer-events:none;";
 			document.body.appendChild(container);
 		}
 
