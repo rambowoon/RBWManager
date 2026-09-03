@@ -280,8 +280,8 @@
                         <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-trim')">✂️ Trim Ảnh</button>
                         <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-auto-media')">🤖 Tự động Map Ảnh</button>
                         <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-seed')">🌱 Tạo Dữ Liệu Mẫu</button>
-                        <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-filemanager'); typeof FileManager !== 'undefined' && FileManager.init()">📁 Quản lý File (Host)</button>
-                        <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-synccenter'); typeof SyncCenter !== 'undefined' && SyncCenter.init()">🔄 Sync Center</button>
+                        <button id="tab-btn-filemanager" class="btn btn-ghost project-tab-btn tab" style="display:none;" onclick="UI.switchProjectTab(this, 'd_tab-filemanager'); typeof FileManager !== 'undefined' && FileManager.init()">📁 Quản lý File (Host)</button>
+                        <button id="tab-btn-synccenter" class="btn btn-ghost project-tab-btn tab" style="display:none;" onclick="UI.switchProjectTab(this, 'd_tab-synccenter'); typeof SyncCenter !== 'undefined' && SyncCenter.init()">🔄 Sync Center</button>
                     </div>
 
                     <!-- TAB: CONFIG & DEPLOY -->

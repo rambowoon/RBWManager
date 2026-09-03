@@ -452,6 +452,21 @@ const UI = {
 		this.renderMasterActions(name, category, config, "d_");
 		this.renderMasterDeployedInfo(deployed, "d_");
 		this.renderMasterHistoryInfo(config.history, "d_");
+
+		// Show / Hide Hosting File Manager & Sync Center tabs only if project is deployed to Demo
+		const hasDemo = !!(deployed && deployed.demo && (deployed.demo.deploy_time || deployed.demo.url || deployed.demo.server_id || deployed.demo.demo_server_id));
+		const fmBtn = document.getElementById("tab-btn-filemanager");
+		const syncBtn = document.getElementById("tab-btn-synccenter");
+		if (fmBtn) fmBtn.style.display = hasDemo ? "" : "none";
+		if (syncBtn) syncBtn.style.display = hasDemo ? "" : "none";
+
+		if (!hasDemo) {
+			const activeTab = document.querySelector('.project-master-tabs .tab.active');
+			if (activeTab && (activeTab.id === 'tab-btn-filemanager' || activeTab.id === 'tab-btn-synccenter')) {
+				const firstTabBtn = document.querySelector('.project-master-tabs .tab');
+				if (firstTabBtn) this.switchProjectTab(firstTabBtn, 'd_tab-config');
+			}
+		}
 	},
 
 	renderMasterActions(name, category, config, prefix = "") {
