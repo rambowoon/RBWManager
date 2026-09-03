@@ -82,6 +82,19 @@ function saveSyncAutoBackup($projectName, $category, $subFolder, $cleanPath, $co
     $fileName = basename($cleanPath);
     $backupFile = "{$backupDir}/[{$timePrefix}]_{$fileName}";
     @file_put_contents($backupFile, $content);
+
+    $metaFile = "{$backupDir}/[{$timePrefix}]_{$fileName}.meta.json";
+    @file_put_contents($metaFile, json_encode([
+        'original_rel_path' => $cleanPath,
+        'category' => $category,
+        'project_name' => $projectName,
+        'type' => $subFolder,
+        'date' => $dateFolder,
+        'time' => date('H:i:s'),
+        'timestamp' => time(),
+        'size' => strlen($content),
+        'backup_file' => "{$dateFolder}/{$subFolder}/" . dirname($cleanPath) . "/[{$timePrefix}]_{$fileName}"
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
 $cliInputData = null;
@@ -844,6 +857,9 @@ switch ($action) {
     case 'fmGet':
     case 'fmSave':
     case 'fmGetDiff':
+    case 'fmListBackups':
+    case 'fmGetBackupContent':
+    case 'fmRestoreBackup':
     case 'fmDelete':
     case 'fmUpload':
     case 'fmCreateDir':
@@ -952,6 +968,107 @@ switch ($action) {
                     'size' => $remoteSize
                 ]
             ]);
+        }
+        elseif ($action === 'fmListBackups') {
+            $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
+            $backupBase = __DIR__ . "/backups/sync_snapshots/{$safeProj}";
+            $backups = [];
+            
+            if (is_dir($backupBase)) {
+                $scanMeta = function($dir) use (&$scanMeta, &$backups) {
+                    $items = @scandir($dir);
+                    if ($items === false) return;
+                    foreach ($items as $item) {
+                        if ($item === '.' || $item === '..') continue;
+                        $path = $dir . '/' . $item;
+                        if (is_dir($path)) {
+                            $scanMeta($path);
+                        } elseif (substr($item, -10) === '.meta.json') {
+                            $raw = @file_get_contents($path);
+                            if ($raw) {
+                                $meta = json_decode($raw, true);
+                                if ($meta) {
+                                    $backups[] = $meta;
+                                }
+                            }
+                        }
+                    }
+                };
+                $scanMeta($backupBase);
+                
+                // Sort newest first
+                usort($backups, function($a, $b) {
+                    return ($b['timestamp'] ?? 0) - ($a['timestamp'] ?? 0);
+                });
+            }
+            
+            echo json_encode(['status' => 'success', 'backups' => $backups]);
+        }
+        elseif ($action === 'fmGetBackupContent') {
+            $backupFile = $data['backup_file'] ?? $_GET['backup_file'] ?? '';
+            $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
+            $fullBackupPath = __DIR__ . "/backups/sync_snapshots/{$safeProj}/" . ltrim(str_replace(['..', '\\'], ['', '/'], $backupFile), '/');
+            
+            if (file_exists($fullBackupPath)) {
+                $content = file_get_contents($fullBackupPath);
+                echo json_encode(['status' => 'success', 'content' => $content]);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'File backup không tồn tại hoặc đã bị xóa']);
+            }
+        }
+        elseif ($action === 'fmRestoreBackup') {
+            $backupFile = $data['backup_file'] ?? '';
+            $target = $data['target'] ?? 'local'; // 'local' or 'remote'
+            $relPath = $data['path'] ?? '';
+            
+            if (!$project) {
+                echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
+                break;
+            }
+            if (empty($backupFile) || empty($relPath)) {
+                echo json_encode(['status' => 'error', 'message' => 'Thiếu thông tin file khôi phục']);
+                break;
+            }
+            
+            $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
+            $fullBackupPath = __DIR__ . "/backups/sync_snapshots/{$safeProj}/" . ltrim(str_replace(['..', '\\'], ['', '/'], $backupFile), '/');
+            
+            if (!file_exists($fullBackupPath)) {
+                echo json_encode(['status' => 'error', 'message' => 'File backup không tồn tại']);
+                break;
+            }
+            
+            $backupContent = file_get_contents($fullBackupPath);
+            $cleanRelPath = ltrim(str_replace('\\', '/', $relPath), '/');
+            
+            if ($target === 'local') {
+                $localFile = rtrim(str_replace('\\', '/', $project['path']), '/') . '/' . $cleanRelPath;
+                // Safety backup current local file
+                if (file_exists($localFile)) {
+                    saveSyncAutoBackup($projectName, $category, 'local_before_restore', $cleanRelPath, @file_get_contents($localFile));
+                }
+                $dir = dirname($localFile);
+                if (!is_dir($dir)) @mkdir($dir, 0777, true);
+                @file_put_contents($localFile, $backupContent);
+                echo json_encode(['status' => 'success', 'message' => "Đã khôi phục file {$cleanRelPath} về Local thành công!"]);
+            } else {
+                // Restore to Remote Demo
+                $restoreRemotePath = rtrim($ftpRoot, '/') . '/' . $cleanRelPath;
+                $restoreUrl = "ftp://$host$restoreRemotePath";
+                
+                // Safety backup current remote file
+                $existingRemote = RemoteClient::getFtpFileContent($restoreUrl, $userPwd);
+                if (($existingRemote['status'] ?? '') === 'success' && isset($existingRemote['content'])) {
+                    saveSyncAutoBackup($projectName, $category, 'remote_before_restore', $cleanRelPath, $existingRemote['content']);
+                }
+                
+                $res = RemoteClient::saveFtpFileContent($restoreUrl, $userPwd, $backupContent);
+                if ($res === true) {
+                    echo json_encode(['status' => 'success', 'message' => "Đã khôi phục file {$cleanRelPath} lên Demo Hosting thành công!"]);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Lỗi FTP khi khôi phục: ' . $res]);
+                }
+            }
         }
         elseif ($action === 'fmDelete') {
             $isDir = !empty($data['isDir']);

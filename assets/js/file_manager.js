@@ -1705,6 +1705,329 @@ const SyncCenter = {
         });
     },
 
+    // ==========================================
+    // BACKUP & RESTORE HISTORY MANAGEMENT
+    // ==========================================
+    cachedBackups: [],
+    backupFilter: 'all',
+    backupSearch: '',
+
+    openBackupHistory() {
+        const projectName = document.getElementById('detail-project-name')?.innerText;
+        if (!projectName) return;
+
+        UI.showToast('Đang tải danh sách bản sao lưu...', 'info');
+
+        fetch(`api.php?action=fmListBackups&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory)}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.status !== 'success') {
+                    UI.showToast('Không thể tải lịch sử backup: ' + (res.message || 'Lỗi server'), 'error');
+                    return;
+                }
+                this.cachedBackups = res.backups || [];
+                this.renderBackupHistoryModal();
+            })
+            .catch(() => {
+                UI.showToast('Lỗi kết nối khi lấy lịch sử backup', 'error');
+            });
+    },
+
+    closeBackupHistoryModal() {
+        const modal = document.getElementById('sc-backup-modal-container');
+        if (modal) modal.remove();
+    },
+
+    setBackupFilter(type) {
+        this.backupFilter = type;
+        this.renderBackupList();
+    },
+
+    setBackupSearch(query) {
+        this.backupSearch = (query || '').toLowerCase().trim();
+        this.renderBackupList();
+    },
+
+    getFilteredBackups() {
+        let list = this.cachedBackups;
+        if (this.backupFilter !== 'all') {
+            list = list.filter(b => b.type === this.backupFilter);
+        }
+        if (this.backupSearch) {
+            list = list.filter(b => (b.original_rel_path || '').toLowerCase().includes(this.backupSearch) || (b.date || '').includes(this.backupSearch));
+        }
+        return list;
+    },
+
+    renderBackupHistoryModal() {
+        let existing = document.getElementById('sc-backup-modal-container');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'sc-backup-modal-container';
+        modal.className = 'sc-diff-overlay';
+        modal.onclick = (e) => {
+            if (e.target === modal) SyncCenter.closeBackupHistoryModal();
+        };
+
+        const total = this.cachedBackups.length;
+        const countUpload = this.cachedBackups.filter(b => b.type === 'remote_before_upload').length;
+        const countDownload = this.cachedBackups.filter(b => b.type === 'local_before_download').length;
+        const countEdit = this.cachedBackups.filter(b => b.type === 'remote_before_edit').length;
+
+        modal.innerHTML = `
+            <div class="sc-diff-dialog" style="max-width: 1200px; height: 85vh;">
+                <!-- Header -->
+                <div class="sc-diff-header">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:22px;">📦</span>
+                        <div>
+                            <div style="font-size:15px; font-weight:700; color:#fff;">
+                                Lịch sử Sao lưu &amp; Khôi phục (Backup Snapshots)
+                            </div>
+                            <div style="font-size:12px; color:#94a3b8; margin-top:2px;">
+                                Tự động lưu trữ bản gốc trước mọi thao tác ghi đè — Khôi phục 1-click về Local hoặc Demo
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-ghost" onclick="SyncCenter.closeBackupHistoryModal()" style="height:32px; width:32px; padding:0; border-radius:8px; font-size:16px;">✕</button>
+                </div>
+
+                <!-- Toolbar & Filter -->
+                <div style="padding: 12px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="sc-pill-btn pill-all ${this.backupFilter === 'all' ? 'active' : ''}" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('all')">
+                            Tất cả <span class="sc-badge-count">${total}</span>
+                        </button>
+                        <button class="sc-pill-btn pill-up ${this.backupFilter === 'remote_before_upload' ? 'active' : ''}" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_upload')">
+                            🛡️ Demo trước khi đè <span class="sc-badge-count">${countUpload}</span>
+                        </button>
+                        <button class="sc-pill-btn pill-down ${this.backupFilter === 'local_before_download' ? 'active' : ''}" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('local_before_download')">
+                            💻 Local trước khi kéo <span class="sc-badge-count">${countDownload}</span>
+                        </button>
+                        <button class="sc-pill-btn pill-conflict ${this.backupFilter === 'remote_before_edit' ? 'active' : ''}" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_edit')">
+                            ✎ Sửa trên Web <span class="sc-badge-count">${countEdit}</span>
+                        </button>
+                    </div>
+
+                    <div style="min-width: 260px;">
+                        <input type="text" placeholder="🔍 Tìm theo đường dẫn file hoặc ngày..." style="width:100%; height:34px; padding:0 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.25); color:#fff; font-size:12.5px; outline:none; box-sizing:border-box;" oninput="SyncCenter.setBackupSearch(this.value)">
+                    </div>
+                </div>
+
+                <!-- Body List Container -->
+                <div class="sc-diff-body" id="sc-backup-list-body" style="padding: 16px;"></div>
+
+                <!-- Footer -->
+                <div class="sc-diff-footer">
+                    <div style="font-size:12px; color:#64748b;">
+                        📁 Thư mục lưu trữ: <code>backups/sync_snapshots/</code>
+                    </div>
+                    <button class="btn btn-ghost" onclick="SyncCenter.closeBackupHistoryModal()" style="height:36px; padding:0 16px;">Đóng</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        this.renderBackupList();
+    },
+
+    renderBackupList() {
+        const container = document.getElementById('sc-backup-list-body');
+        if (!container) return;
+
+        const list = this.getFilteredBackups();
+
+        if (list.length === 0) {
+            container.innerHTML = `
+                <div style="padding: 60px 20px; text-align: center; color: #64748b;">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:10px; opacity:0.5;"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+                    <div style="font-size: 14px; font-weight: 600; color: #cbd5e1;">Chưa có bản sao lưu nào khớp</div>
+                    <p style="font-size: 12px; margin: 4px 0 0;">Bản sao lưu sẽ tự động được tạo mỗi khi bạn thực hiện Đồng bộ (Sync) hoặc Sửa file.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
+            <table class="sc-table">
+                <thead>
+                    <tr>
+                        <th style="width: 175px; white-space: nowrap;">Thời gian Sao lưu</th>
+                        <th>Đường dẫn File gốc</th>
+                        <th style="width: 190px; white-space: nowrap;">Loại Snapshot</th>
+                        <th style="width: 100px; white-space: nowrap;">Dung lượng</th>
+                        <th style="width: 250px; text-align: right; white-space: nowrap;">Khôi phục (Rollback)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        list.forEach(item => {
+            const path = item.original_rel_path || '';
+            const icon = this.getFileIcon(path);
+            const backupFile = item.backup_file || '';
+            
+            let typeLabel = '';
+            let typeTagClass = '';
+            if (item.type === 'remote_before_upload') {
+                typeLabel = '🛡️ Demo (Trước khi Upload)';
+                typeTagClass = 'sc-tag-emerald';
+            } else if (item.type === 'local_before_download') {
+                typeLabel = '💻 Local (Trước khi Download)';
+                typeTagClass = 'sc-tag-purple';
+            } else if (item.type === 'remote_before_edit') {
+                typeLabel = '✎ Demo (Trước khi Sửa Web)';
+                typeTagClass = 'sc-tag-cyan';
+            } else {
+                typeLabel = '⏪ Bản lưu trước Restore';
+                typeTagClass = 'sc-tag-indigo';
+            }
+
+            html += `
+                <tr>
+                    <td style="white-space: nowrap; font-family: var(--mono, monospace); font-size: 12px; color: #94a3b8;">
+                        <span style="color: #f8fafc; font-weight: 600;">${this.escapeHtml(item.time || '')}</span> 
+                        <span style="color: #64748b; font-size: 11px;">${this.escapeHtml(item.date || '')}</span>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            ${icon}
+                            <span style="font-family: var(--mono, monospace); font-size: 12.5px; color: #f8fafc; font-weight: 600; word-break: break-all;">
+                                ${this.escapeHtml(path)}
+                            </span>
+                        </div>
+                    </td>
+                    <td style="white-space: nowrap;">
+                        <span class="sc-tag ${typeTagClass}">${typeLabel}</span>
+                    </td>
+                    <td style="white-space: nowrap; font-family: var(--mono, monospace); font-size: 12px; color: #94a3b8;">
+                        ${this.formatBytes(item.size)}
+                    </td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <div style="display: inline-flex; align-items: center; gap: 6px;">
+                            <button class="sc-btn-diff" onclick="SyncCenter.previewBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}')" title="Xem nội dung code bản snapshot này">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span>Xem</span>
+                            </button>
+                            <button class="btn btn-ghost btn-sm" style="height:30px; padding:0 10px; font-size:11.5px; font-weight:700; color:#c084fc; border-color:rgba(168,85,247,0.3);" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'local')" title="Khôi phục ghi đè lại file Local">
+                                ⏪ Về Local
+                            </button>
+                            <button class="btn btn-ghost btn-sm" style="height:30px; padding:0 10px; font-size:11.5px; font-weight:700; color:#34d399; border-color:rgba(16,185,129,0.3);" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'remote')" title="Khôi phục ghi đè lại lên Demo Hosting">
+                                ⏪ Về Demo
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+    },
+
+    restoreBackup(backupFile, path, target) {
+        const targetName = target === 'local' ? 'Local Workspace' : 'Demo Hosting';
+        if (!confirm(`Xác nhận KHÔI PHỤC file:\n${path}\n\n➔ Đích đến: ${targetName}\n\n🛡️ Bản file hiện tại sẽ được tự động sao lưu an toàn trước khi khôi phục.`)) {
+            return;
+        }
+
+        const projectName = document.getElementById('detail-project-name')?.innerText;
+        UI.showToast(`Đang khôi phục file về ${targetName}...`, 'info');
+
+        fetch('api.php?action=fmRestoreBackup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: projectName,
+                category: App.currentCategory,
+                backup_file: backupFile,
+                path: path,
+                target: target
+            })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'success') {
+                UI.showToast(res.message || `Đã khôi phục thành công về ${targetName}!`, 'success');
+                this.openBackupHistory(); // Reload list to show new restore backup
+                this.scan(); // Rescan Sync Center
+            } else {
+                UI.showToast('Lỗi khôi phục: ' + res.message, 'error');
+            }
+        })
+        .catch(() => {
+            UI.showToast('Lỗi kết nối khi khôi phục', 'error');
+        });
+    },
+
+    previewBackup(backupFile, path) {
+        const projectName = document.getElementById('detail-project-name')?.innerText;
+        UI.showToast('Đang tải nội dung bản sao lưu...', 'info');
+
+        fetch(`api.php?action=fmGetBackupContent&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory)}&backup_file=${encodeURIComponent(backupFile)}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.status !== 'success') {
+                    UI.showToast('Không thể đọc file: ' + res.message, 'error');
+                    return;
+                }
+
+                let previewModal = document.getElementById('sc-backup-preview-modal');
+                if (previewModal) previewModal.remove();
+
+                previewModal = document.createElement('div');
+                previewModal.id = 'sc-backup-preview-modal';
+                previewModal.className = 'sc-diff-overlay';
+                previewModal.style.zIndex = '10060';
+                previewModal.onclick = (e) => {
+                    if (e.target === previewModal) previewModal.remove();
+                };
+
+                const lines = (res.content || '').split('\n');
+                let codeHtml = '';
+                lines.forEach((line, idx) => {
+                    codeHtml += `
+                        <div class="diff-line">
+                            <span class="diff-num">${idx + 1}</span>
+                            <span class="diff-text">${this.escapeHtml(line)}</span>
+                        </div>
+                    `;
+                });
+
+                previewModal.innerHTML = `
+                    <div class="sc-diff-dialog" style="max-width: 1100px; height: 80vh;">
+                        <div class="sc-diff-header">
+                            <div style="font-size: 14px; font-weight: 700; color: #fff; font-family: var(--mono, monospace);">
+                                📄 Xem Snapshot: ${this.escapeHtml(path)}
+                            </div>
+                            <button class="btn btn-ghost" onclick="document.getElementById('sc-backup-preview-modal').remove()" style="height:30px; width:30px; padding:0; border-radius:8px;">✕</button>
+                        </div>
+                        <div class="sc-diff-body" style="padding: 10px 0;">
+                            ${codeHtml}
+                        </div>
+                        <div class="sc-diff-footer">
+                            <span style="font-size: 12px; color: #94a3b8;">${lines.length} dòng | ${this.formatBytes(res.content.length)}</span>
+                            <div style="display:flex; gap:10px;">
+                                <button class="btn btn-ghost" onclick="document.getElementById('sc-backup-preview-modal').remove()">Đóng</button>
+                                <button class="btn btn-primary" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'local'); document.getElementById('sc-backup-preview-modal').remove();">
+                                    ⏪ Khôi phục về Local
+                                </button>
+                                <button class="btn" style="background:linear-gradient(135deg, #10b981, #059669); color:#fff; font-weight:700;" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'remote'); document.getElementById('sc-backup-preview-modal').remove();">
+                                    ⏪ Khôi phục về Demo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(previewModal);
+            })
+            .catch(() => {
+                UI.showToast('Lỗi kết nối khi tải nội dung snapshot', 'error');
+            });
+    },
+
     formatBytes(bytes) {
         if (!bytes || bytes === 0) return '0 B';
         const k = 1024;

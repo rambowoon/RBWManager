@@ -530,8 +530,11 @@
                                     </div>
                                 </div>
                                 <div class="flex-align-center-gap10">
+                                    <button class="btn btn-ghost btn-sm" onclick="SyncCenter.openBackupHistory()" style="display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); color: #cbd5e1;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 📦 Lịch sử Backup &amp; Khôi phục
+                                    </button>
                                     <button class="btn btn-outline btn-sm" onclick="SyncCenter.scan()" style="display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15);">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Quét & So sánh
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Quét &amp; So sánh
                                     </button>
                                 </div>
                             </div>
