@@ -1943,7 +1943,7 @@ const SyncCenter = {
                                 ⏪ Về Local
                             </button>
                             <button class="btn btn-ghost btn-sm" style="height:30px; padding:0 10px; font-size:11.5px; font-weight:700; color:#34d399; border-color:rgba(16,185,129,0.3);" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'remote')" title="Khôi phục ghi đè lại lên Demo Hosting">
-                                ⏪ Về Demo
+                                ⏫ Lên Demo
                             </button>
                         </div>
                     </td>
@@ -1956,13 +1956,17 @@ const SyncCenter = {
     },
 
     async restoreBackup(backupFile, path, target) {
-        const targetName = target === 'local' ? 'Local Workspace' : 'Demo Hosting';
-        if (!await UI.confirm(`Xác nhận KHÔI PHỤC file:\n${path}\n\n➔ Đích đến: ${targetName}\n\n🛡️ Bản file hiện tại sẽ được tự động sao lưu an toàn trước khi khôi phục.`)) {
+        const isRemote = target === 'remote';
+        const targetName = isRemote ? 'Demo Hosting' : 'Local Workspace';
+        const actionVerb = isRemote ? 'LÊN' : 'VỀ';
+        const actionVerbLower = isRemote ? 'lên' : 'về';
+        
+        if (!await UI.confirm(`Xác nhận KHÔI PHỤC ${actionVerb} ${targetName} cho file:\n${path}\n\n🛡️ Bản file hiện tại sẽ được tự động sao lưu an toàn trước khi khôi phục.`)) {
             return;
         }
 
         const projectName = document.getElementById('detail-project-name')?.innerText;
-        UI.showToast(`Đang khôi phục file về ${targetName}...`, 'info');
+        UI.showToast(`Đang khôi phục file ${actionVerbLower} ${targetName}...`, 'info');
 
         fetch('api.php?action=fmRestoreBackup', {
             method: 'POST',
@@ -1978,7 +1982,7 @@ const SyncCenter = {
         .then(r => r.json())
         .then(res => {
             if (res.status === 'success') {
-                UI.showToast(res.message || `Đã khôi phục thành công về ${targetName}!`, 'success');
+                UI.showToast(res.message || `Đã khôi phục thành công ${actionVerbLower} ${targetName}!`, 'success');
                 this.openBackupHistory(); // Reload list to show new restore backup
                 this.scan(); // Rescan Sync Center
             } else {
@@ -2043,7 +2047,7 @@ const SyncCenter = {
                                     ⏪ Khôi phục về Local
                                 </button>
                                 <button class="btn" style="background:linear-gradient(135deg, #10b981, #059669); color:#fff; font-weight:700;" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'remote'); document.getElementById('sc-backup-preview-modal').remove();">
-                                    ⏪ Khôi phục về Demo
+                                    ⏫ Khôi phục lên Demo
                                 </button>
                             </div>
                         </div>
