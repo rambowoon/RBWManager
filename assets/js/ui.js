@@ -45,6 +45,32 @@ const UI = {
 			overlay.querySelector('#ui-alert-ok').onclick = () => { overlay.remove(); resolve(); };
 		});
 	},
+
+	showLoading(message = 'Đang xử lý...') {
+		let overlay = document.getElementById('ui-loading-overlay');
+		if (!overlay) {
+			overlay = document.createElement('div');
+			overlay.id = 'ui-loading-overlay';
+			overlay.className = 'modal-overlay';
+			overlay.style.cssText = 'position:fixed; inset:0; z-index:1000001; background:rgba(6,9,15,0.75); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; animation:modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);';
+			overlay.innerHTML = `
+				<div style="background:#131822; border:1px solid rgba(255,255,255,0.12); padding:24px 32px; border-radius:16px; box-shadow:0 24px 60px rgba(0,0,0,0.6); display:flex; flex-direction:column; align-items:center; gap:14px; min-width:220px; max-width:360px; text-align:center;">
+					<div class="loader" style="width:34px; height:34px; border:3px solid rgba(0,210,211,0.15); border-top-color:var(--primary, #00d2d3); border-radius:50%; animation:sc-spin 0.8s linear infinite;"></div>
+					<div id="ui-loading-msg" style="color:#f1f5f9; font-size:13px; font-weight:600; line-height:1.5;">${message}</div>
+				</div>
+			`;
+			document.body.appendChild(overlay);
+		} else {
+			const msgEl = overlay.querySelector('#ui-loading-msg');
+			if (msgEl) msgEl.innerText = message;
+			overlay.style.display = 'flex';
+		}
+	},
+
+	hideLoading() {
+		const overlay = document.getElementById('ui-loading-overlay');
+		if (overlay) overlay.remove();
+	},
 	renderCategories(categories) {
 		const sidebar = document.getElementById("category-sidebar");
 		if (!sidebar) return;

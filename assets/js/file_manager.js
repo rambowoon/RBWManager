@@ -1373,13 +1373,14 @@ const SyncCenter = {
         
         if (!await UI.confirm(`Xác nhận đồng bộ?\n- Đẩy lên Demo: ${actions.upload.length} files\n- Kéo về Local: ${actions.download.length} files\n\n🛡️ Hệ thống sẽ TỰ ĐỘNG BACKUP file cũ trước khi ghi đè.`)) return;
         
-        UI.showToast('Đang thực thi đồng bộ & tạo backup an toàn...', 'info');
+        UI.showLoading('Đang đồng bộ các file & tạo bản sao lưu an toàn...');
         
         const btnText = document.getElementById('sc-btn-execute-text');
         const oldText = btnText ? btnText.innerText : 'THỰC THI';
         if (btnText) btnText.innerHTML = '<span class="loader" style="width:12px; height:12px; border-width:2px; display:inline-block; margin-right:6px;"></span> ĐANG ĐỒNG BỘ...';
         
         this.runExecuteApi(actions).then(res => {
+            UI.hideLoading();
             if (res.status === 'success') {
                 const results = res.results || [];
                 const errors = results.filter(r => r.status === 'error');
@@ -1394,6 +1395,7 @@ const SyncCenter = {
                 if (btnText) btnText.innerText = oldText;
             }
         }).catch(err => {
+            UI.hideLoading();
             UI.showToast('Lỗi kết nối khi đồng bộ', 'error');
             if (btnText) btnText.innerText = oldText;
         });
@@ -1422,11 +1424,12 @@ const SyncCenter = {
         const projectName = document.getElementById('detail-project-name')?.innerText;
         if (!projectName) return;
 
-        UI.showToast('Đang nạp dữ liệu so sánh file...', 'info');
+        UI.showLoading('Đang phân tích & so sánh nội dung file...');
 
         fetch(`api.php?action=fmGetDiff&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory)}&path=${encodeURIComponent(path)}`)
             .then(r => r.json())
             .then(res => {
+                UI.hideLoading();
                 if (res.status !== 'success') {
                     UI.showToast('Không thể đọc file để so sánh: ' + (res.message || 'Lỗi server'), 'error');
                     return;
@@ -1435,6 +1438,7 @@ const SyncCenter = {
                 this.renderDiffModal(res);
             })
             .catch(err => {
+                UI.hideLoading();
                 UI.showToast('Lỗi kết nối khi tải diff', 'error');
             });
     },
@@ -1711,9 +1715,10 @@ const SyncCenter = {
         const actions = { upload: [], download: [] };
         actions[action].push(path);
 
-        UI.showToast('Đang thực thi đồng bộ...', 'info');
+        UI.showLoading(`Đang ${action === 'upload' ? 'đẩy' : 'kéo'} file & tạo bản sao lưu...`);
 
         this.runExecuteApi(actions).then(res => {
+            UI.hideLoading();
             if (res.status === 'success') {
                 UI.showToast(`Đã ${action === 'upload' ? 'đẩy' : 'kéo'} file thành công & đã tự động backup!`, 'success');
                 this.closeDiffModal();
@@ -1722,6 +1727,7 @@ const SyncCenter = {
                 UI.showToast('Lỗi đồng bộ: ' + res.message, 'error');
             }
         }).catch(err => {
+            UI.hideLoading();
             UI.showToast('Lỗi kết nối khi đồng bộ', 'error');
         });
     },
@@ -1740,11 +1746,12 @@ const SyncCenter = {
             return;
         }
 
-        UI.showToast('Đang tải danh sách bản sao lưu...', 'info');
+        UI.showLoading('Đang tải danh sách bản sao lưu...');
 
         fetch(`api.php?action=fmListBackups&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory || 'projects')}`)
             .then(r => r.json())
             .then(res => {
+                UI.hideLoading();
                 if (res.status !== 'success') {
                     UI.showToast('Không thể tải lịch sử backup: ' + (res.message || 'Lỗi server'), 'error');
                     return;
@@ -1753,6 +1760,7 @@ const SyncCenter = {
                 this.renderBackupHistoryModal();
             })
             .catch(() => {
+                UI.hideLoading();
                 UI.showToast('Lỗi kết nối khi lấy lịch sử backup', 'error');
             });
     },
@@ -2026,7 +2034,7 @@ const SyncCenter = {
 
     runDeleteBackupsApi(payload) {
         const projectName = document.getElementById('detail-project-name')?.innerText?.trim() || (App.currentProject ? App.currentProject.name : '');
-        UI.showToast('Đang xóa bản sao lưu...', 'info');
+        UI.showLoading('Đang xóa bản sao lưu...');
 
         fetch('api.php?action=fmDeleteBackups', {
             method: 'POST',
@@ -2039,6 +2047,7 @@ const SyncCenter = {
         })
         .then(r => r.json())
         .then(res => {
+            UI.hideLoading();
             if (res.status === 'success') {
                 UI.showToast(res.message || 'Đã xóa bản sao lưu thành công!', 'success');
                 this.openBackupHistory(); // Reload backup list
@@ -2047,6 +2056,7 @@ const SyncCenter = {
             }
         })
         .catch(() => {
+            UI.hideLoading();
             UI.showToast('Lỗi kết nối khi xóa bản sao lưu', 'error');
         });
     },
@@ -2062,7 +2072,7 @@ const SyncCenter = {
         }
 
         const projectName = document.getElementById('detail-project-name')?.innerText;
-        UI.showToast(`Đang khôi phục file ${actionVerbLower} ${targetName}...`, 'info');
+        UI.showLoading(`Đang khôi phục file ${actionVerbLower} ${targetName}...`);
 
         fetch('api.php?action=fmRestoreBackup', {
             method: 'POST',
@@ -2077,6 +2087,7 @@ const SyncCenter = {
         })
         .then(r => r.json())
         .then(res => {
+            UI.hideLoading();
             if (res.status === 'success') {
                 UI.showToast(res.message || `Đã khôi phục thành công ${actionVerbLower} ${targetName}!`, 'success');
                 this.openBackupHistory(); // Reload list to show new restore backup
@@ -2086,17 +2097,19 @@ const SyncCenter = {
             }
         })
         .catch(() => {
+            UI.hideLoading();
             UI.showToast('Lỗi kết nối khi khôi phục', 'error');
         });
     },
 
     previewBackup(backupFile, path) {
         const projectName = document.getElementById('detail-project-name')?.innerText;
-        UI.showToast('Đang tải nội dung bản sao lưu...', 'info');
+        UI.showLoading('Đang tải nội dung bản sao lưu...');
 
         fetch(`api.php?action=fmGetBackupContent&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory)}&backup_file=${encodeURIComponent(backupFile)}`)
             .then(r => r.json())
             .then(res => {
+                UI.hideLoading();
                 if (res.status !== 'success') {
                     UI.showToast('Không thể đọc file: ' + res.message, 'error');
                     return;
@@ -2153,6 +2166,7 @@ const SyncCenter = {
                 document.body.appendChild(previewModal);
             })
             .catch(() => {
+                UI.hideLoading();
                 UI.showToast('Lỗi kết nối khi tải nội dung snapshot', 'error');
             });
     },
