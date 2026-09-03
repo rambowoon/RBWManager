@@ -2220,6 +2220,7 @@ switch ($action) {
         } else {
             $errMsg = $integrateResult['message'] ?? 'Tích hợp thất bại';
             echo json_encode(['status' => 'error', 'message' => $errMsg]);
+        }
         break;
 
     case 'clearProjectCache':
