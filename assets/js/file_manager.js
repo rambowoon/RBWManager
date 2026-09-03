@@ -1839,8 +1839,16 @@ const SyncCenter = {
                         </button>
                     </div>
 
-                    <div style="min-width: 260px;">
-                        <input type="text" placeholder="🔍 Tìm theo đường dẫn file hoặc ngày..." style="width:100%; height:34px; padding:0 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.25); color:#fff; font-size:12.5px; outline:none; box-sizing:border-box;" oninput="SyncCenter.setBackupSearch(this.value)">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn btn-danger btn-sm" id="sc-btn-delete-backups" onclick="SyncCenter.deleteSelectedBackups()" style="display:none; height:34px; padding:0 12px; font-weight:700; background:#ef4444; color:#fff; border:none; border-radius:8px;">
+                            🗑️ Xóa đã chọn (<span id="sc-bk-selected-count">0</span>)
+                        </button>
+                        <button class="btn btn-ghost btn-sm" onclick="SyncCenter.clearAllBackups()" style="height:34px; padding:0 12px; font-size:12px; color:#f87171; border:1px solid rgba(248,113,113,0.3); border-radius:8px;" title="Xóa toàn bộ lịch sử sao lưu của dự án này">
+                            🗑️ Dọn sạch tất cả
+                        </button>
+                        <div style="min-width: 220px;">
+                            <input type="text" placeholder="🔍 Tìm theo đường dẫn file hoặc ngày..." style="width:100%; height:34px; padding:0 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.25); color:#fff; font-size:12.5px; outline:none; box-sizing:border-box;" oninput="SyncCenter.setBackupSearch(this.value)">
+                        </div>
                     </div>
                 </div>
 
@@ -1875,6 +1883,7 @@ const SyncCenter = {
                     <p style="font-size: 12px; margin: 4px 0 0;">Bản sao lưu sẽ tự động được tạo mỗi khi bạn thực hiện Đồng bộ (Sync) hoặc Sửa file.</p>
                 </div>
             `;
+            this.updateBackupSelectedCount();
             return;
         }
 
@@ -1882,11 +1891,14 @@ const SyncCenter = {
             <table class="sc-table">
                 <thead>
                     <tr>
-                        <th style="width: 175px; white-space: nowrap;">Thời gian Sao lưu</th>
+                        <th style="width: 44px; text-align: center;">
+                            <input type="checkbox" class="sc-custom-cb" id="sc-bk-check-all" onchange="SyncCenter.toggleSelectAllBackups(this.checked)">
+                        </th>
+                        <th style="width: 160px; white-space: nowrap;">Thời gian Sao lưu</th>
                         <th>Đường dẫn File gốc</th>
                         <th style="width: 190px; white-space: nowrap;">Loại Snapshot</th>
-                        <th style="width: 100px; white-space: nowrap;">Dung lượng</th>
-                        <th style="width: 250px; text-align: right; white-space: nowrap;">Khôi phục (Rollback)</th>
+                        <th style="width: 90px; white-space: nowrap;">Dung lượng</th>
+                        <th style="width: 270px; text-align: right; white-space: nowrap;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1915,6 +1927,9 @@ const SyncCenter = {
 
             html += `
                 <tr>
+                    <td style="text-align: center;">
+                        <input type="checkbox" class="sc-custom-cb sc-bk-cb" value="${this.escapeHtml(backupFile)}" onchange="SyncCenter.updateBackupSelectedCount()">
+                    </td>
                     <td style="white-space: nowrap; font-family: var(--mono, monospace); font-size: 12px; color: #94a3b8;">
                         <span style="color: #f8fafc; font-weight: 600;">${this.escapeHtml(item.time || '')}</span> 
                         <span style="color: #64748b; font-size: 11px;">${this.escapeHtml(item.date || '')}</span>
@@ -1945,6 +1960,9 @@ const SyncCenter = {
                             <button class="btn btn-ghost btn-sm" style="height:30px; padding:0 10px; font-size:11.5px; font-weight:700; color:#34d399; border-color:rgba(16,185,129,0.3);" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'remote')" title="Khôi phục ghi đè lại lên Demo Hosting">
                                 ⏫ Lên Demo
                             </button>
+                            <button class="btn btn-ghost btn-sm" style="height:30px; width:30px; padding:0; color:#f87171; border-color:rgba(248,113,113,0.25);" onclick="SyncCenter.deleteSingleBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}')" title="Xóa bản sao lưu này">
+                                🗑️
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -1953,6 +1971,84 @@ const SyncCenter = {
 
         html += `</tbody></table>`;
         container.innerHTML = html;
+        this.updateBackupSelectedCount();
+    },
+
+    updateBackupSelectedCount() {
+        const checked = document.querySelectorAll('.sc-bk-cb:checked');
+        const count = checked.length;
+        const btn = document.getElementById('sc-btn-delete-backups');
+        const counter = document.getElementById('sc-bk-selected-count');
+        if (btn) {
+            btn.style.display = count > 0 ? 'inline-flex' : 'none';
+        }
+        if (counter) {
+            counter.innerText = count;
+        }
+        const checkAll = document.getElementById('sc-bk-check-all');
+        const allCbs = document.querySelectorAll('.sc-bk-cb');
+        if (checkAll && allCbs.length > 0) {
+            checkAll.checked = count === allCbs.length;
+        }
+    },
+
+    toggleSelectAllBackups(checked) {
+        document.querySelectorAll('.sc-bk-cb').forEach(cb => cb.checked = checked);
+        this.updateBackupSelectedCount();
+    },
+
+    async deleteSingleBackup(backupFile, path) {
+        if (!await UI.confirm(`Xác nhận xóa vĩnh viễn bản sao lưu của file:\n${path}?`)) {
+            return;
+        }
+        this.runDeleteBackupsApi({ backup_files: [backupFile] });
+    },
+
+    async deleteSelectedBackups() {
+        const checked = Array.from(document.querySelectorAll('.sc-bk-cb:checked')).map(cb => cb.value);
+        if (checked.length === 0) return;
+        if (!await UI.confirm(`Xác nhận xóa vĩnh viễn ${checked.length} bản sao lưu đã chọn?`)) {
+            return;
+        }
+        this.runDeleteBackupsApi({ backup_files: checked });
+    },
+
+    async clearAllBackups() {
+        if (this.cachedBackups.length === 0) {
+            UI.showToast('Không có bản sao lưu nào để dọn dẹp', 'warning');
+            return;
+        }
+        if (!await UI.confirm(`CẢNH BÁO: Xác nhận DỌN SẠCH TOÀN BỘ ${this.cachedBackups.length} bản sao lưu của dự án này?\n\nHành động này không thể hoàn tác!`)) {
+            return;
+        }
+        this.runDeleteBackupsApi({ all: true });
+    },
+
+    runDeleteBackupsApi(payload) {
+        const projectName = document.getElementById('detail-project-name')?.innerText?.trim() || (App.currentProject ? App.currentProject.name : '');
+        UI.showToast('Đang xóa bản sao lưu...', 'info');
+
+        fetch('api.php?action=fmDeleteBackups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: projectName,
+                category: App.currentCategory || 'projects',
+                ...payload
+            })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'success') {
+                UI.showToast(res.message || 'Đã xóa bản sao lưu thành công!', 'success');
+                this.openBackupHistory(); // Reload backup list
+            } else {
+                UI.showToast('Lỗi khi xóa: ' + res.message, 'error');
+            }
+        })
+        .catch(() => {
+            UI.showToast('Lỗi kết nối khi xóa bản sao lưu', 'error');
+        });
     },
 
     async restoreBackup(backupFile, path, target) {

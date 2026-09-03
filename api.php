@@ -860,6 +860,7 @@ switch ($action) {
     case 'fmListBackups':
     case 'fmGetBackupContent':
     case 'fmRestoreBackup':
+    case 'fmDeleteBackups':
     case 'fmDelete':
     case 'fmUpload':
     case 'fmCreateDir':
@@ -1069,6 +1070,78 @@ switch ($action) {
                     echo json_encode(['status' => 'error', 'message' => 'Lỗi FTP khi khôi phục: ' . $res]);
                 }
             }
+        }
+        elseif ($action === 'fmDeleteBackups') {
+            $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
+            $backupBase = __DIR__ . "/backups/sync_snapshots/{$safeProj}";
+            
+            if (!is_dir($backupBase)) {
+                echo json_encode(['status' => 'success', 'deleted' => 0, 'message' => 'Không có bản sao lưu nào để xóa']);
+                break;
+            }
+            
+            $deleteAll = !empty($data['all']);
+            $backupFiles = $data['backup_files'] ?? [];
+            if (!is_array($backupFiles) && !empty($backupFiles)) {
+                $backupFiles = [$backupFiles];
+            }
+            
+            $deletedCount = 0;
+            
+            if ($deleteAll) {
+                // Delete all files in project's sync_snapshots folder recursively
+                $rrmdir = function($dir) use (&$rrmdir, &$deletedCount) {
+                    $items = @scandir($dir);
+                    if ($items === false) return;
+                    foreach ($items as $item) {
+                        if ($item === '.' || $item === '..') continue;
+                        $p = $dir . '/' . $item;
+                        if (is_dir($p)) {
+                            $rrmdir($p);
+                            @rmdir($p);
+                        } else {
+                            if (substr($item, -10) !== '.meta.json') {
+                                $deletedCount++;
+                            }
+                            @unlink($p);
+                        }
+                    }
+                };
+                $rrmdir($backupBase);
+                @rmdir($backupBase);
+            } else {
+                foreach ($backupFiles as $bf) {
+                    $cleanBf = ltrim(str_replace(['..', '\\'], ['', '/'], $bf), '/');
+                    $fullPath = $backupBase . '/' . $cleanBf;
+                    $metaPath = $fullPath . '.meta.json';
+                    
+                    if (file_exists($fullPath)) {
+                        @unlink($fullPath);
+                        $deletedCount++;
+                    }
+                    if (file_exists($metaPath)) {
+                        @unlink($metaPath);
+                    }
+                    
+                    // Clean parent dirs if empty
+                    $parentDir = dirname($fullPath);
+                    while ($parentDir !== $backupBase && is_dir($parentDir)) {
+                        $remaining = @scandir($parentDir);
+                        if ($remaining !== false && count($remaining) <= 2) {
+                            @rmdir($parentDir);
+                            $parentDir = dirname($parentDir);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            echo json_encode([
+                'status' => 'success',
+                'deleted' => $deletedCount,
+                'message' => "Đã xóa {$deletedCount} bản sao lưu thành công!"
+            ]);
         }
         elseif ($action === 'fmDelete') {
             $isDir = !empty($data['isDir']);
