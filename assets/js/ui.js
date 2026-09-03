@@ -572,6 +572,7 @@ const UI = {
 					<div class="chip neutral" onclick="SchemaBuilder.init('${safeName}')"><div class="ic">▤</div><div class="lbl">Visual Schema</div></div>
 					<div class="chip util" onclick="UI.showChangeTypeModal('${safeName}', '${safeCat}')"><div class="ic">🔄</div><div class="lbl">Đổi Type DB</div></div>
 					<div class="chip util" onclick="App.integrateAMP('${safeName}','${safeCat}')"><div class="ic">⚡</div><div class="lbl">Tích hợp AMP</div></div>
+					<div class="chip util" onclick="App.clearProjectCache('${safeName}','${safeCat}')"><div class="ic">🧹</div><div class="lbl">Xóa cache trình duyệt</div></div>
 				</div>
 			</div>
 

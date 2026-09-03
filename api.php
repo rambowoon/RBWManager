@@ -2220,7 +2220,58 @@ switch ($action) {
         } else {
             $errMsg = $integrateResult['message'] ?? 'Tích hợp thất bại';
             echo json_encode(['status' => 'error', 'message' => $errMsg]);
+        break;
+
+    case 'clearProjectCache':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $projectName = $data['name'] ?? '';
+        $category = $data['category'] ?? '';
+        
+        $project = $projectManager->getProject($projectName, $category);
+        if (!$project) {
+            echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy dự án!']);
+            break;
         }
+        
+        $projectPath = rtrim(str_replace('\\', '/', $project['path']), '/');
+        $clearedDirs = [];
+        $filesDeleted = 0;
+        
+        // Potential cache directories in Nasanic / Laravel / PHP projects
+        $cacheDirs = [
+            $projectPath . '/storage/framework/views',
+            $projectPath . '/storage/framework/cache',
+            $projectPath . '/storage/framework/cache/data',
+            $projectPath . '/storage/cache',
+            $projectPath . '/cache',
+            $projectPath . '/var/cache'
+        ];
+        
+        foreach ($cacheDirs as $dir) {
+            if (is_dir($dir)) {
+                $items = @scandir($dir);
+                if ($items) {
+                    foreach ($items as $item) {
+                        if ($item === '.' || $item === '..' || $item === '.gitignore') continue;
+                        $itemPath = $dir . '/' . $item;
+                        if (is_file($itemPath)) {
+                            @unlink($itemPath);
+                            $filesDeleted++;
+                        }
+                    }
+                }
+                $clearedDirs[] = str_replace($projectPath . '/', '', $dir);
+            }
+        }
+        
+        $configManager->addHistory($projectName, 'Xóa cache dự án & trình duyệt', 'Hoàn tất', $category);
+        
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Đã dọn dẹp cache của dự án thành công!',
+            'files_deleted' => $filesDeleted,
+            'cleared_dirs' => $clearedDirs
+        ]);
         break;
 
     case 'installSSL':

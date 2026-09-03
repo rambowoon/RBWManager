@@ -987,6 +987,66 @@ const App = {
 		await this.loadProjects(this.currentCategory);
 	},
 
+	async clearProjectCache(name, category) {
+		const project = this.projects.find((p) => p.name === name);
+		const relPath = project ? project.relPath.replace(/\\/g, "/") : "";
+		const localUrl = relPath ? `http://localhost/${relPath}/` : `http://localhost/${name}/`;
+
+		const confirmed = await UI.confirm(
+			`🧹 Xác nhận XÓA CACHE cho dự án "${name}"?\n\n` +
+			`• Đường dẫn: ${localUrl}\n` +
+			`• Thao tác sẽ ép trình duyệt tải lại hoàn toàn từ mạng (Bypass Cache, loại bỏ redirect 301)\n` +
+			`• Dọn dẹp các tệp tin cache/views của dự án (nếu có)\n\n` +
+			`Bạn có chắc chắn muốn thực hiện?`
+		);
+		if (!confirmed) return;
+
+		UI.showLoading(`Đang xóa cache cho dự án "${name}"...`);
+
+		try {
+			// 1. Gửi request lên server xóa cache file dự án
+			await fetch('api.php?action=clearProjectCache', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name, category }),
+			}).catch(() => null);
+
+			// 2. Gửi request Bypass Cache trình duyệt cho Local URL (HTTP & HTTPS)
+			let httpUrl = localUrl;
+			let httpsUrl = localUrl.replace(/^http:/i, 'https:');
+
+			const fetchOptions = {
+				method: 'GET',
+				headers: {
+					'Cache-Control': 'no-cache, no-store, must-revalidate',
+					'Pragma': 'no-cache',
+					'Expires': '0'
+				},
+				cache: 'reload',
+				mode: 'no-cors',
+				credentials: 'omit'
+			};
+
+			const p1 = fetch(httpUrl, fetchOptions).catch(() => null);
+			const p2 = fetch(httpsUrl, fetchOptions).catch(() => null);
+			// Gửi thêm POST request để phá vỡ triệt để redirect cache 301
+			const p3 = fetch(httpUrl, {
+				method: 'POST',
+				cache: 'reload',
+				mode: 'no-cors',
+				credentials: 'omit'
+			}).catch(() => null);
+
+			await Promise.all([p1, p2, p3]);
+
+			UI.hideLoading();
+			UI.showToast(`✅ Đã xóa cache thành công cho dự án "${name}"! Hãy nhấn Ctrl + F5 để kiểm tra.`, 'success');
+		} catch (err) {
+			UI.hideLoading();
+			UI.showToast('Lỗi khi xóa cache: ' + (err.message || err), 'error');
+		}
+	},
+
 	async publishToProduction(name, category) {
 		await this._deployFlow(
 			name,
