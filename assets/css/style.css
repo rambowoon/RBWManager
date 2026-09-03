@@ -147,15 +147,15 @@ to { opacity: 1; transform: translateY(0); }
 .theme-check-icon { margin-left: auto; font-size: 0.85rem; color: var(--primary); opacity: 0; }
 .theme-menu-item.active .theme-check-icon { opacity: 1; }
 /* Status-Based Distinct Backgrounds for Instant Recognition */
-.item-card.card-status-demo { background: linear-gradient(145deg, rgba(16, 185, 129, 0.16), rgba(10, 22, 23, 0.96)); border: 1px solid rgba(16, 185, 129, 0.38); }
+.item-card.card-status-demo { border: 1px solid rgba(16, 185, 129, 0.38); }
 .item-card.card-status-demo::after { background: linear-gradient(to bottom, #3FD8A0, #37D9B8); }
 .item-card.card-status-demo .item-card-icon { background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(55, 217, 184, 0.18)); border-color: rgba(16, 185, 129, 0.45); color: #3FD8A0; }
 .item-card.card-status-demo:hover { background: linear-gradient(145deg, rgba(16, 185, 129, 0.25), rgba(13, 30, 30, 0.98)); border-color: rgba(16, 185, 129, 0.65); }
-.item-card.card-status-prod { background: linear-gradient(145deg, rgba(251, 0, 211, 0.18), rgba(18, 12, 32, 0.96)); border: 1px solid rgba(251, 0, 211, 0.4); }
+.item-card.card-status-prod { border: 1px solid rgba(251, 0, 211, 0.4); }
 .item-card.card-status-prod::after { background: linear-gradient(to bottom, #fb00d3, #e05500); }
 .item-card.card-status-prod .item-card-icon { background: linear-gradient(135deg, rgba(251, 0, 211, 0.3), rgba(251, 0, 211, 0.2)); border-color: rgba(251, 0, 211, 0.5); color: #fb00d3; }
 .item-card.card-status-prod:hover { background: linear-gradient(145deg, rgba(139, 92, 246, 0.28), rgba(24, 16, 42, 0.98)); border-color: rgba(251, 0, 211, 0.7); }
-.item-card.card-status-pending { background: linear-gradient(145deg, rgba(255, 107, 0, 0.16), rgba(28, 16, 10, 0.96)); border: 1px solid rgba(255, 107, 0, 0.4); }
+.item-card.card-status-pending { border: 1px solid rgba(255, 107, 0, 0.4); }
 .item-card.card-status-pending::after { background: linear-gradient(to bottom, #FF8533, #FF5500); }
 .item-card.card-status-pending .item-card-icon { background: linear-gradient(135deg, rgba(255, 107, 0, 0.3), rgba(255, 140, 50, 0.2)); border-color: rgba(255, 107, 0, 0.5); color: #FF8533; }
 .item-card.card-status-pending:hover { background: linear-gradient(145deg, rgba(255, 107, 0, 0.25), rgba(35, 20, 12, 0.98)); border-color: rgba(255, 107, 0, 0.7); }

@@ -70,6 +70,20 @@ function autoCleanOldCacheFiles($days = 7) {
 // Auto clean cache files older than 7 days
 autoCleanOldCacheFiles(7);
 
+function saveSyncAutoBackup($projectName, $category, $subFolder, $cleanPath, $content) {
+    if ($content === null || $content === false) return;
+    $dateFolder = date('Y-m-d');
+    $timePrefix = date('His');
+    $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
+    $backupDir = __DIR__ . "/backups/sync_snapshots/{$safeProj}/{$dateFolder}/{$subFolder}/" . dirname($cleanPath);
+    if (!is_dir($backupDir)) {
+        @mkdir($backupDir, 0777, true);
+    }
+    $fileName = basename($cleanPath);
+    $backupFile = "{$backupDir}/[{$timePrefix}]_{$fileName}";
+    @file_put_contents($backupFile, $content);
+}
+
 $cliInputData = null;
 if (PHP_SAPI === 'cli') {
     $debugLogFile = __DIR__ . '/logs/debug_bg_job.log';
@@ -829,6 +843,7 @@ switch ($action) {
     case 'fmList':
     case 'fmGet':
     case 'fmSave':
+    case 'fmGetDiff':
     case 'fmDelete':
     case 'fmUpload':
     case 'fmCreateDir':
@@ -893,12 +908,50 @@ switch ($action) {
         }
         elseif ($action === 'fmSave') {
             $content = $data['content'] ?? '';
+            // Auto Backup before saving remote file
+            $existingRemote = RemoteClient::getFtpFileContent($url, $userPwd);
+            if (($existingRemote['status'] ?? '') === 'success' && isset($existingRemote['content'])) {
+                saveSyncAutoBackup($projectName, $category, 'remote_before_edit', $cleanPath, $existingRemote['content']);
+            }
             $res = RemoteClient::saveFtpFileContent($url, $userPwd, $content);
             if ($res === true) {
                 echo json_encode(['status' => 'success']);
             } else {
                 echo json_encode(['status' => 'error', 'message' => $res]);
             }
+        }
+        elseif ($action === 'fmGetDiff') {
+            if (!$project) {
+                echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
+                break;
+            }
+            $localFile = rtrim(str_replace('\\', '/', $project['path']), '/') . '/' . $cleanPath;
+            
+            $localExists = file_exists($localFile);
+            $localContent = $localExists ? @file_get_contents($localFile) : null;
+            $localMtime = $localExists ? @filemtime($localFile) : null;
+            $localSize = $localExists ? @filesize($localFile) : 0;
+            
+            $remoteRes = RemoteClient::getFtpFileContent($url, $userPwd);
+            $remoteExists = ($remoteRes['status'] ?? '') === 'success';
+            $remoteContent = $remoteExists ? $remoteRes['content'] : null;
+            $remoteSize = $remoteExists ? strlen($remoteContent) : 0;
+            
+            echo json_encode([
+                'status' => 'success',
+                'path' => $cleanPath,
+                'local' => [
+                    'exists' => $localExists,
+                    'content' => $localContent,
+                    'mtime' => $localMtime,
+                    'size' => $localSize
+                ],
+                'remote' => [
+                    'exists' => $remoteExists,
+                    'content' => $remoteContent,
+                    'size' => $remoteSize
+                ]
+            ]);
         }
         elseif ($action === 'fmDelete') {
             $isDir = !empty($data['isDir']);
@@ -1233,6 +1286,11 @@ switch ($action) {
                     $url = "ftp://$host$remotePath";
                     if (file_exists($localFile)) {
                         $content = file_get_contents($localFile);
+                        // Auto Backup: get current remote file before overwriting
+                        $existingRemote = RemoteClient::getFtpFileContent($url, $userPwd);
+                        if (($existingRemote['status'] ?? '') === 'success' && isset($existingRemote['content'])) {
+                            saveSyncAutoBackup($projectName, $category, 'remote_before_upload', $cleanPath, $existingRemote['content']);
+                        }
                         $res = RemoteClient::saveFtpFileContent($url, $userPwd, $content);
                         $results[] = ['path' => $cleanPath, 'action' => 'upload', 'status' => $res === true ? 'success' : 'error', 'message' => $res];
                     }
@@ -1249,6 +1307,11 @@ switch ($action) {
                     
                     $res = RemoteClient::getFtpFileContent($url, $userPwd);
                     if ($res['status'] === 'success') {
+                        // Auto Backup: backup current local file before overwriting
+                        if (file_exists($localFile)) {
+                            $existingLocal = @file_get_contents($localFile);
+                            saveSyncAutoBackup($projectName, $category, 'local_before_download', $cleanPath, $existingLocal);
+                        }
                         $dir = dirname($localFile);
                         if (!is_dir($dir)) mkdir($dir, 0777, true);
                         file_put_contents($localFile, $res['content']);

@@ -1066,7 +1066,7 @@ const SyncCenter = {
                 }
                 
                 .sc-btn-sync-single {
-                    width: 32px; height: 32px; border-radius: 8px; display: inline-flex;
+                    width: 30px; height: 30px; border-radius: 7px; display: inline-flex;
                     align-items: center; justify-content: center; background: rgba(255,255,255,0.04);
                     border: 1px solid rgba(255,255,255,0.08); color: #94a3b8; cursor: pointer;
                     transition: all 0.2s ease;
@@ -1074,6 +1074,17 @@ const SyncCenter = {
                 .sc-btn-sync-single:hover {
                     background: var(--primary, #00d2d3); color: #000; border-color: transparent;
                     transform: scale(1.08); box-shadow: 0 0 12px var(--primary-glow, rgba(0,210,211,0.4));
+                }
+                
+                .sc-btn-diff {
+                    height: 30px; padding: 0 10px; border-radius: 7px; display: inline-flex;
+                    align-items: center; gap: 5px; background: rgba(0, 210, 211, 0.08);
+                    border: 1px solid rgba(0, 210, 211, 0.2); color: var(--primary, #00d2d3);
+                    font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s ease;
+                }
+                .sc-btn-diff:hover {
+                    background: rgba(0, 210, 211, 0.22); color: #00f2fe; border-color: rgba(0, 210, 211, 0.5);
+                    transform: translateY(-1px); box-shadow: 0 0 12px rgba(0, 210, 211, 0.3);
                 }
                 
                 .sc-search-box {
@@ -1097,6 +1108,53 @@ const SyncCenter = {
                 .sc-tag-purple { background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.2); }
                 .sc-tag-indigo { background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(129, 140, 248, 0.2); }
                 .sc-tag-rose { background: rgba(244, 63, 94, 0.12); color: #fb7185; border: 1px solid rgba(251, 113, 133, 0.2); }
+
+                /* Diff Modal Styles */
+                .sc-diff-overlay {
+                    position: fixed; inset: 0; z-index: 10050;
+                    background: rgba(6, 9, 15, 0.88); backdrop-filter: blur(12px);
+                    display: flex; align-items: center; justify-content: center;
+                    padding: 24px; animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                .sc-diff-dialog {
+                    width: 95vw; max-width: 1400px; height: 90vh; max-height: 900px;
+                    background: #0b0f17; border: 1px solid rgba(255, 255, 255, 0.12);
+                    border-radius: 16px; display: flex; flex-direction: column;
+                    overflow: hidden; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+                }
+                .sc-diff-header {
+                    padding: 14px 20px; background: rgba(255, 255, 255, 0.03);
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+                }
+                .sc-diff-body {
+                    flex: 1; overflow: auto; background: #070a10; font-family: var(--mono, monospace);
+                    font-size: 12px; line-height: 1.5; color: #cbd5e1;
+                }
+                .sc-diff-footer {
+                    padding: 12px 20px; background: rgba(255, 255, 255, 0.03);
+                    border-top: 1px solid rgba(255, 255, 255, 0.08);
+                    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+                }
+                .diff-line {
+                    display: flex; width: 100%; border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+                }
+                .diff-line:hover { background: rgba(255, 255, 255, 0.04); }
+                .diff-num {
+                    width: 44px; text-align: right; padding: 2px 8px; color: #475569;
+                    user-select: none; border-right: 1px solid rgba(255, 255, 255, 0.06); flex-shrink: 0;
+                }
+                .diff-text {
+                    padding: 2px 10px; white-space: pre; flex: 1; min-width: 0; overflow-x: auto;
+                }
+                .diff-add { background: rgba(16, 185, 129, 0.16) !important; color: #34d399 !important; }
+                .diff-add .diff-num { color: #10b981; background: rgba(16, 185, 129, 0.08); }
+                .diff-del { background: rgba(244, 63, 94, 0.16) !important; color: #fb7185 !important; }
+                .diff-del .diff-num { color: #f43f5e; background: rgba(244, 63, 94, 0.08); }
+                .diff-gutter-sym { width: 20px; text-align: center; font-weight: 700; user-select: none; flex-shrink: 0; }
+                .diff-split-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+                .diff-split-table td { padding: 0; vertical-align: top; width: 50%; border-right: 1px solid rgba(255,255,255,0.08); }
+                .diff-split-table td:last-child { border-right: none; }
             </style>
 
             <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -1181,7 +1239,7 @@ const SyncCenter = {
                         <th style="width: 155px; white-space: nowrap;">Ngày Local</th>
                         <th style="width: 155px; white-space: nowrap;">Ngày Demo</th>
                         <th style="width: 160px; white-space: nowrap;">Hành động</th>
-                        <th style="width: 70px; text-align: left; white-space: nowrap;">Xử lý</th>
+                        <th style="width: 110px; text-align: left; white-space: nowrap;">Xử lý</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1203,10 +1261,10 @@ const SyncCenter = {
                         <input type="checkbox" class="sc-custom-cb sync-cb" value="${path}" checked onchange="SyncCenter.updateExecuteBtnCount();">
                     </td>
                     <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="SyncCenter.openDiff('${path}')" title="Nhấn để xem Diff so sánh nội dung">
                             ${icon}
                             <div style="font-family: var(--mono, monospace); font-size: 12.5px; line-height: 1.4; word-break: break-all;">
-                                <span style="color: #64748b; font-size: 11.5px;">${this.escapeHtml(dirName)}</span><span style="color: #f8fafc; font-weight: 600;">${this.escapeHtml(fileName)}</span>
+                                <span style="color: #64748b; font-size: 11.5px;">${this.escapeHtml(dirName)}</span><span style="color: #f8fafc; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(255,255,255,0.2);">${this.escapeHtml(fileName)}</span>
                             </div>
                         </div>
                     </td>
@@ -1231,9 +1289,15 @@ const SyncCenter = {
                         </select>
                     </td>
                     <td style="text-align: left; white-space: nowrap;">
-                        <button class="sc-btn-sync-single" onclick="SyncCenter.executeSingle(this, '${path}')" title="Đồng bộ ngay file này">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button class="sc-btn-diff" onclick="SyncCenter.openDiff('${path}')" title="So sánh sự thay đổi code (Diff)">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span>Diff</span>
+                            </button>
+                            <button class="sc-btn-sync-single" onclick="SyncCenter.executeSingle(this, '${path}')" title="Đồng bộ ngay file này (Tự động Backup)">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -1263,7 +1327,7 @@ const SyncCenter = {
 
         this.runExecuteApi(actions).then(res => {
             if (res.status === 'success') {
-                UI.showToast(`Đã ${action === 'upload' ? 'đẩy' : 'kéo'} file ${path.split('/').pop()} thành công!`, 'success');
+                UI.showToast(`Đã ${action === 'upload' ? 'đẩy' : 'kéo'} file ${path.split('/').pop()} thành công (Đã tự động backup)!`, 'success');
                 row.style.opacity = '0.35';
                 const cb = row.querySelector('.sync-cb');
                 if (cb) cb.checked = false;
@@ -1302,9 +1366,9 @@ const SyncCenter = {
             return;
         }
         
-        if (!confirm(`Xác nhận đồng bộ?\n- Đẩy lên Demo: ${actions.upload.length} files\n- Kéo về Local: ${actions.download.length} files`)) return;
+        if (!confirm(`Xác nhận đồng bộ?\n- Đẩy lên Demo: ${actions.upload.length} files\n- Kéo về Local: ${actions.download.length} files\n\n🛡️ Hệ thống sẽ TỰ ĐỘNG BACKUP file cũ trước khi ghi đè.`)) return;
         
-        UI.showToast('Đang thực thi đồng bộ...', 'info');
+        UI.showToast('Đang thực thi đồng bộ & tạo backup an toàn...', 'info');
         
         const btnText = document.getElementById('sc-btn-execute-text');
         const oldText = btnText ? btnText.innerText : 'THỰC THI';
@@ -1317,7 +1381,7 @@ const SyncCenter = {
                 if (errors.length > 0) {
                     UI.showToast(`Đã đồng bộ ${results.length - errors.length}/${results.length} files. Có ${errors.length} file bị lỗi!`, 'warning');
                 } else {
-                    UI.showToast(`Đồng bộ thành công toàn bộ ${results.length} files!`, 'success');
+                    UI.showToast(`Đồng bộ thành công ${results.length} files (Tất cả đã được backup)!`, 'success');
                 }
                 this.scan(); // Rescan to refresh differences
             } else {
@@ -1341,6 +1405,312 @@ const SyncCenter = {
                 actions: actions
             })
         }).then(r => r.json());
+    },
+
+    // ==========================================
+    // DIFF VIEWER & COMPARISON ENGINE
+    // ==========================================
+    diffMode: 'sideBySide', // 'sideBySide' or 'unified'
+    currentDiffData: null,
+
+    openDiff(path) {
+        const projectName = document.getElementById('detail-project-name')?.innerText;
+        if (!projectName) return;
+
+        UI.showToast('Đang nạp dữ liệu so sánh file...', 'info');
+
+        fetch(`api.php?action=fmGetDiff&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory)}&path=${encodeURIComponent(path)}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.status !== 'success') {
+                    UI.showToast('Không thể đọc file để so sánh: ' + (res.message || 'Lỗi server'), 'error');
+                    return;
+                }
+                this.currentDiffData = res;
+                this.renderDiffModal(res);
+            })
+            .catch(err => {
+                UI.showToast('Lỗi kết nối khi tải diff', 'error');
+            });
+    },
+
+    closeDiffModal() {
+        const modal = document.getElementById('sc-diff-modal-container');
+        if (modal) modal.remove();
+        this.currentDiffData = null;
+    },
+
+    setDiffViewMode(mode) {
+        this.diffMode = mode;
+        if (this.currentDiffData) {
+            this.renderDiffModal(this.currentDiffData);
+        }
+    },
+
+    computeLineDiff(oldStr, newStr) {
+        const oldLines = (oldStr || '').split('\n');
+        const newLines = (newStr || '').split('\n');
+
+        // Simple LCS Diff Algorithm
+        const n = oldLines.length;
+        const m = newLines.length;
+        
+        // Matrix for LCS length
+        const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < m; j++) {
+                if (oldLines[i] === newLines[j]) {
+                    dp[i + 1][j + 1] = dp[i][j] + 1;
+                } else {
+                    dp[i + 1][j + 1] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+                }
+            }
+        }
+
+        // Backtrack to get diff operations
+        let i = n, j = m;
+        const diff = [];
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+                diff.push({ type: 'equal', oldLine: oldLines[i - 1], newLine: newLines[j - 1], oldNum: i, newNum: j });
+                i--; j--;
+            } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+                diff.push({ type: 'insert', oldLine: '', newLine: newLines[j - 1], oldNum: null, newNum: j });
+                j--;
+            } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+                diff.push({ type: 'delete', oldLine: oldLines[i - 1], newLine: '', oldNum: i, newNum: null });
+                i--;
+            }
+        }
+
+        return diff.reverse();
+    },
+
+    renderDiffModal(data) {
+        let existing = document.getElementById('sc-diff-modal-container');
+        if (existing) existing.remove();
+
+        const path = data.path;
+        const local = data.local;
+        const remote = data.remote;
+
+        const isLocalExists = local && local.exists;
+        const isRemoteExists = remote && remote.exists;
+
+        const localContent = isLocalExists ? local.content : '';
+        const remoteContent = isRemoteExists ? remote.content : '';
+
+        // Calculate diff: Local as old (left), Demo as new (right)
+        const diffLines = this.computeLineDiff(localContent, remoteContent);
+        const countAdded = diffLines.filter(l => l.type === 'insert').length;
+        const countDeleted = diffLines.filter(l => l.type === 'delete').length;
+
+        const modal = document.createElement('div');
+        modal.id = 'sc-diff-modal-container';
+        modal.className = 'sc-diff-overlay';
+        modal.onclick = (e) => {
+            if (e.target === modal) SyncCenter.closeDiffModal();
+        };
+
+        let diffBodyHtml = '';
+
+        if (!isLocalExists && !isRemoteExists) {
+            diffBodyHtml = '<div style="padding:40px; text-align:center; color:#f87171;">File không tồn tại ở cả 2 môi trường.</div>';
+        } else if (this.diffMode === 'sideBySide') {
+            // Side by side rendering
+            let rowsHtml = '';
+            diffLines.forEach(item => {
+                if (item.type === 'equal') {
+                    rowsHtml += `
+                        <tr class="diff-line">
+                            <td class="diff-line">
+                                <span class="diff-num">${item.oldNum}</span>
+                                <span class="diff-text">${this.escapeHtml(item.oldLine)}</span>
+                            </td>
+                            <td class="diff-line">
+                                <span class="diff-num">${item.newNum}</span>
+                                <span class="diff-text">${this.escapeHtml(item.newLine)}</span>
+                            </td>
+                        </tr>
+                    `;
+                } else if (item.type === 'delete') {
+                    rowsHtml += `
+                        <tr class="diff-line">
+                            <td class="diff-line diff-del">
+                                <span class="diff-num">${item.oldNum}</span>
+                                <span class="diff-gutter-sym">-</span>
+                                <span class="diff-text">${this.escapeHtml(item.oldLine)}</span>
+                            </td>
+                            <td class="diff-line" style="background:rgba(255,255,255,0.01);">
+                                <span class="diff-num" style="opacity:0.3;"></span>
+                                <span class="diff-text"></span>
+                            </td>
+                        </tr>
+                    `;
+                } else if (item.type === 'insert') {
+                    rowsHtml += `
+                        <tr class="diff-line">
+                            <td class="diff-line" style="background:rgba(255,255,255,0.01);">
+                                <span class="diff-num" style="opacity:0.3;"></span>
+                                <span class="diff-text"></span>
+                            </td>
+                            <td class="diff-line diff-add">
+                                <span class="diff-num">${item.newNum}</span>
+                                <span class="diff-gutter-sym">+</span>
+                                <span class="diff-text">${this.escapeHtml(item.newLine)}</span>
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+
+            diffBodyHtml = `
+                <table class="diff-split-table">
+                    <thead style="background:#0d121d; position:sticky; top:0; z-index:10; border-bottom:1px solid rgba(255,255,255,0.08);">
+                        <tr>
+                            <th style="padding:8px 14px; text-align:left; color:#34d399; font-size:12px; font-weight:700; width:50%; border-right:1px solid rgba(255,255,255,0.08);">
+                                💻 BẢN LOCAL (DEV) ${isLocalExists ? `(${this.formatBytes(local.size)})` : '<span style="color:#f87171;">(Chưa có)</span>'}
+                            </th>
+                            <th style="padding:8px 14px; text-align:left; color:#c084fc; font-size:12px; font-weight:700; width:50%;">
+                                ☁️ BẢN DEMO (HOSTING) ${isRemoteExists ? `(${this.formatBytes(remote.size)})` : '<span style="color:#f87171;">(Chưa có)</span>'}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            `;
+        } else {
+            // Unified rendering
+            let linesHtml = '';
+            diffLines.forEach(item => {
+                if (item.type === 'equal') {
+                    linesHtml += `
+                        <div class="diff-line">
+                            <span class="diff-num">${item.oldNum || ''}</span>
+                            <span class="diff-num">${item.newNum || ''}</span>
+                            <span class="diff-gutter-sym" style="color:#475569;"> </span>
+                            <span class="diff-text">${this.escapeHtml(item.oldLine || item.newLine)}</span>
+                        </div>
+                    `;
+                } else if (item.type === 'delete') {
+                    linesHtml += `
+                        <div class="diff-line diff-del">
+                            <span class="diff-num">${item.oldNum}</span>
+                            <span class="diff-num" style="opacity:0.3;"> </span>
+                            <span class="diff-gutter-sym">-</span>
+                            <span class="diff-text">${this.escapeHtml(item.oldLine)}</span>
+                        </div>
+                    `;
+                } else if (item.type === 'insert') {
+                    linesHtml += `
+                        <div class="diff-line diff-add">
+                            <span class="diff-num" style="opacity:0.3;"> </span>
+                            <span class="diff-num">${item.newNum}</span>
+                            <span class="diff-gutter-sym">+</span>
+                            <span class="diff-text">${this.escapeHtml(item.newLine)}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            diffBodyHtml = `
+                <div style="background:#0d121d; position:sticky; top:0; z-index:10; border-bottom:1px solid rgba(255,255,255,0.08); padding:8px 14px; font-size:12px; font-weight:700; display:flex; gap:20px;">
+                    <span style="color:#34d399;">💻 Local: ${isLocalExists ? this.formatBytes(local.size) : 'Chưa có'}</span>
+                    <span style="color:#c084fc;">☁️ Demo: ${isRemoteExists ? this.formatBytes(remote.size) : 'Chưa có'}</span>
+                </div>
+                <div>${linesHtml}</div>
+            `;
+        }
+
+        modal.innerHTML = `
+            <div class="sc-diff-dialog">
+                <!-- Header -->
+                <div class="sc-diff-header">
+                    <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                        <span style="font-size:18px;">🔍</span>
+                        <div>
+                            <div style="font-size:14px; font-weight:700; color:#fff; font-family:var(--mono, monospace); word-break:break-all;">
+                                ${this.escapeHtml(path)}
+                            </div>
+                            <div style="font-size:11.5px; color:#94a3b8; display:flex; align-items:center; gap:12px; margin-top:2px;">
+                                <span><b style="color:#34d399;">+${countAdded}</b> thêm mới</span>
+                                <span><b style="color:#fb7185;">-${countDeleted}</b> xóa/sửa</span>
+                                <span style="display:inline-flex; align-items:center; gap:4px; color:#38bdf8;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Tự động Backup trước khi đè</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <!-- Mode Toggle -->
+                        <div style="display:flex; background:rgba(255,255,255,0.06); padding:3px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                            <button style="padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:700; border:none; cursor:pointer; background:${this.diffMode === 'sideBySide' ? 'var(--primary, #00d2d3)' : 'transparent'}; color:${this.diffMode === 'sideBySide' ? '#000' : '#94a3b8'}; transition:all 0.15s;" onclick="SyncCenter.setDiffViewMode('sideBySide')">
+                                Song song (Split)
+                            </button>
+                            <button style="padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:700; border:none; cursor:pointer; background:${this.diffMode === 'unified' ? 'var(--primary, #00d2d3)' : 'transparent'}; color:${this.diffMode === 'unified' ? '#000' : '#94a3b8'}; transition:all 0.15s;" onclick="SyncCenter.setDiffViewMode('unified')">
+                                Gộp dòng (Unified)
+                            </button>
+                        </div>
+                        <button class="btn btn-ghost" onclick="SyncCenter.closeDiffModal()" style="height:32px; width:32px; padding:0; border-radius:8px; font-size:16px;">✕</button>
+                    </div>
+                </div>
+
+                <!-- Body (Diff Container) -->
+                <div class="sc-diff-body">
+                    ${diffBodyHtml}
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="sc-diff-footer">
+                    <div style="font-size:12px; color:#94a3b8; display:flex; align-items:center; gap:8px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span>Bản gốc trước khi ghi đè sẽ được tự động lưu trữ trong thư mục <code>backups/sync_snapshots/</code></span>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <button class="btn btn-ghost" onclick="SyncCenter.closeDiffModal()" style="height:36px; padding:0 14px;">Đóng</button>
+                        <button class="btn" style="height:36px; padding:0 16px; font-weight:700; background:linear-gradient(135deg, #a855f7, #7c3aed); color:#fff; border:none;" onclick="SyncCenter.executeSingleDiff('${this.escapeHtml(path)}', 'download')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                            Kéo Demo về Local (Backup Local)
+                        </button>
+                        <button class="btn btn-primary" style="height:36px; padding:0 16px; font-weight:700;" onclick="SyncCenter.executeSingleDiff('${this.escapeHtml(path)}', 'upload')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                            Đẩy Local lên Demo (Backup Demo)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+    },
+
+    executeSingleDiff(path, action) {
+        if (!confirm(`Xác nhận ${action === 'upload' ? 'đẩy bản Local lên ghi đè Demo' : 'kéo bản Demo về ghi đè Local'}?\n\n🛡️ Bản cũ sẽ được tự động backup an toàn.`)) return;
+
+        const actions = { upload: [], download: [] };
+        actions[action].push(path);
+
+        UI.showToast('Đang thực thi đồng bộ...', 'info');
+
+        this.runExecuteApi(actions).then(res => {
+            if (res.status === 'success') {
+                UI.showToast(`Đã ${action === 'upload' ? 'đẩy' : 'kéo'} file thành công & đã tự động backup!`, 'success');
+                this.closeDiffModal();
+                this.scan(); // Refresh differences
+            } else {
+                UI.showToast('Lỗi đồng bộ: ' + res.message, 'error');
+            }
+        }).catch(err => {
+            UI.showToast('Lỗi kết nối khi đồng bộ', 'error');
+        });
+    },
+
+    formatBytes(bytes) {
+        if (!bytes || bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     },
 
     escapeHtml(unsafe) {
