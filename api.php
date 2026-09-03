@@ -917,6 +917,29 @@ switch ($action) {
         
         if ($action === 'fmList') {
             $files = RemoteClient::listFtpDirectoryDetailed($url, $userPwd);
+            if ($project && !empty($project['path'])) {
+                $localBasePath = rtrim(str_replace('\\', '/', $project['path']), '/') . ($cleanPath ? "/$cleanPath" : '');
+                foreach ($files as &$f) {
+                    if (!empty($f['is_dir'])) {
+                        $localSub = $localBasePath . '/' . $f['name'];
+                        if (is_dir($localSub)) {
+                            $subItems = @scandir($localSub);
+                            $hasSub = false;
+                            if ($subItems !== false) {
+                                foreach ($subItems as $si) {
+                                    if ($si === '.' || $si === '..') continue;
+                                    if (is_dir($localSub . '/' . $si)) {
+                                        $hasSub = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            $f['has_subdirs'] = $hasSub;
+                        }
+                    }
+                }
+                unset($f);
+            }
             echo json_encode(['status' => 'success', 'data' => $files, 'baseUrl' => rtrim($demoBaseUrl, '/')]);
         } 
         elseif ($action === 'fmGet') {

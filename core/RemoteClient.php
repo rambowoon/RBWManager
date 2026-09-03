@@ -216,15 +216,17 @@ class RemoteClient
             
             // Try standard UNIX format
             // drwxr-xr-x   2 user     group        4096 Aug 31 10:00 folder
-            if (preg_match('/^([d\-])[rwsx\-t]{9}\s+\d+\s+\S+\s+\S+\s+(\d+)\s+([A-Za-z]{3}\s+\d+\s+[\d:]+)\s+(.+)$/', $line, $m)) {
+            if (preg_match('/^([d\-])[rwsx\-t]{9}\s+(\d+)\s+\S+\s+\S+\s+(\d+)\s+([A-Za-z]{3}\s+\d+\s+[\d:]+)\s+(.+)$/', $line, $m)) {
                 $isDir = $m[1] === 'd';
-                $size = (int)$m[2];
-                $date = $formatDate($m[3]);
-                $name = $m[4];
+                $linkCount = (int)$m[2];
+                $size = (int)$m[3];
+                $date = $formatDate($m[4]);
+                $name = $m[5];
                 if ($name === '.' || $name === '..') continue;
                 $files[] = [
                     'name' => $name,
                     'is_dir' => $isDir,
+                    'has_subdirs' => $isDir ? ($linkCount > 2) : false,
                     'size' => $size,
                     'date' => $date
                 ];

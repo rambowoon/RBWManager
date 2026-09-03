@@ -93,7 +93,10 @@ var FileManager = {
             })
         }).then(r => r.json()).then(res => {
             if (res.status === 'success') {
-                const dirs = (res.data || []).filter(f => f.is_dir).map(f => f.name);
+                const dirs = (res.data || []).filter(f => f.is_dir).map(f => ({
+                    name: f.name,
+                    has_subdirs: f.has_subdirs !== false
+                }));
                 if (dirs.length > 0) {
                     this.treeCache[path] = dirs;
                 }
@@ -108,7 +111,7 @@ var FileManager = {
         const wrap = document.getElementById(`fm-tree-children-${containerSuffix}`);
         if (!wrap) return;
         
-        if (dirs.length === 0) {
+        if (!dirs || dirs.length === 0) {
             if (parentPath === '/') {
                 wrap.innerHTML = `<div style="padding: 3px 8px; color: var(--text-muted, #64748b); font-size: 11px; font-style: italic;">(Thư mục trống)</div>`;
             } else {
@@ -131,18 +134,27 @@ var FileManager = {
             if (toggle) toggle.style.visibility = 'visible';
         }
         
-        dirs.sort((a, b) => a.localeCompare(b));
+        dirs.sort((a, b) => {
+            const nameA = typeof a === 'object' ? a.name : a;
+            const nameB = typeof b === 'object' ? b.name : b;
+            return nameA.localeCompare(nameB);
+        });
         
         let html = '';
-        dirs.forEach(dirName => {
+        dirs.forEach(item => {
+            const dirName = typeof item === 'object' ? item.name : item;
+            const hasSubdirs = typeof item === 'object' ? item.has_subdirs : true;
             const fullPath = (parentPath === '/' ? '' : parentPath) + '/' + dirName;
             const safeId = 'tree-' + fullPath.replace(/[^a-zA-Z0-9_-]/g, '_');
             const isActive = this.currentPath === fullPath;
             
+            const toggleVisibility = hasSubdirs ? 'style="visibility: visible;"' : 'style="visibility: hidden;"';
+            const toggleAction = hasSubdirs ? `FileManager.toggleTreeNode('${this.escapeHtml(fullPath)}', this, event)` : 'event.stopPropagation()';
+            
             html += `
                 <div class="fm-tree-item" id="${safeId}">
                     <div class="fm-tree-node ${isActive ? 'active' : ''}" data-path="${this.escapeHtml(fullPath)}" onclick="FileManager.selectTreeNode('${this.escapeHtml(fullPath)}', this)">
-                        <span class="fm-tree-toggle" onclick="FileManager.toggleTreeNode('${this.escapeHtml(fullPath)}', this, event)">▶</span>
+                        <span class="fm-tree-toggle" ${toggleVisibility} onclick="${toggleAction}">▶</span>
                         <span class="fm-tree-icon">📁</span>
                         <span class="fm-tree-label" title="${this.escapeHtml(dirName)}">${this.escapeHtml(dirName)}</span>
                     </div>
@@ -224,7 +236,10 @@ var FileManager = {
                 this.rawFiles = res.data || [];
                 
                 // Directly sync directories to treeCache and update the tree node
-                const dirs = (this.rawFiles || []).filter(f => f.is_dir).map(f => f.name);
+                const dirs = (this.rawFiles || []).filter(f => f.is_dir).map(f => ({
+                    name: f.name,
+                    has_subdirs: f.has_subdirs !== false
+                }));
                 this.treeCache[this.currentPath] = dirs;
                 
                 const containerSuffix = this.currentPath === '/' ? 'root' : ('tree-' + this.currentPath.replace(/[^a-zA-Z0-9_-]/g, '_'));
