@@ -10,7 +10,7 @@ const UI = {
 				<div class="modal" style="max-width: 450px; padding: 30px 25px; text-align: center; border-radius: 16px; background: #1a1e29; box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05);">
                     <div style="margin-bottom: 25px;">
 					    <div style="width: 64px; height: 64px; background: rgba(79, 157, 255, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-					    <div style="font-size: 1.15rem; color: #e2e8f0; line-height: 1.6;">${message.replace(/\n/g, '<br>')}</div>
+					    <div style="font-size: 1.15rem; color: #e2e8f0; line-height: 1.6; word-break: break-word;">${message.replace(/\n/g, '<br>')}</div>
                     </div>
 					<div style="display: flex; gap: 12px; justify-content: center;">
 						<button class="btn btn-ghost" id="ui-confirm-cancel" style="min-width: 110px; font-weight: 500;">Hủy</button>
@@ -34,7 +34,7 @@ const UI = {
 				<div class="modal" style="max-width: 450px; padding: 30px 25px; text-align: center; border-radius: 16px; background: #1a1e29; box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05);">
                     <div style="margin-bottom: 25px;">
                         <div style="width: 64px; height: 64px; background: rgba(79, 157, 255, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
-					    <div style="font-size: 1.15rem; color: #e2e8f0; line-height: 1.6;">${message.replace(/\n/g, '<br>')}</div>
+					    <div style="font-size: 1.15rem; color: #e2e8f0; line-height: 1.6; word-break: break-word;">${message.replace(/\n/g, '<br>')}</div>
                     </div>
 					<div style="display: flex; justify-content: center;">
 						<button class="btn btn-primary" id="ui-alert-ok" style="min-width: 130px; font-weight: 500;">OK</button>

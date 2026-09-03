@@ -993,10 +993,9 @@ const App = {
 		const localUrl = relPath ? `http://localhost/${relPath}/` : `http://localhost/${name}/`;
 
 		const confirmed = await UI.confirm(
-			`🧹 Xác nhận XÓA CACHE cho dự án "${name}"?\n\n` +
-			`• Đường dẫn: ${localUrl}\n` +
-			`• Thao tác sẽ ép trình duyệt tải lại hoàn toàn từ mạng (Bypass Cache, loại bỏ redirect 301)\n` +
-			`• Dọn dẹp các tệp tin cache/views của dự án (nếu có)\n\n` +
+			`🧹 Xác nhận XÓA CACHE cho dự án:\n"${name}"?\n\n` +
+			`• Ép trình duyệt tải lại từ mạng (Bypass Cache, bỏ redirect 301)\n` +
+			`• Tự động dọn dẹp các tệp tin cache & views của dự án\n\n` +
 			`Bạn có chắc chắn muốn thực hiện?`
 		);
 		if (!confirmed) return;
