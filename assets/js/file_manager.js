@@ -13,14 +13,17 @@ var FileManager = {
             this.currentPath = '/';
             this.lastProject = currentProject;
             this.treeCache = {};
-            this.loadTree();
+            this.loadTree(false);
         } else if (!document.getElementById('fm-tree-children-root')) {
-            this.loadTree();
+            this.loadTree(false);
         }
         this.loadCurrentPath();
     },
 
-    loadTree() {
+    loadTree(forceRefresh = false) {
+        if (forceRefresh) {
+            this.treeCache = {};
+        }
         const container = document.getElementById('fm-tree-container');
         if (!container) return;
         
@@ -58,19 +61,27 @@ var FileManager = {
             </div>
         `;
         
-        this.fetchTreeDirs('/', (dirs) => {
-            this.renderTreeChildren('root', '/', dirs);
-        });
+        // If root dirs are already in cache, render immediately
+        if (this.treeCache['/'] && this.treeCache['/'].length > 0) {
+            this.renderTreeChildren('root', '/', this.treeCache['/']);
+        } else if (forceRefresh) {
+            this.fetchTreeDirs('/', (dirs) => {
+                this.renderTreeChildren('root', '/', dirs);
+            });
+        }
     },
 
     fetchTreeDirs(path, callback) {
-        if (this.treeCache[path]) {
+        if (this.treeCache[path] && this.treeCache[path].length > 0) {
             callback(this.treeCache[path]);
             return;
         }
         
         const projectName = document.getElementById('detail-project-name')?.innerText;
-        if (!projectName || !App.currentCategory) return;
+        if (!projectName || !App.currentCategory) {
+            callback([]);
+            return;
+        }
         
         fetch('api.php?action=fmList', {
             method: 'POST',
@@ -83,7 +94,9 @@ var FileManager = {
         }).then(r => r.json()).then(res => {
             if (res.status === 'success') {
                 const dirs = (res.data || []).filter(f => f.is_dir).map(f => f.name);
-                this.treeCache[path] = dirs;
+                if (dirs.length > 0) {
+                    this.treeCache[path] = dirs;
+                }
                 callback(dirs);
             } else {
                 callback([]);
@@ -126,7 +139,7 @@ var FileManager = {
 
     toggleTreeNode(path, el, event) {
         if (event) event.stopPropagation();
-        const safeId = 'tree-' + path.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeId = path === '/' ? 'root' : ('tree-' + path.replace(/[^a-zA-Z0-9_-]/g, '_'));
         const childrenWrap = document.getElementById(`fm-tree-children-${safeId}`);
         if (!childrenWrap) return;
         
@@ -184,6 +197,18 @@ var FileManager = {
             if (res.status === 'success') {
                 this.baseUrl = res.baseUrl || '';
                 this.rawFiles = res.data || [];
+                
+                // Directly sync directories to treeCache and update the tree node
+                const dirs = (this.rawFiles || []).filter(f => f.is_dir).map(f => f.name);
+                this.treeCache[this.currentPath] = dirs;
+                
+                const containerSuffix = this.currentPath === '/' ? 'root' : ('tree-' + this.currentPath.replace(/[^a-zA-Z0-9_-]/g, '_'));
+                const wrap = document.getElementById(`fm-tree-children-${containerSuffix}`);
+                if (wrap) {
+                    wrap.dataset.loaded = 'true';
+                    this.renderTreeChildren(containerSuffix, this.currentPath, dirs);
+                }
+
                 const searchInput = document.getElementById('fm-search-input');
                 if (searchInput && searchInput.value) {
                     this.filterList(searchInput.value);

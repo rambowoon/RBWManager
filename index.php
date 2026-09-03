@@ -649,7 +649,7 @@
                                         <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #94a3b8); display: flex; align-items: center; gap: 6px;">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> CÂY THƯ MỤC
                                         </span>
-                                        <button class="btn btn-ghost btn-sm" onclick="FileManager.loadTree()" style="padding: 2px 6px; font-size: 11px;" title="Tải lại cây thư mục">🔄</button>
+                                        <button class="btn btn-ghost btn-sm" onclick="FileManager.loadTree(true); FileManager.loadCurrentPath();" style="padding: 2px 6px; font-size: 11px;" title="Tải lại cây thư mục">🔄</button>
                                     </div>
                                     <div id="fm-tree-container" style="flex: 1; overflow-y: auto; padding: 10px 8px; font-size: 13px;">
                                         <div style="color: var(--text-muted, #888); text-align: center; padding: 20px 0; font-size: 12px;">Đang tải cây thư mục...</div>
