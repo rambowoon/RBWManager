@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RamboWoon Manager | Admin Dashboard</title>
+    <title>RBWManager</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <script>
         (function() {
@@ -26,35 +26,81 @@
                 <div class="logo-icon">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                 </div>
-                <div class="logo-text">RamboWoon</div>
+                <div class="logo-text">RBWManager</div>
             </div>
 
             <nav class="sidebar-nav">
-                <div class="nav-item" onclick="App.showDashboard(); App.loadProjects('')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                    Bảng điều khiển
+                <!-- GLOBAL SIDEBAR NAV -->
+                <div id="sidebar-nav-global">
+                    <div class="nav-item active" onclick="App.showDashboard(); App.loadProjects('')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        Bảng điều khiển
+                    </div>
+                    <div class="nav-item" onclick="App.showDashboard(); App.showCategories()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        Dự án theo tháng
+                    </div>
+                    <div class="menu-divider"></div>
+                    <div class="nav-item" onclick="ConverterUI.show()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        Công cụ ảnh
+                    </div>
+                    <div class="nav-item" onclick="App.showCacheClearer()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+                        Xóa cache trình duyệt
+                    </div>
+                    <div class="menu-divider"></div>
+                    <div class="nav-item" onclick="App.showDemoServers()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        Server Demo
+                    </div>
+                    <div class="nav-item" onclick="App.showGlobalConfig()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        Setting
+                    </div>
                 </div>
-                <div class="nav-item" onclick="App.showDashboard(); App.showCategories()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                    Dự án theo tháng
-                </div>
-                <div class="menu-divider"></div>
-                <div class="nav-item" onclick="ConverterUI.show()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                    Công cụ ảnh
-                </div>
-                <div class="nav-item" onclick="App.showCacheClearer()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
-                    Xóa cache trình duyệt
-                </div>
-                <div class="menu-divider"></div>
-                <div class="nav-item" onclick="App.showDemoServers()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    Server Demo
-                </div>
-                <div class="nav-item" onclick="App.showGlobalConfig()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                    Setting
+
+                <!-- PROJECT-SPECIFIC SIDEBAR NAV (ACTIVE IN PROJECT DETAIL) -->
+                <div id="sidebar-nav-project" style="display:none;">
+                    <div class="nav-item" onclick="App.showDashboard()" style="color:var(--primary); font-weight:700; margin-bottom:12px; background:rgba(0,210,211,0.06); border:1px solid rgba(0,210,211,0.2);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        Quay lại danh sách
+                    </div>
+                    <div style="font-size: 10px; font-weight: 750; text-transform: uppercase; color: #64748b; padding: 4px 10px 8px; letter-spacing: 0.8px;">
+                        TÍNH NĂNG DỰ ÁN
+                    </div>
+                    <div class="nav-item project-side-tab active" data-tab="d_tab-config" onclick="UI.switchProjectTab(this, 'd_tab-config')">
+                        <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">⚙️</span>
+                        Cấu hình &amp; Deploy
+                    </div>
+                    <div class="nav-item project-side-tab" data-tab="d_tab-fonts" onclick="UI.switchProjectTab(this, 'd_tab-fonts')">
+                        <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">🖋️</span>
+                        Quản lý Fonts
+                    </div>
+                    <div class="nav-item project-side-tab" data-tab="d_tab-webp" onclick="UI.switchProjectTab(this, 'd_tab-webp')">
+                        <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">🖼️</span>
+                        Convert Ảnh WebP
+                    </div>
+                    <div class="nav-item project-side-tab" data-tab="d_tab-trim" onclick="UI.switchProjectTab(this, 'd_tab-trim')">
+                        <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">✂️</span>
+                        Trim Ảnh
+                    </div>
+                    <div class="nav-item project-side-tab" data-tab="d_tab-auto-media" onclick="UI.switchProjectTab(this, 'd_tab-auto-media')">
+                        <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">🤖</span>
+                        Tự động Map Ảnh
+                    </div>
+                    <div class="nav-item project-side-tab" data-tab="d_tab-seed" onclick="UI.switchProjectTab(this, 'd_tab-seed')">
+                        <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">🌱</span>
+                        Tạo Dữ Liệu Mẫu
+                    </div>
+                    <div id="side-tab-filemanager" class="nav-item project-side-tab" style="display:none;" data-tab="d_tab-filemanager" onclick="UI.switchProjectTab(this, 'd_tab-filemanager'); typeof FileManager !== 'undefined' && FileManager.init()">
+                        <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">📁</span>
+                        Quản lý File (Host)
+                    </div>
+                    <div id="side-tab-synccenter" class="nav-item project-side-tab" style="display:none;" data-tab="d_tab-synccenter" onclick="UI.switchProjectTab(this, 'd_tab-synccenter'); typeof SyncCenter !== 'undefined' && SyncCenter.init()">
+                        <span style="font-size: 1rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">🔄</span>
+                        Sync Center
+                    </div>
                 </div>
             </nav>
 
@@ -273,7 +319,7 @@
 
                 <!-- VIEW: PROJECT DETAIL (FULL PAGE) -->
                 <div id="view-project-detail" class="view-section" style="display:none; padding-top: 10px;">
-                    <div class="project-master-tabs tabs" style="margin-top: 0; margin-bottom: 20px;">
+                    <div class="project-master-tabs tabs" style="display:none; margin-top: 0; margin-bottom: 20px;">
                         <button class="btn btn-ghost project-tab-btn tab active" onclick="UI.switchProjectTab(this, 'd_tab-config')">⚙️ Cấu hình &amp; Deploy</button>
                         <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-fonts')">🖋️ Quản lý Fonts</button>
                         <button class="btn btn-ghost project-tab-btn tab" onclick="UI.switchProjectTab(this, 'd_tab-webp')">🖼️ Convert Ảnh WebP</button>

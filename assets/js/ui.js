@@ -486,10 +486,15 @@ const UI = {
 		if (fmBtn) fmBtn.style.display = hasDemo ? "" : "none";
 		if (syncBtn) syncBtn.style.display = hasDemo ? "" : "none";
 
+		const sideFmBtn = document.getElementById("side-tab-filemanager");
+		const sideSyncBtn = document.getElementById("side-tab-synccenter");
+		if (sideFmBtn) sideFmBtn.style.display = hasDemo ? "flex" : "none";
+		if (sideSyncBtn) sideSyncBtn.style.display = hasDemo ? "flex" : "none";
+
 		if (!hasDemo) {
-			const activeTab = document.querySelector('.project-master-tabs .tab.active');
-			if (activeTab && (activeTab.id === 'tab-btn-filemanager' || activeTab.id === 'tab-btn-synccenter')) {
-				const firstTabBtn = document.querySelector('.project-master-tabs .tab');
+			const activeTab = document.querySelector('.project-side-tab.active') || document.querySelector('.project-master-tabs .tab.active');
+			if (activeTab && (activeTab.dataset?.tab === 'd_tab-filemanager' || activeTab.dataset?.tab === 'd_tab-synccenter' || activeTab.id === 'tab-btn-filemanager' || activeTab.id === 'tab-btn-synccenter')) {
+				const firstTabBtn = document.querySelector('.project-side-tab') || document.querySelector('.project-master-tabs .tab');
 				if (firstTabBtn) this.switchProjectTab(firstTabBtn, 'd_tab-config');
 			}
 		}
@@ -975,19 +980,42 @@ const UI = {
 	},
 
 	switchProjectTab(btn, tabId) {
-		// Toggle Buttons / Tabs
-		const parent = btn.parentElement;
-		parent
-			.querySelectorAll(".tab, .btn")
+		// Toggle Active state on both sidebar items and top buttons
+		document
+			.querySelectorAll(".project-side-tab, .project-tab-btn")
 			.forEach((b) => b.classList.remove("active"));
-		btn.classList.add("active");
 
-		// Toggle Content
-		const layout = btn.closest(".view-section");
-		layout
-			.querySelectorAll(".project-tab-content")
-			.forEach((t) => t.classList.add("d-none"));
-		document.getElementById(tabId).classList.remove("d-none");
+		if (btn) btn.classList.add("active");
+		const matchingSide = document.querySelector(`.project-side-tab[data-tab="${tabId}"]`);
+		if (matchingSide) matchingSide.classList.add("active");
+		const matchingTop = document.querySelector(`.project-tab-btn[data-tab="${tabId}"]`);
+		if (matchingTop) matchingTop.classList.add("active");
+
+		// Toggle Content in Project Detail
+		const layout = document.getElementById("view-project-detail");
+		if (layout) {
+			layout
+				.querySelectorAll(".project-tab-content")
+				.forEach((t) => t.classList.add("d-none"));
+		}
+		const targetContent = document.getElementById(tabId);
+		if (targetContent) targetContent.classList.remove("d-none");
+
+		// Update breadcrumb title
+		const tabTitles = {
+			'd_tab-config': 'Cấu hình & Deploy',
+			'd_tab-fonts': 'Quản lý Fonts',
+			'd_tab-webp': 'Convert Ảnh WebP',
+			'd_tab-trim': 'Trim Ảnh',
+			'd_tab-auto-media': 'Tự động Map Ảnh',
+			'd_tab-seed': 'Tạo Dữ Liệu Mẫu',
+			'd_tab-filemanager': 'Quản lý File (Host)',
+			'd_tab-synccenter': 'Sync Center'
+		};
+		const pathEl = document.getElementById('detail-project-path');
+		if (pathEl && tabTitles[tabId]) {
+			pathEl.innerText = `${App.currentCategory || 'Dự án'} / ${tabTitles[tabId]}`;
+		}
 
 		// Hook for specific tabs
 		if (tabId === "d_tab-fonts") {

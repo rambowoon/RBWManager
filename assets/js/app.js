@@ -63,7 +63,7 @@ const App = {
 	},
 
 	setActiveNav(index) {
-		const items = document.querySelectorAll('.sidebar-nav .nav-item');
+		const items = document.querySelectorAll('#sidebar-nav-global .nav-item');
 		items.forEach((item, i) => {
 			if (i === index) item.classList.add('active');
 			else item.classList.remove('active');
@@ -71,7 +71,7 @@ const App = {
 	},
 
 	getActiveNav() {
-		const items = document.querySelectorAll('.sidebar-nav .nav-item');
+		const items = document.querySelectorAll('#sidebar-nav-global .nav-item');
 		for (let i = 0; i < items.length; i++) {
 			if (items[i].classList.contains('active')) {
 				return i;
@@ -94,10 +94,17 @@ const App = {
 		if (navHeader) navHeader.style.display = 'none';
 		const dashBreadcrumb = document.getElementById('dashboard-breadcrumb');
 		if (dashBreadcrumb) dashBreadcrumb.style.display = 'none';
+
+		// Reset left sidebar to global navigation
+		const sideGlobal = document.getElementById('sidebar-nav-global');
+		const sideProject = document.getElementById('sidebar-nav-project');
+		if (sideGlobal) sideGlobal.style.display = 'block';
+		if (sideProject) sideProject.style.display = 'none';
 	},
 
 	showDashboard() {
 		this.hideAllViews();
+		this.setActiveNav(this.currentCategory ? 1 : 0);
 		document.getElementById('view-dashboard').style.display = 'block';
 		if (this.currentCategory) {
 			const navHeader = document.getElementById('nav-header');
@@ -112,6 +119,12 @@ const App = {
 		this.hideAllViews();
 		document.getElementById('view-project-detail').style.display = 'block';
 		
+		// Switch left sidebar to project navigation
+		const sideGlobal = document.getElementById('sidebar-nav-global');
+		const sideProject = document.getElementById('sidebar-nav-project');
+		if (sideGlobal) sideGlobal.style.display = 'none';
+		if (sideProject) sideProject.style.display = 'block';
+
 		const projHeader = document.getElementById('project-detail-header');
 		if (projHeader) projHeader.style.display = 'flex';
 		
@@ -144,7 +157,7 @@ const App = {
 
 			UI.fillProjectDetailForm(name, config, category);
 			
-			const firstTabBtn = document.querySelector('.tabs .tab');
+			const firstTabBtn = document.querySelector('#sidebar-nav-project .project-side-tab');
 			if (firstTabBtn) UI.switchProjectTab(firstTabBtn, 'd_tab-config');
 		}
 	},
