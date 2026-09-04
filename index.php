@@ -362,15 +362,15 @@
                                     </div>
                                 </div>
                                 <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                                    <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
-                                        <span style="font-size: 0.75rem; color: var(--muted); font-weight: bold;">ĐA NGÔN NGỮ</span>
+                                    <div style="display: inline-flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); height: 38px; padding: 0 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); user-select: none;">
+                                        <span style="font-size: 0.76rem; color: var(--text-secondary, #94a3b8); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;">Đa ngôn ngữ</span>
                                         <label class="sb-switch">
                                             <input type="checkbox" id="sb-global-lang" onchange="SchemaBuilder.toggleGlobalLang(this.checked)">
                                             <span class="sb-slider"></span>
                                         </label>
                                     </div>
-                                    <select id="sb-file-select" class="form-control" style="width: 220px; height: 36px;" onchange="SchemaBuilder.loadSelectedFile()"></select>
-                                    <button type="button" class="btn btn-primary" id="sb-btn-save-top" onclick="SchemaBuilder.save()" style="height: 36px; padding: 0 16px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                                    <select id="sb-file-select" onchange="SchemaBuilder.loadSelectedFile()"></select>
+                                    <button type="button" class="btn btn-primary" id="sb-btn-save-top" onclick="SchemaBuilder.save()" style="height: 38px; padding: 0 18px; border-radius: 8px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
                                         💾 Lưu cấu hình
                                     </button>
                                 </div>
