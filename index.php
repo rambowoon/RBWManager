@@ -353,7 +353,7 @@
                     <!-- TAB: VISUAL SCHEMA BUILDER -->
                     <div id="d_tab-schema" class="project-tab-content d-none">
                         <div class="card-container card-padded" style="background: rgba(13, 17, 25, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; display: flex; flex-direction: column; min-height: calc(100vh - 140px);">
-                            <div class="flex-between-center-mb20" style="padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); flex-wrap: wrap; gap: 12px;">
+                            <div class="flex-between-center-mb20" style="padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); gap: 16px;">
                                 <div class="flex-align-center-gap10">
                                     <div class="accent-bar-primary" style="width: 4px; height: 18px; border-radius: 2px; background: var(--accent-gradient, #00d2d3);"></div>
                                     <div>
@@ -361,7 +361,7 @@
                                         <p id="sb-project-name" style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Tùy biến trực quan cấu hình Type, Module và Form nhập liệu</p>
                                     </div>
                                 </div>
-                                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: nowrap; flex-shrink: 0;">
                                     <div style="display: inline-flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); height: 38px; padding: 0 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); user-select: none;">
                                         <span style="font-size: 0.76rem; color: var(--text-secondary, #94a3b8); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;">Đa ngôn ngữ</span>
                                         <label class="sb-switch">

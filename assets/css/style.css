@@ -350,8 +350,10 @@ input:checked + .sb-slider:before {
 
 /* File Select in Schema Builder */
 #sb-file-select {
+    width: 240px !important;
+    max-width: 240px !important;
+    flex: 0 0 240px !important;
     height: 38px;
-    min-width: 250px;
     padding: 0 34px 0 14px;
     background-color: #141923;
     color: #f1f5f9;
