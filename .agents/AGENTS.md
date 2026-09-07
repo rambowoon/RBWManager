@@ -16,3 +16,7 @@
 - Thao tác trực tiếp lên file, ưu tiên code hoàn chỉnh, không dùng placeholder (TODO/...).
 - Tránh chạy vòng lặp terminal không cần thiết trừ khi tác vụ yêu cầu xác minh lỗi, test cú pháp hoặc chạy git commit/push.
 - Phản hồi tập trung vào kết quả công việc, súc tích và dễ theo dõi.
+
+## 4. Kế thừa & Tuân thủ triệt để Skill
+- **Kích hoạt một lần, áp dụng xuyên suốt**: Khi người dùng đã gọi hoặc chỉ định một skill (ví dụ: `figma-to-nasanic-ui`), agent tự động duy trì chế độ tuân thủ 100% quy chuẩn của skill đó cho toàn bộ các lượt tương tác tiếp theo trong dự án.
+- **Tuân thủ đầy đủ, không làm một nửa**: Mọi thành phần mã nguồn (Form, Input, Button, Slider, CSS, Image helper, Validation) phát sinh sau đó BẮT BUỘC phải áp dụng đầy đủ các quy tắc đã nêu trong skill, tuyệt đối không viết theo thói quen hay bỏ qua bất kỳ quy chuẩn nào.

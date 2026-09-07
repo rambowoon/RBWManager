@@ -1301,6 +1301,14 @@ switch ($action) {
             $project = null;
             foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
             if (!$project) {
+                $allProjects = $scanner->getProjects('all');
+                foreach ($allProjects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+            }
+            if (!$project) {
+                $rawProjects = $scanner->scanProjectsRaw($category);
+                foreach ($rawProjects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+            }
+            if (!$project) {
                 echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
                 break;
             }
@@ -1333,55 +1341,66 @@ switch ($action) {
             };
             $scanLocal($localRoot);
             
-            // 2. Call Bridge via HTTP (Fast path: < 0.1s)
+            // 2. Call Bridge via HTTP/HTTPS (Fast path: < 0.1s)
             $cleanHost = !empty($config['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $config['web_domain']) : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
-            $useSSL = !empty($config['ssl']) || (isset($config['web_domain']) && strpos($config['web_domain'], 'https://') === 0);
-            $scheme = $useSSL ? 'https://' : 'http://';
             $webSub = $deployService->getWebSubPath($config['ftp_root'] ?? '');
             $fullSubPath = rtrim($webSub, '/') . '/' . trim($project['relPath'], '/');
-            $bridgeUrl = $scheme . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles';
             
-            $callBridge = function() use ($bridgeUrl, $excludes) {
-                $ch = curl_init();
-                curl_setopt($ch, CURLOPT_URL, $bridgeUrl);
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['excludes' => $excludes]));
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-                $res = curl_exec($ch);
-                curl_close($ch);
-                return json_decode($res, true);
+            // Modern servers force 301 to HTTPS, try HTTPS first, fallback to HTTP
+            $bridgeUrls = [
+                'https://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles',
+                'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles'
+            ];
+            
+            $callBridge = function($targetUrl = null) use (&$bridgeUrls, $excludes) {
+                $urls = $targetUrl ? [$targetUrl] : $bridgeUrls;
+                $lastRes = null;
+                foreach ($urls as $url) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $url);
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['excludes' => $excludes]));
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($ch, CURLOPT_POSTREDIR, 3);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                    $res = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $curlErr = curl_error($ch);
+                    curl_close($ch);
+                    
+                    $data = json_decode($res, true);
+                    if (is_array($data) && ($data['status'] ?? '') === 'success') {
+                        return $data;
+                    }
+                    $lastRes = is_array($data) ? $data : [
+                        'status' => 'error', 
+                        'http_code' => $httpCode, 
+                        'curl_err' => $curlErr, 
+                        'url' => $url,
+                        'raw' => substr((string)$res, 0, 200)
+                    ];
+                }
+                return $lastRes;
             };
 
             $remoteData = $callBridge();
 
-            // If bridge is not yet on server or outdated (missing MD5/readme filter support), upload it fast via direct FTP
+            // If bridge is not yet on server or outdated (missing MD5/readme filter support), upload it fast via deployService
             if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v4_md5') {
-                $host = $config['ftp_host'];
-                $user = $config['ftp_user'];
-                $pass = $config['ftp_pass'];
-                $userPwd = "$user:$pass";
-                
-                $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
-                if (empty($customDomain)) {
-                    $webDomain = str_replace(['https://', 'http://', '/'], '', $config['web_domain']);
-                    $folderName = str_replace('\\', '/', trim($project['relPath'], '/\\'));
-                    $ftpRoot = '/domains/' . $webDomain . '/public_html/' . $folderName;
-                } else {
-                    $ftpRoot = '/domains/' . $customDomain . '/public_html';
+                try {
+                    $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $project['relPath']);
+                    $remoteData = $callBridge();
+                } catch (\Exception $e) {
+                    // Upload failure will be caught below
                 }
-                
-                $bridgeUrlFtp = "ftp://$host" . rtrim($ftpRoot, '/') . '/bridge.php';
-                RemoteClient::saveFtpFileContent($bridgeUrlFtp, $userPwd, file_get_contents(__DIR__ . '/bridge.php'));
-                
-                // Retry HTTP call
-                $remoteData = $callBridge();
             }
 
             if (!$remoteData || ($remoteData['status'] ?? '') !== 'success') {
-                echo json_encode(['status' => 'error', 'message' => 'Bridge không phản hồi hoặc gặp lỗi. Vui lòng kiểm tra lại cấu hình Hosting.']);
+                $detail = !empty($remoteData['message']) ? $remoteData['message'] : (!empty($remoteData['curl_err']) ? $remoteData['curl_err'] : ('HTTP ' . ($remoteData['http_code'] ?? 'Unknown')));
+                echo json_encode(['status' => 'error', 'message' => "Bridge không phản hồi ($detail). Vui lòng kiểm tra lại cấu hình Hosting."]);
                 break;
             }
             
@@ -1469,6 +1488,14 @@ switch ($action) {
             $project = null;
             foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
             if (!$project) {
+                $allProjects = $scanner->getProjects('all');
+                foreach ($allProjects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+            }
+            if (!$project) {
+                $rawProjects = $scanner->scanProjectsRaw($category);
+                foreach ($rawProjects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+            }
+            if (!$project) {
                 echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
                 break;
             }
@@ -1478,13 +1505,14 @@ switch ($action) {
             $pass = $config['ftp_pass'];
             $userPwd = "$user:$pass";
             
+            $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
+            $subPath = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
+            
             $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
-            if (empty($customDomain)) {
-                $webDomain = str_replace(['https://', 'http://', '/'], '', $config['web_domain']);
-                $folderName = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
-                $ftpRoot = '/domains/' . $webDomain . '/public_html/' . $folderName;
-            } else {
+            if (!empty($customDomain)) {
                 $ftpRoot = '/domains/' . $customDomain . '/public_html';
+            } else {
+                $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/') . '/' . trim($subPath, '/');
             }
             
             $localRoot = rtrim(str_replace('\\', '/', $project['path']), '/');
