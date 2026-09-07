@@ -1275,9 +1275,9 @@ const SyncCenter = {
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                        <label class="sc-cleardata-toggle" style="display: flex; align-items: center; gap: 7px; cursor: pointer; height: 38px; padding: 0 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); font-size: 12.5px; font-weight: 600; color: #cbd5e1; user-select: none; transition: all 0.2s; white-space: nowrap;" title="Bật nếu muốn quét và đồng bộ các file tính năng xoá dữ liệu Demo (ClearDataController...)">
+                        <label class="sc-cleardata-toggle" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; height: 38px; box-sizing: border-box; padding: 0 14px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.15); font-size: 12.5px; font-weight: 600; color: #cbd5e1; user-select: none; transition: all 0.2s; white-space: nowrap; text-transform: none; letter-spacing: normal; margin: 0;" title="Bật nếu muốn quét và đồng bộ các file tính năng xoá dữ liệu Demo (ClearDataController...)">
                             <input type="checkbox" id="sc-check-cleardata-toolbar" ${this.includeClearData ? 'checked' : ''} onchange="SyncCenter.toggleClearData(this.checked)" style="accent-color: var(--primary, #00d2d3); width: 15px; height: 15px; cursor: pointer; margin: 0;">
-                            <span>Đồng bộ ClearData</span>
+                            <span style="text-transform: none; letter-spacing: normal;">Đồng bộ ClearData</span>
                         </label>
                         <input type="text" class="sc-search-box" placeholder="🔍 Lọc theo tên file/đường dẫn..." oninput="SyncCenter.setSearch(this.value)" value="${this.escapeHtml(this.searchQuery)}">
                         <button class="btn btn-primary" onclick="SyncCenter.executeAll()" style="height: 38px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 0 18px; border-radius: 8px; box-shadow: 0 4px 14px var(--primary-glow, rgba(0,210,211,0.25));">

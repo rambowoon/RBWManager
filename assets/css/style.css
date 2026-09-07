@@ -1033,3 +1033,35 @@ padding-left: 15px; border-left: 2px solid rgba(99, 102, 241, 0.2); margin-top: 
 .diff-split-table tr { border-bottom: 1px solid rgba(255, 255, 255, 0.02); }
 .diff-split-table td { padding: 0; vertical-align: top; width: 50%; border-right: 1px solid rgba(255,255,255,0.08); }
 .diff-split-table td:last-child { border-right: none; }
+
+/* ===== SYNC CENTER TOGGLE CLEAR DATA ===== */
+.sc-cleardata-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    height: 38px !important;
+    padding: 0 14px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    color: #cbd5e1 !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    white-space: nowrap !important;
+    transition: all 0.2s ease !important;
+}
+.sc-cleardata-toggle:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #fff !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+}
+.sc-cleardata-toggle span {
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}

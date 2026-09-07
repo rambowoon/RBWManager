@@ -634,15 +634,15 @@
                                         <p style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Tự động đối soát và đồng bộ mã nguồn giữa Local Workspace và Demo Hosting</p>
                                     </div>
                                 </div>
-                                <div class="flex-align-center-gap10">
-                                    <label class="sc-cleardata-toggle" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 7px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12); font-size: 12.5px; font-weight: 600; color: #cbd5e1; user-select: none; transition: all 0.2s;" title="Mặc định tắt để bảo vệ dữ liệu Demo. Bật nếu muốn quét và đồng bộ các file chức năng xoá dữ liệu (ClearDataController...)">
+                                <div class="flex-align-center-gap10" style="display: flex; align-items: center; gap: 10px;">
+                                    <label class="sc-cleardata-toggle" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 0 14px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.15); font-size: 12.5px; font-weight: 600; color: #cbd5e1; user-select: none; transition: all 0.2s; text-transform: none; letter-spacing: normal; margin: 0;" title="Mặc định tắt để bảo vệ dữ liệu Demo. Bật nếu muốn quét và đồng bộ các file chức năng xoá dữ liệu (ClearDataController, router...)">
                                         <input type="checkbox" id="sc-check-cleardata" onchange="SyncCenter.toggleClearData(this.checked)" style="accent-color: var(--primary, #00d2d3); width: 15px; height: 15px; cursor: pointer; margin: 0;">
-                                        <span>Đồng bộ ClearData</span>
+                                        <span style="text-transform: none; letter-spacing: normal;">Đồng bộ ClearData</span>
                                     </label>
-                                    <button class="btn btn-ghost btn-sm" onclick="SyncCenter.openBackupHistory()" style="display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); color: #cbd5e1;">
+                                    <button class="btn btn-ghost btn-sm" onclick="SyncCenter.openBackupHistory()" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); color: #cbd5e1; margin: 0; text-transform: none;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 📦 Lịch sử Backup &amp; Khôi phục
                                     </button>
-                                    <button class="btn btn-outline btn-sm" onclick="SyncCenter.scan()" style="display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15);">
+                                    <button class="btn btn-outline btn-sm" onclick="SyncCenter.scan()" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); margin: 0; text-transform: none;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Quét &amp; So sánh
                                     </button>
                                 </div>
