@@ -889,16 +889,19 @@ const SyncCenter = {
     lastData: null,
     currentFilter: 'all',
     searchQuery: '',
-    includeClearData: localStorage.getItem('sc_include_cleardata') === '1',
+    includeClearData: false,
     
     init() {
+        this.includeClearData = false;
+        try { localStorage.removeItem('sc_include_cleardata'); } catch(e) {}
         const cb = document.getElementById('sc-check-cleardata');
-        if (cb) cb.checked = this.includeClearData;
+        if (cb) cb.checked = false;
+        const cbToolbar = document.getElementById('sc-check-cleardata-toolbar');
+        if (cbToolbar) cbToolbar.checked = false;
     },
     
     toggleClearData(checked) {
         this.includeClearData = !!checked;
-        localStorage.setItem('sc_include_cleardata', this.includeClearData ? '1' : '0');
         
         const cbHeader = document.getElementById('sc-check-cleardata');
         if (cbHeader) cbHeader.checked = this.includeClearData;

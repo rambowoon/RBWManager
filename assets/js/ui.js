@@ -485,6 +485,7 @@ const UI = {
 		const syncBtn = document.getElementById("tab-btn-synccenter");
 		if (fmBtn) fmBtn.style.display = hasDemo ? "" : "none";
 		if (syncBtn) syncBtn.style.display = hasDemo ? "" : "none";
+		if (typeof SyncCenter !== 'undefined') SyncCenter.init();
 
 		const sideFmBtn = document.getElementById("side-tab-filemanager");
 		const sideSyncBtn = document.getElementById("side-tab-synccenter");
