@@ -1040,6 +1040,8 @@ const UI = {
 			const projectName =
 				document.getElementById("d_current-project")?.value || "";
 			SeedManager.init(projectName);
+		} else if (tabId === "d_tab-synccenter") {
+			if (typeof SyncCenter !== 'undefined') SyncCenter.init();
 		} else if (tabId === "d_tab-backups") {
 			if (typeof SyncCenter !== 'undefined') SyncCenter.openBackupHistoryTab();
 		}

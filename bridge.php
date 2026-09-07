@@ -1266,11 +1266,12 @@ class RamboWoonBridge
     {
         $input = json_decode(file_get_contents('php://input'), true);
         $excludes = $input['excludes'] ?? [];
+        $includeClearData = !empty($input['include_cleardata']);
         
         $files = [];
         $root = __DIR__;
         
-        $scanDir = function($dir, $relPrefix = '') use (&$scanDir, &$files, $excludes, $root) {
+        $scanDir = function($dir, $relPrefix = '') use (&$scanDir, &$files, $excludes, $root, $includeClearData) {
             $items = @scandir($dir);
             if ($items === false) return;
             
@@ -1286,6 +1287,7 @@ class RamboWoonBridge
                 }
                 
                 if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql') continue;
+                if (!$includeClearData && stripos($relPath, 'cleardata') !== false) continue;
                 $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat'];
                 if (in_array(strtolower($item), $excludedFiles)) continue;
                 

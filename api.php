@@ -1289,6 +1289,10 @@ switch ($action) {
             $projectName = $data['name'] ?? '';
             $category = $data['category'] ?? '';
             $excludes = $data['excludes'] ?? ['bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', '.agents', '.git', '.idea', '.vscode'];
+            $includeClearData = !empty($data['include_cleardata']);
+            $isClearDataFile = function($path) {
+                return (stripos($path, 'cleardata') !== false);
+            };
             
             $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
             $config = getDemoConfigForProject($projectConfig);
@@ -1316,7 +1320,7 @@ switch ($action) {
             // 1. Scan Local
             $localFiles = [];
             $localRoot = rtrim($project['path'], '/\\');
-            $scanLocal = function($dir, $relPrefix = '') use (&$scanLocal, &$localFiles, $excludes, $localRoot) {
+            $scanLocal = function($dir, $relPrefix = '') use (&$scanLocal, &$localFiles, $excludes, $localRoot, $includeClearData, $isClearDataFile) {
                 $items = @scandir($dir);
                 if ($items === false) return;
                 foreach ($items as $item) {
@@ -1325,6 +1329,7 @@ switch ($action) {
                     $relPath = $relPrefix . $item;
                     if ($relPrefix === '' && in_array($item, $excludes)) continue;
                     if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql') continue;
+                    if (!$includeClearData && $isClearDataFile($relPath)) continue;
                     $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat'];
                     if (in_array(strtolower($item), $excludedFiles)) continue;
                     if (is_dir($path)) {
@@ -1352,14 +1357,14 @@ switch ($action) {
                 'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles'
             ];
             
-            $callBridge = function($targetUrl = null) use (&$bridgeUrls, $excludes) {
+            $callBridge = function($targetUrl = null) use (&$bridgeUrls, $excludes, $includeClearData) {
                 $urls = $targetUrl ? [$targetUrl] : $bridgeUrls;
                 $lastRes = null;
                 foreach ($urls as $url) {
                     $ch = curl_init();
                     curl_setopt($ch, CURLOPT_URL, $url);
                     curl_setopt($ch, CURLOPT_POST, true);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['excludes' => $excludes]));
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['excludes' => $excludes, 'include_cleardata' => $includeClearData]));
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_TIMEOUT, 20);
                     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -1405,6 +1410,13 @@ switch ($action) {
             }
             
             $remoteFiles = $remoteData['files'] ?? [];
+            if (!$includeClearData) {
+                foreach ($remoteFiles as $rPath => $rVal) {
+                    if ($isClearDataFile($rPath)) {
+                        unset($remoteFiles[$rPath]);
+                    }
+                }
+            }
             
             // 3. Compare with MD5 Hash
             $comparison = [
@@ -1476,6 +1488,10 @@ switch ($action) {
             $projectName = $data['name'] ?? '';
             $category = $data['category'] ?? '';
             $actions = $data['actions'] ?? []; // ['upload' => [...paths], 'download' => [...paths]]
+            $includeClearData = !empty($data['include_cleardata']);
+            $isClearDataFile = function($path) {
+                return (stripos($path, 'cleardata') !== false);
+            };
             
             $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
             $config = getDemoConfigForProject($projectConfig);
@@ -1522,6 +1538,9 @@ switch ($action) {
             if (!empty($actions['upload'])) {
                 foreach ($actions['upload'] as $path) {
                     $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
+                    if (!$includeClearData && $isClearDataFile($cleanPath)) {
+                        continue;
+                    }
                     $localFile = $localRoot . '/' . $cleanPath;
                     $remotePath = rtrim($ftpRoot, '/') . '/' . $cleanPath;
                     $url = "ftp://$host$remotePath";
@@ -1542,6 +1561,9 @@ switch ($action) {
             if (!empty($actions['download'])) {
                 foreach ($actions['download'] as $path) {
                     $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
+                    if (!$includeClearData && $isClearDataFile($cleanPath)) {
+                        continue;
+                    }
                     $localFile = $localRoot . '/' . $cleanPath;
                     $remotePath = rtrim($ftpRoot, '/') . '/' . $cleanPath;
                     $url = "ftp://$host$remotePath";

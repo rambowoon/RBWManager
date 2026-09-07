@@ -889,14 +889,37 @@ const SyncCenter = {
     lastData: null,
     currentFilter: 'all',
     searchQuery: '',
+    includeClearData: localStorage.getItem('sc_include_cleardata') === '1',
     
     init() {
-        // Init state
+        const cb = document.getElementById('sc-check-cleardata');
+        if (cb) cb.checked = this.includeClearData;
+    },
+    
+    toggleClearData(checked) {
+        this.includeClearData = !!checked;
+        localStorage.setItem('sc_include_cleardata', this.includeClearData ? '1' : '0');
+        
+        const cbHeader = document.getElementById('sc-check-cleardata');
+        if (cbHeader) cbHeader.checked = this.includeClearData;
+        const cbToolbar = document.getElementById('sc-check-cleardata-toolbar');
+        if (cbToolbar) cbToolbar.checked = this.includeClearData;
+        
+        if (this.includeClearData) {
+            UI.showToast('⚠️ Đã bật hiển thị file ClearData (Xoá dữ liệu Demo)', 'warning');
+        } else {
+            UI.showToast('🛡️ Đã ẩn & loại trừ file ClearData', 'info');
+        }
+        
+        this.scan();
     },
     
     scan() {
         const projectName = document.getElementById('detail-project-name')?.innerText;
         if (!projectName) return;
+        
+        const cbHeader = document.getElementById('sc-check-cleardata');
+        if (cbHeader) this.includeClearData = cbHeader.checked;
         
         document.getElementById('sync-center-content').innerHTML = `
             <div style="padding: 60px 20px; text-align: center; background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.1); border-radius: 16px;">
@@ -912,7 +935,8 @@ const SyncCenter = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 name: projectName,
-                category: App.currentCategory
+                category: App.currentCategory,
+                include_cleardata: this.includeClearData
             })
         }).then(r => r.json()).then(res => {
             if (res.status === 'success') {
@@ -1250,7 +1274,11 @@ const SyncCenter = {
                         ` : ''}
                     </div>
 
-                    <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <label class="sc-cleardata-toggle" style="display: flex; align-items: center; gap: 7px; cursor: pointer; height: 38px; padding: 0 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); font-size: 12.5px; font-weight: 600; color: #cbd5e1; user-select: none; transition: all 0.2s; white-space: nowrap;" title="Bật nếu muốn quét và đồng bộ các file tính năng xoá dữ liệu Demo (ClearDataController...)">
+                            <input type="checkbox" id="sc-check-cleardata-toolbar" ${this.includeClearData ? 'checked' : ''} onchange="SyncCenter.toggleClearData(this.checked)" style="accent-color: var(--primary, #00d2d3); width: 15px; height: 15px; cursor: pointer; margin: 0;">
+                            <span>Đồng bộ ClearData</span>
+                        </label>
                         <input type="text" class="sc-search-box" placeholder="🔍 Lọc theo tên file/đường dẫn..." oninput="SyncCenter.setSearch(this.value)" value="${this.escapeHtml(this.searchQuery)}">
                         <button class="btn btn-primary" onclick="SyncCenter.executeAll()" style="height: 38px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 0 18px; border-radius: 8px; box-shadow: 0 4px 14px var(--primary-glow, rgba(0,210,211,0.25));">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -1324,6 +1352,7 @@ const SyncCenter = {
             const parts = item.path.split('/');
             const fileName = parts.pop();
             const dirName = parts.length > 0 ? parts.join('/') + '/' : '';
+            const isClearData = item.path.toLowerCase().includes('cleardata');
 
             tableHtml += `
                 <tr>
@@ -1335,6 +1364,7 @@ const SyncCenter = {
                             ${icon}
                             <div style="font-family: var(--mono, monospace); font-size: 12.5px; line-height: 1.4; word-break: break-all;">
                                 <span style="color: #64748b; font-size: 11.5px;">${this.escapeHtml(dirName)}</span><span style="color: #f8fafc; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(255,255,255,0.2);">${this.escapeHtml(fileName)}</span>
+                                ${isClearData ? '<span class="sc-tag" style="background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.35); font-weight: 700; font-size: 10.5px; margin-left: 6px; padding: 1px 6px;">⚠️ ClearData (Xoá dữ liệu)</span>' : ''}
                             </div>
                         </div>
                     </td>
@@ -1474,6 +1504,7 @@ const SyncCenter = {
             body: JSON.stringify({
                 name: projectName,
                 category: App.currentCategory,
+                include_cleardata: this.includeClearData,
                 actions: actions
             })
         }).then(r => r.json());

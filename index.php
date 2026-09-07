@@ -635,6 +635,10 @@
                                     </div>
                                 </div>
                                 <div class="flex-align-center-gap10">
+                                    <label class="sc-cleardata-toggle" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 7px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12); font-size: 12.5px; font-weight: 600; color: #cbd5e1; user-select: none; transition: all 0.2s;" title="Mặc định tắt để bảo vệ dữ liệu Demo. Bật nếu muốn quét và đồng bộ các file chức năng xoá dữ liệu (ClearDataController...)">
+                                        <input type="checkbox" id="sc-check-cleardata" onchange="SyncCenter.toggleClearData(this.checked)" style="accent-color: var(--primary, #00d2d3); width: 15px; height: 15px; cursor: pointer; margin: 0;">
+                                        <span>Đồng bộ ClearData</span>
+                                    </label>
                                     <button class="btn btn-ghost btn-sm" onclick="SyncCenter.openBackupHistory()" style="display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 7px 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); color: #cbd5e1;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 📦 Lịch sử Backup &amp; Khôi phục
                                     </button>
