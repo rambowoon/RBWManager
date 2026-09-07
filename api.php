@@ -1290,8 +1290,25 @@ switch ($action) {
             $category = $data['category'] ?? '';
             $excludes = $data['excludes'] ?? ['bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', '.agents', '.git', '.idea', '.vscode'];
             $includeClearData = !empty($data['include_cleardata']);
-            $isClearDataFile = function($path) {
-                return (stripos($path, 'cleardata') !== false);
+            $isClearDataFile = function($path, $localDir = '') {
+                $clean = str_replace('\\', '/', $path);
+                if (stripos($clean, 'cleardata') !== false) {
+                    return true;
+                }
+                if (strtolower($clean) === 'src/routes/web.php' || preg_match('#^src/Routes/#i', $clean)) {
+                    if ($localDir) {
+                        $fullLocal = rtrim($localDir, '/\\') . '/' . ltrim($clean, '/');
+                        if (file_exists($fullLocal)) {
+                            $c = @file_get_contents($fullLocal);
+                            if (stripos($c, 'cleardata') !== false) {
+                                return true;
+                            }
+                        }
+                    } else {
+                        return true;
+                    }
+                }
+                return false;
             };
             
             $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
@@ -1329,7 +1346,7 @@ switch ($action) {
                     $relPath = $relPrefix . $item;
                     if ($relPrefix === '' && in_array($item, $excludes)) continue;
                     if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql') continue;
-                    if (!$includeClearData && $isClearDataFile($relPath)) continue;
+                    if (!$includeClearData && $isClearDataFile($relPath, $localRoot)) continue;
                     $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat'];
                     if (in_array(strtolower($item), $excludedFiles)) continue;
                     if (is_dir($path)) {
@@ -1412,7 +1429,7 @@ switch ($action) {
             $remoteFiles = $remoteData['files'] ?? [];
             if (!$includeClearData) {
                 foreach ($remoteFiles as $rPath => $rVal) {
-                    if ($isClearDataFile($rPath)) {
+                    if ($isClearDataFile($rPath, $localRoot)) {
                         unset($remoteFiles[$rPath]);
                     }
                 }
@@ -1489,8 +1506,25 @@ switch ($action) {
             $category = $data['category'] ?? '';
             $actions = $data['actions'] ?? []; // ['upload' => [...paths], 'download' => [...paths]]
             $includeClearData = !empty($data['include_cleardata']);
-            $isClearDataFile = function($path) {
-                return (stripos($path, 'cleardata') !== false);
+            $isClearDataFile = function($path, $localDir = '') {
+                $clean = str_replace('\\', '/', $path);
+                if (stripos($clean, 'cleardata') !== false) {
+                    return true;
+                }
+                if (strtolower($clean) === 'src/routes/web.php' || preg_match('#^src/Routes/#i', $clean)) {
+                    if ($localDir) {
+                        $fullLocal = rtrim($localDir, '/\\') . '/' . ltrim($clean, '/');
+                        if (file_exists($fullLocal)) {
+                            $c = @file_get_contents($fullLocal);
+                            if (stripos($c, 'cleardata') !== false) {
+                                return true;
+                            }
+                        }
+                    } else {
+                        return true;
+                    }
+                }
+                return false;
             };
             
             $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
@@ -1538,7 +1572,7 @@ switch ($action) {
             if (!empty($actions['upload'])) {
                 foreach ($actions['upload'] as $path) {
                     $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
-                    if (!$includeClearData && $isClearDataFile($cleanPath)) {
+                    if (!$includeClearData && $isClearDataFile($cleanPath, $localRoot)) {
                         continue;
                     }
                     $localFile = $localRoot . '/' . $cleanPath;
@@ -1561,7 +1595,7 @@ switch ($action) {
             if (!empty($actions['download'])) {
                 foreach ($actions['download'] as $path) {
                     $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
-                    if (!$includeClearData && $isClearDataFile($cleanPath)) {
+                    if (!$includeClearData && $isClearDataFile($cleanPath, $localRoot)) {
                         continue;
                     }
                     $localFile = $localRoot . '/' . $cleanPath;

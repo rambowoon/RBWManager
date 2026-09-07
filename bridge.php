@@ -1287,7 +1287,13 @@ class RamboWoonBridge
                 }
                 
                 if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql') continue;
-                if (!$includeClearData && stripos($relPath, 'cleardata') !== false) continue;
+                if (!$includeClearData) {
+                    if (stripos($relPath, 'cleardata') !== false) continue;
+                    if (strtolower(str_replace('\\', '/', $relPath)) === 'src/routes/web.php') {
+                        $rc = @file_get_contents($path);
+                        if (stripos($rc, 'cleardata') !== false) continue;
+                    }
+                }
                 $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat'];
                 if (in_array(strtolower($item), $excludedFiles)) continue;
                 

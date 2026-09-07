@@ -1352,7 +1352,7 @@ const SyncCenter = {
             const parts = item.path.split('/');
             const fileName = parts.pop();
             const dirName = parts.length > 0 ? parts.join('/') + '/' : '';
-            const isClearData = item.path.toLowerCase().includes('cleardata');
+            const isClearData = item.path.toLowerCase().includes('cleardata') || item.path.toLowerCase() === 'src/routes/web.php';
 
             tableHtml += `
                 <tr>
@@ -1364,7 +1364,7 @@ const SyncCenter = {
                             ${icon}
                             <div style="font-family: var(--mono, monospace); font-size: 12.5px; line-height: 1.4; word-break: break-all;">
                                 <span style="color: #64748b; font-size: 11.5px;">${this.escapeHtml(dirName)}</span><span style="color: #f8fafc; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(255,255,255,0.2);">${this.escapeHtml(fileName)}</span>
-                                ${isClearData ? '<span class="sc-tag" style="background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.35); font-weight: 700; font-size: 10.5px; margin-left: 6px; padding: 1px 6px;">⚠️ ClearData (Xoá dữ liệu)</span>' : ''}
+                                ${isClearData ? '<span class="sc-tag" style="background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.35); font-weight: 700; font-size: 10.5px; margin-left: 6px; padding: 1px 6px;">⚠️ ClearData (' + (item.path.toLowerCase().includes('routes') ? 'Router' : 'Controller') + ')</span>' : ''}
                             </div>
                         </div>
                     </td>
