@@ -82,9 +82,16 @@ async function capture(url, outputPath) {
         let msgId = 1;
         const callbacks = new Map();
 
+        let mainDocStatus = 200;
+
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
+                if (msg.method === 'Network.responseReceived' && msg.params && msg.params.type === 'Document') {
+                    if (msg.params.response && msg.params.response.status) {
+                        mainDocStatus = msg.params.response.status;
+                    }
+                }
                 if (msg.id && callbacks.has(msg.id)) {
                     const cb = callbacks.get(msg.id);
                     callbacks.delete(msg.id);
@@ -107,11 +114,45 @@ async function capture(url, outputPath) {
             ws.onerror = reject;
         });
 
+        await send('Network.enable');
         await send('Page.enable');
         await send('DOM.enable');
 
-        // Allow up to 3 seconds for initial load
+        // Allow up to 2 seconds for initial load
         await new Promise(r => setTimeout(r, 1500));
+
+        // 1. Kiểm tra HTTP Status của trang chính
+        if (mainDocStatus >= 400) {
+            throw new Error(`Website trả về mã lỗi HTTP ${mainDocStatus} (trang không tồn tại hoặc lỗi máy chủ).`);
+        }
+
+        // 2. Kiểm tra nội dung text trang xem có phải trang lỗi / placeholder không
+        try {
+            const evalCheck = await send('Runtime.evaluate', {
+                expression: `(() => {
+                    const title = document.title || '';
+                    const bodyText = (document.body ? document.body.innerText : '').substring(0, 2000);
+                    const combined = title + ' ' + bodyText;
+                    if (/404 Not Found/i.test(combined)) return 'Lỗi 404 Not Found';
+                    if (/500 Internal Server Error/i.test(combined)) return 'Lỗi 500 Internal Server Error';
+                    if (/Error establishing a database connection/i.test(combined)) return 'Lỗi kết nối cơ sở dữ liệu (Database Error)';
+                    if (/Database Error/i.test(combined)) return 'Lỗi cơ sở dữ liệu (Database Error)';
+                    if (/Apache is functioning normally/i.test(combined)) return 'Trang mặc định của Apache (chưa cấu hình source code)';
+                    if (/Welcome to nginx!/i.test(combined)) return 'Trang mặc định của Nginx (chưa deploy code)';
+                    if (/Default Web Site Page/i.test(combined)) return 'Trang mặc định của máy chủ';
+                    return null;
+                })()`,
+                returnByValue: true
+            });
+
+            if (evalCheck && evalCheck.result && evalCheck.result.value) {
+                throw new Error(`Website đang ở trạng thái lỗi: ${evalCheck.result.value}. Bỏ qua chụp ảnh.`);
+            }
+        } catch (errEval) {
+            if (errEval.message && errEval.message.includes('Website đang ở trạng thái')) {
+                throw errEval;
+            }
+        }
 
         // Auto-scroll to trigger lazy loaded images, then scroll back to top
         try {

@@ -106,6 +106,17 @@ class ScreenshotService
             return ['status' => 'error', 'message' => 'Không tìm thấy đường dẫn website hợp lệ để chụp ảnh.'];
         }
 
+        // Kiểm tra website có hoạt động bình thường không (tránh 404, 500, lỗi máy chủ, chưa cấu hình)
+        $health = $this->checkWebsiteHealth($targetUrl);
+        if (!$health['ok']) {
+            return [
+                'status' => 'error',
+                'message' => $health['message'],
+                'targetUrl' => $targetUrl,
+                'httpCode' => $health['code'] ?? 0
+            ];
+        }
+
         $browserPath = $this->findBrowserExecutable();
         if (!$browserPath) {
             return ['status' => 'error', 'message' => 'Không tìm thấy trình duyệt Chrome hoặc Edge trên hệ thống để chụp ảnh màn hình.'];
@@ -250,4 +261,78 @@ class ScreenshotService
         }
         return false;
     }
+
+    public function checkWebsiteHealth($url)
+    {
+        if (!function_exists('curl_init')) {
+            return ['ok' => true, 'code' => 200];
+        }
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_TIMEOUT => 8,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            CURLOPT_HEADER => false
+        ]);
+
+        $body = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlErr) {
+            return [
+                'ok' => false,
+                'code' => $httpCode ?: 0,
+                'message' => 'Không thể kết nối đến website (' . $curlErr . '). Vui lòng kiểm tra lại cấu hình domain hoặc DNS.'
+            ];
+        }
+
+        if ($httpCode >= 400) {
+            $msg = ($httpCode == 404) 
+                ? 'Website trả về lỗi 404 (Trang không tồn tại).'
+                : (($httpCode >= 500) 
+                    ? "Website trả về lỗi Server $httpCode (500/502/503)."
+                    : "Website trả về mã lỗi HTTP $httpCode.");
+            return [
+                'ok' => false,
+                'code' => $httpCode,
+                'message' => $msg . ' Đã hủy chụp ảnh để tránh lưu trang lỗi.'
+            ];
+        }
+
+        if (is_string($body) && strlen($body) > 0) {
+            $bodySample = substr(strip_tags($body), 0, 2000);
+            $errorPatterns = [
+                '/Apache is functioning normally/i' => 'Trang mặc định của Apache (chưa cấu hình source code)',
+                '/Welcome to nginx!/i' => 'Trang mặc định của Nginx (chưa deploy source code)',
+                '/Default Web Site Page/i' => 'Trang mặc định của Hosting/Web Server',
+                '/Error establishing a database connection/i' => 'Lỗi kết nối cơ sở dữ liệu (Database Error)',
+                '/Database Error/i' => 'Lỗi cơ sở dữ liệu (Database Error)',
+                '/500 Internal Server Error/i' => 'Lỗi 500 Internal Server Error',
+                '/404 Not Found/i' => 'Lỗi 404 Not Found',
+                '/Site under construction/i' => 'Trang web chưa hoàn thiện (Site under construction)'
+            ];
+
+            foreach ($errorPatterns as $pattern => $reason) {
+                if (preg_match($pattern, $bodySample)) {
+                    return [
+                        'ok' => false,
+                        'code' => $httpCode,
+                        'message' => "Website đang ở trạng thái: $reason. Đã hủy chụp ảnh."
+                    ];
+                }
+            }
+        }
+
+        return ['ok' => true, 'code' => $httpCode];
+    }
 }
+
