@@ -1265,13 +1265,42 @@ class RamboWoonBridge
     public function scanFiles()
     {
         $input = json_decode(file_get_contents('php://input'), true);
-        $excludes = $input['excludes'] ?? [];
+        $customExcludes = $input['excludes'] ?? [];
         $includeClearData = !empty($input['include_cleardata']);
         
+        $defaultExcludes = [
+            'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks',
+            '.agents', '.git', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
+            'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
+            'assets/admin/json'
+        ];
+        if (!empty($customExcludes) && is_array($customExcludes)) {
+            $defaultExcludes = array_unique(array_merge($defaultExcludes, $customExcludes));
+        }
+
+        $isPathExcluded = function($relPath) use ($defaultExcludes) {
+            $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
+            if ($clean === '') return false;
+            $firstPart = explode('/', $clean)[0];
+            
+            foreach ($defaultExcludes as $ex) {
+                $exNorm = strtolower(trim(str_replace('\\', '/', $ex), '/'));
+                if ($exNorm === '') continue;
+                if (strpos($exNorm, '/') === false) {
+                    if ($firstPart === $exNorm) return true;
+                } else {
+                    if ($clean === $exNorm || strpos($clean, $exNorm . '/') === 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
         $files = [];
         $root = __DIR__;
         
-        $scanDir = function($dir, $relPrefix = '') use (&$scanDir, &$files, $excludes, $root, $includeClearData) {
+        $scanDir = function($dir, $relPrefix = '') use (&$scanDir, &$files, $isPathExcluded, $root, $includeClearData) {
             $items = @scandir($dir);
             if ($items === false) return;
             
@@ -1281,10 +1310,7 @@ class RamboWoonBridge
                 $path = $dir . '/' . $item;
                 $relPath = $relPrefix . $item;
                 
-                // Check excludes at top level
-                if ($relPrefix === '') {
-                    if (in_array($item, $excludes)) continue;
-                }
+                if ($isPathExcluded($relPath)) continue;
                 
                 if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql') continue;
                 if (!$includeClearData) {
@@ -1312,7 +1338,7 @@ class RamboWoonBridge
         
         $scanDir($root);
         
-        echo json_encode(['status' => 'success', 'version' => 'v4_md5', 'files' => $files]);
+        echo json_encode(['status' => 'success', 'version' => 'v6_sub_excludes', 'files' => $files]);
         exit;
     }
 

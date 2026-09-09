@@ -1288,7 +1288,36 @@ switch ($action) {
             
             $projectName = $data['name'] ?? '';
             $category = $data['category'] ?? '';
-            $excludes = $data['excludes'] ?? ['bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', '.agents', '.git', '.idea', '.vscode'];
+            $customExcludes = $data['excludes'] ?? [];
+            $defaultExcludes = [
+                'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks',
+                '.agents', '.git', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
+                'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
+                'assets/admin/json'
+            ];
+            if (!empty($customExcludes) && is_array($customExcludes)) {
+                $defaultExcludes = array_unique(array_merge($defaultExcludes, $customExcludes));
+            }
+
+            $isPathExcluded = function($relPath) use ($defaultExcludes) {
+                $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
+                if ($clean === '') return false;
+                $firstPart = explode('/', $clean)[0];
+                
+                foreach ($defaultExcludes as $ex) {
+                    $exNorm = strtolower(trim(str_replace('\\', '/', $ex), '/'));
+                    if ($exNorm === '') continue;
+                    if (strpos($exNorm, '/') === false) {
+                        if ($firstPart === $exNorm) return true;
+                    } else {
+                        if ($clean === $exNorm || strpos($clean, $exNorm . '/') === 0) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
             $includeClearData = !empty($data['include_cleardata']);
             $isClearDataFile = function($path, $localDir = '') {
                 $clean = str_replace('\\', '/', $path);
@@ -1337,14 +1366,14 @@ switch ($action) {
             // 1. Scan Local
             $localFiles = [];
             $localRoot = rtrim($project['path'], '/\\');
-            $scanLocal = function($dir, $relPrefix = '') use (&$scanLocal, &$localFiles, $excludes, $localRoot, $includeClearData, $isClearDataFile) {
+            $scanLocal = function($dir, $relPrefix = '') use (&$scanLocal, &$localFiles, $isPathExcluded, $localRoot, $includeClearData, $isClearDataFile) {
                 $items = @scandir($dir);
                 if ($items === false) return;
                 foreach ($items as $item) {
                     if ($item === '.' || $item === '..') continue;
                     $path = $dir . '/' . $item;
                     $relPath = $relPrefix . $item;
-                    if ($relPrefix === '' && in_array($item, $excludes)) continue;
+                    if ($isPathExcluded($relPath)) continue;
                     if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql') continue;
                     if (!$includeClearData && $isClearDataFile($relPath, $localRoot)) continue;
                     $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat'];
@@ -1374,14 +1403,14 @@ switch ($action) {
                 'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles'
             ];
             
-            $callBridge = function($targetUrl = null) use (&$bridgeUrls, $excludes, $includeClearData) {
+            $callBridge = function($targetUrl = null) use (&$bridgeUrls, $defaultExcludes, $includeClearData) {
                 $urls = $targetUrl ? [$targetUrl] : $bridgeUrls;
                 $lastRes = null;
                 foreach ($urls as $url) {
                     $ch = curl_init();
                     curl_setopt($ch, CURLOPT_URL, $url);
                     curl_setopt($ch, CURLOPT_POST, true);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['excludes' => $excludes, 'include_cleardata' => $includeClearData]));
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['excludes' => $defaultExcludes, 'include_cleardata' => $includeClearData]));
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_TIMEOUT, 20);
                     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -1411,7 +1440,7 @@ switch ($action) {
             $remoteData = $callBridge();
 
             // If bridge is not yet on server or outdated (missing MD5/readme filter support), upload it fast via deployService
-            if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v4_md5') {
+            if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v6_sub_excludes') {
                 try {
                     $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $project['relPath']);
                     $remoteData = $callBridge();
@@ -1427,11 +1456,13 @@ switch ($action) {
             }
             
             $remoteFiles = $remoteData['files'] ?? [];
-            if (!$includeClearData) {
-                foreach ($remoteFiles as $rPath => $rVal) {
-                    if ($isClearDataFile($rPath, $localRoot)) {
-                        unset($remoteFiles[$rPath]);
-                    }
+            foreach ($remoteFiles as $rPath => $rVal) {
+                if ($isPathExcluded($rPath)) {
+                    unset($remoteFiles[$rPath]);
+                    continue;
+                }
+                if (!$includeClearData && $isClearDataFile($rPath, $localRoot)) {
+                    unset($remoteFiles[$rPath]);
                 }
             }
             
@@ -1506,6 +1537,31 @@ switch ($action) {
             $category = $data['category'] ?? '';
             $actions = $data['actions'] ?? []; // ['upload' => [...paths], 'download' => [...paths]]
             $includeClearData = !empty($data['include_cleardata']);
+            $defaultExcludes = [
+                'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks',
+                '.agents', '.git', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
+                'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
+                'assets/admin/json'
+            ];
+            $isPathExcluded = function($relPath) use ($defaultExcludes) {
+                $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
+                if ($clean === '') return false;
+                $firstPart = explode('/', $clean)[0];
+                
+                foreach ($defaultExcludes as $ex) {
+                    $exNorm = strtolower(trim(str_replace('\\', '/', $ex), '/'));
+                    if ($exNorm === '') continue;
+                    if (strpos($exNorm, '/') === false) {
+                        if ($firstPart === $exNorm) return true;
+                    } else {
+                        if ($clean === $exNorm || strpos($clean, $exNorm . '/') === 0) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
             $isClearDataFile = function($path, $localDir = '') {
                 $clean = str_replace('\\', '/', $path);
                 if (stripos($clean, 'cleardata') !== false) {
@@ -1572,6 +1628,9 @@ switch ($action) {
             if (!empty($actions['upload'])) {
                 foreach ($actions['upload'] as $path) {
                     $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
+                    if ($isPathExcluded($cleanPath)) {
+                        continue;
+                    }
                     if (!$includeClearData && $isClearDataFile($cleanPath, $localRoot)) {
                         continue;
                     }
@@ -1595,6 +1654,9 @@ switch ($action) {
             if (!empty($actions['download'])) {
                 foreach ($actions['download'] as $path) {
                     $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
+                    if ($isPathExcluded($cleanPath)) {
+                        continue;
+                    }
                     if (!$includeClearData && $isClearDataFile($cleanPath, $localRoot)) {
                         continue;
                     }
