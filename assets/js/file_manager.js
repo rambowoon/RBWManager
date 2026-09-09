@@ -6,24 +6,24 @@ var FileManager = {
     rawFiles: [],
     lastFindIndex: -1,
     treeCache: {},
-    
-    init() {
-        if (!document.getElementById('detail-project-name')?.innerText || !App.currentCategory) return;
-        const currentProject = document.getElementById('detail-project-name')?.innerText;
-        if (this.lastProject !== currentProject) {
-            this.currentPath = '/';
-            this.lastProject = currentProject;
-            this.treeCache = {};
-            this.loadTree(false);
-        } else if (!document.getElementById('fm-tree-children-root')) {
-            this.loadTree(false);
+
+    getDefaultEnv() {
+        const config = (typeof App !== 'undefined' && App.currentProjectConfig) ? App.currentProjectConfig : {};
+        const prod = config.prod || {};
+        const deployedProd = config.deployed?.production || {};
+        if (prod.ftp_host || prod.web_domain || prod.ftp_user || prod.da_user || deployedProd.ftp_host || deployedProd.url) {
+            return 'prod';
         }
-        this.loadCurrentPath();
+        const ftpHost = document.getElementById('d_ftp_host')?.value?.trim();
+        const webDomain = document.getElementById('d_web_domain')?.value?.trim();
+        const ftpUser = document.getElementById('d_ftp_user')?.value?.trim();
+        if (ftpHost || webDomain || ftpUser) {
+            return 'prod';
+        }
+        return 'demo';
     },
 
-    setEnv(env) {
-        if (this.currentEnv === env) return;
-        this.currentEnv = env;
+    updateEnvUI(env) {
         document.querySelectorAll('.fm-env-btn').forEach(btn => {
             btn.classList.remove('active');
             btn.style.background = 'transparent';
@@ -41,6 +41,33 @@ var FileManager = {
                 ? '<b style="color:#f59e0b;">🚀 ĐANG KẾT NỐI PRODUCTION HOSTING</b> - Chỉnh sửa file trực tiếp trên Server thật'
                 : 'Duyệt, chỉnh sửa và quản lý file trực tiếp trên Server Demo';
         }
+    },
+
+    resetToDefaultEnv() {
+        const defEnv = this.getDefaultEnv();
+        this.currentEnv = defEnv;
+        this.currentPath = '/';
+        this.treeCache = {};
+        this.updateEnvUI(defEnv);
+    },
+    
+    init() {
+        if (!document.getElementById('detail-project-name')?.innerText || !App.currentCategory) return;
+        const currentProject = document.getElementById('detail-project-name')?.innerText;
+        if (this.lastProject !== currentProject) {
+            this.lastProject = currentProject;
+            this.resetToDefaultEnv();
+            this.loadTree(false);
+        } else if (!document.getElementById('fm-tree-children-root')) {
+            this.loadTree(false);
+        }
+        this.loadCurrentPath();
+    },
+
+    setEnv(env) {
+        if (this.currentEnv === env) return;
+        this.currentEnv = env;
+        this.updateEnvUI(env);
         this.currentPath = '/';
         this.treeCache = {};
         this.loadTree(true);
@@ -922,23 +949,29 @@ var FileManager = {
 
 const SyncCenter = {
     lastData: null,
+    lastProject: null,
     currentEnv: 'demo',
     currentFilter: 'all',
     searchQuery: '',
     includeClearData: false,
-    
-    init() {
-        this.includeClearData = false;
-        try { localStorage.removeItem('sc_include_cleardata'); } catch(e) {}
-        const cb = document.getElementById('sc-check-cleardata');
-        if (cb) cb.checked = false;
-        const cbToolbar = document.getElementById('sc-check-cleardata-toolbar');
-        if (cbToolbar) cbToolbar.checked = false;
+
+    getDefaultEnv() {
+        const config = (typeof App !== 'undefined' && App.currentProjectConfig) ? App.currentProjectConfig : {};
+        const prod = config.prod || {};
+        const deployedProd = config.deployed?.production || {};
+        if (prod.ftp_host || prod.web_domain || prod.ftp_user || prod.da_user || deployedProd.ftp_host || deployedProd.url) {
+            return 'prod';
+        }
+        const ftpHost = document.getElementById('d_ftp_host')?.value?.trim();
+        const webDomain = document.getElementById('d_web_domain')?.value?.trim();
+        const ftpUser = document.getElementById('d_ftp_user')?.value?.trim();
+        if (ftpHost || webDomain || ftpUser) {
+            return 'prod';
+        }
+        return 'demo';
     },
 
-    setEnv(env) {
-        if (this.currentEnv === env) return;
-        this.currentEnv = env;
+    updateEnvUI(env) {
         document.querySelectorAll('.sc-env-btn').forEach(btn => {
             btn.classList.remove('active');
             btn.style.background = 'transparent';
@@ -956,6 +989,53 @@ const SyncCenter = {
                 ? '<b style="color:#f59e0b;">🚀 CHẾ ĐỘ PRODUCTION</b> - Đối soát và đồng bộ trực tiếp với Hosting thật của khách hàng'
                 : 'Tự động đối soát và đồng bộ mã nguồn giữa Local Workspace và Demo Hosting';
         }
+    },
+
+    resetToDefaultEnv() {
+        const defEnv = this.getDefaultEnv();
+        this.currentEnv = defEnv;
+        this.lastData = null;
+        this.updateEnvUI(defEnv);
+
+        // Reset view to standby prompt if not yet scanned
+        const container = document.getElementById('sync-center-content');
+        if (container) {
+            container.innerHTML = `
+                <div style="padding: 60px 20px; text-align: center; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 16px;">
+                    <div style="font-size: 32px; margin-bottom: 12px;">🔄</div>
+                    <h3 style="color: #fff; font-size: 16px; font-weight: 700; margin-bottom: 6px;">Sẵn sàng đối soát [${defEnv === 'prod' ? 'Production Server' : 'Demo Server'}]</h3>
+                    <p style="color: var(--text-muted, #94a3b8); font-size: 13px; max-width: 460px; margin: 0 auto 20px;">
+                        Nhấn nút <b>"Quét & So Sánh"</b> để kiểm tra sự khác biệt giữa máy Local và ${defEnv === 'prod' ? 'Production Server' : 'Demo Server'}.
+                    </p>
+                    <button class="btn btn-primary" onclick="SyncCenter.scan()" style="padding: 10px 24px; font-weight: 700; border-radius: 8px;">
+                        🔍 Bắt đầu Quét & So sánh
+                    </button>
+                </div>
+            `;
+        }
+    },
+    
+    init() {
+        this.includeClearData = false;
+        try { localStorage.removeItem('sc_include_cleardata'); } catch(e) {}
+        const cb = document.getElementById('sc-check-cleardata');
+        if (cb) cb.checked = false;
+        const cbToolbar = document.getElementById('sc-check-cleardata-toolbar');
+        if (cbToolbar) cbToolbar.checked = false;
+
+        const currentProject = document.getElementById('detail-project-name')?.innerText;
+        if (this.lastProject !== currentProject) {
+            this.lastProject = currentProject;
+            this.resetToDefaultEnv();
+        } else if (!this.currentEnv) {
+            this.resetToDefaultEnv();
+        }
+    },
+
+    setEnv(env) {
+        if (this.currentEnv === env) return;
+        this.currentEnv = env;
+        this.updateEnvUI(env);
         this.scan();
     },
     

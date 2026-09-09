@@ -479,22 +479,33 @@ const UI = {
 		this.renderMasterDeployedInfo(deployed, "d_");
 		this.renderMasterHistoryInfo(config.history, "d_");
 
-		// Show / Hide Hosting File Manager & Sync Center tabs only if project is deployed to Demo
+		// Show / Hide Hosting File Manager & Sync Center tabs if project is deployed to Demo OR has Production config
 		const hasDemo = !!(deployed && deployed.demo && (deployed.demo.deploy_time || deployed.demo.url || deployed.demo.server_id || deployed.demo.demo_server_id));
+		const hasProd = !!(deployed && deployed.production) || !!(prod && (prod.ftp_host || prod.web_domain || prod.ftp_user));
+		const canManageFiles = hasDemo || hasProd;
+
 		const fmBtn = document.getElementById("tab-btn-filemanager");
 		const syncBtn = document.getElementById("tab-btn-synccenter");
-		if (fmBtn) fmBtn.style.display = hasDemo ? "" : "none";
-		if (syncBtn) syncBtn.style.display = hasDemo ? "" : "none";
-		if (typeof SyncCenter !== 'undefined') SyncCenter.init();
+		if (fmBtn) fmBtn.style.display = canManageFiles ? "" : "none";
+		if (syncBtn) syncBtn.style.display = canManageFiles ? "" : "none";
 
 		const sideFmBtn = document.getElementById("side-tab-filemanager");
 		const sideSyncBtn = document.getElementById("side-tab-synccenter");
 		const sideBkBtn = document.getElementById("side-tab-backups");
-		if (sideFmBtn) sideFmBtn.style.display = hasDemo ? "flex" : "none";
-		if (sideSyncBtn) sideSyncBtn.style.display = hasDemo ? "flex" : "none";
-		if (sideBkBtn) sideBkBtn.style.display = hasDemo ? "flex" : "none";
+		if (sideFmBtn) sideFmBtn.style.display = canManageFiles ? "flex" : "none";
+		if (sideSyncBtn) sideSyncBtn.style.display = canManageFiles ? "flex" : "none";
+		if (sideBkBtn) sideBkBtn.style.display = canManageFiles ? "flex" : "none";
 
-		if (!hasDemo) {
+		// Automatically prioritize environment for current project (Production if configured, otherwise Demo)
+		if (typeof FileManager !== 'undefined' && FileManager.resetToDefaultEnv) {
+			FileManager.resetToDefaultEnv();
+		}
+		if (typeof SyncCenter !== 'undefined') {
+			if (SyncCenter.resetToDefaultEnv) SyncCenter.resetToDefaultEnv();
+			SyncCenter.init();
+		}
+
+		if (!canManageFiles) {
 			const activeTab = document.querySelector('.project-side-tab.active') || document.querySelector('.project-master-tabs .tab.active');
 			if (activeTab && (activeTab.dataset?.tab === 'd_tab-filemanager' || activeTab.dataset?.tab === 'd_tab-synccenter' || activeTab.dataset?.tab === 'd_tab-backups' || activeTab.id === 'tab-btn-filemanager' || activeTab.id === 'tab-btn-synccenter')) {
 				const firstTabBtn = document.querySelector('.project-side-tab') || document.querySelector('.project-master-tabs .tab');

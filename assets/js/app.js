@@ -136,6 +136,7 @@ const App = {
 		const data = await Api.getProjectConfig(name, category);
 		if (data.status === 'success') {
 			const config = data.data || {};
+			this.currentProjectConfig = config;
 			const hasDemo = !!(config.deployed && config.deployed.demo);
 			const hasProd = !!(config.deployed && config.deployed.production);
 			const statusEl = document.getElementById('detail-project-status');
