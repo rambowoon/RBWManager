@@ -147,19 +147,41 @@ class ScreenshotService
 
     public function capture($category, $projectName, $customUrl = null, $project = null, $config = [])
     {
+        // Tự động tìm config và danh mục thực tế nếu category truyền vào rỗng hoặc sai
+        if (empty($config)) {
+            $configPath = $this->baseDir . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'projects.json';
+            if (file_exists($configPath)) {
+                $allConfigs = json_decode(file_get_contents($configPath), true) ?: [];
+                if (!empty($category) && isset($allConfigs[$category][$projectName])) {
+                    $config = $allConfigs[$category][$projectName];
+                } else {
+                    foreach ($allConfigs as $catName => $catProjects) {
+                        if (is_array($catProjects) && isset($catProjects[$projectName])) {
+                            $category = $catName;
+                            $config = $catProjects[$projectName];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         if (!$project) {
             $project = [
                 'name' => $projectName,
                 'category' => $category,
                 'relPath' => ($category ? $category . '/' : '') . $projectName
             ];
+        } elseif (empty($project['category']) && !empty($category)) {
+            $project['category'] = $category;
+            $project['relPath'] = $category . '/' . $projectName;
         }
 
         $targetUrl = $customUrl ?: $this->determineBestUrl($project, $config);
         if (!$targetUrl) {
             return [
                 'status' => 'error',
-                'message' => 'Dự án chưa có thông tin tên miền Production hoặc Demo. Hệ thống không chụp localhost.'
+                'message' => 'Dự án chưa có thông tin tên miền Production hoặc Demo.'
             ];
         }
 
@@ -176,7 +198,7 @@ class ScreenshotService
 
         $browserPath = $this->findBrowserExecutable();
         if (!$browserPath) {
-            return ['status' => 'error', 'message' => 'Không tìm thấy trình duyệt Chrome hoặc Edge trên hệ thống để chụp ảnh màn hình.'];
+            return ['status' => 'error', 'message' => 'Không tìm thấy trình duyệt Chrome hoặc Edge trên hệ thống.'];
         }
 
         $tempPng = $this->cacheDir . DIRECTORY_SEPARATOR . 'shot_' . uniqid() . '.png';
@@ -219,7 +241,7 @@ class ScreenshotService
         // 2. Fallback: Sử dụng Chrome CLI với chiều cao dài
         $browserPath = $this->findBrowserExecutable();
         if (!$browserPath) {
-            return ['status' => 'error', 'message' => 'Không tìm thấy trình duyệt Chrome hoặc Edge trên hệ thống để chụp ảnh màn hình.'];
+            return ['status' => 'error', 'message' => 'Không tìm thấy trình duyệt Chrome hoặc Edge trên hệ thống.'];
         }
 
         $tempPng = $this->cacheDir . DIRECTORY_SEPARATOR . 'shot_' . uniqid() . '.png';
