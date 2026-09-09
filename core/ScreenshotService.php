@@ -62,7 +62,7 @@ class ScreenshotService
 
     public function determineBestUrl($project, $config = [])
     {
-        // 1. Check Production
+        // 1. Ưu tiên Production
         $prod = $config['prod'] ?? [];
         if (!empty($prod['web_domain'])) {
             $domain = $prod['web_domain'];
@@ -73,7 +73,7 @@ class ScreenshotService
             return rtrim($domain, '/') . '/';
         }
 
-        // 2. Check Demo
+        // 2. Kế đến Demo
         if (!empty($config['demo_url'])) {
             $dUrl = $config['demo_url'];
             if (!preg_match('/^https?:\/\//i', $dUrl)) {
@@ -90,12 +90,7 @@ class ScreenshotService
             return rtrim($dUrl, '/') . '/';
         }
 
-        // 3. Fallback Localhost
-        if (!empty($project['relPath'])) {
-            $rel = str_replace('\\', '/', $project['relPath']);
-            return 'http://localhost/' . trim($rel, '/') . '/';
-        }
-
+        // Tuyệt đối không fallback về localhost
         return null;
     }
 
@@ -103,7 +98,10 @@ class ScreenshotService
     {
         $targetUrl = $customUrl ?: $this->determineBestUrl($project, $config);
         if (!$targetUrl) {
-            return ['status' => 'error', 'message' => 'Không tìm thấy đường dẫn website hợp lệ để chụp ảnh.'];
+            return [
+                'status' => 'error',
+                'message' => 'Dự án chưa có thông tin tên miền Production hoặc Demo. Hệ thống không chụp localhost.'
+            ];
         }
 
         // Kiểm tra website có hoạt động bình thường không (tránh 404, 500, lỗi máy chủ, chưa cấu hình)
