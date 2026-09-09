@@ -88,9 +88,20 @@ async function capture(url, outputPath) {
 
         let mainDocStatus = 200;
 
+        let inFlightRequests = 0;
+        let lastRequestTime = Date.now();
+
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
+                if (msg.method === 'Network.requestWillBeSent') {
+                    inFlightRequests++;
+                    lastRequestTime = Date.now();
+                } else if (msg.method === 'Network.loadingFinished' || msg.method === 'Network.loadingFailed') {
+                    inFlightRequests = Math.max(0, inFlightRequests - 1);
+                    lastRequestTime = Date.now();
+                }
+
                 if (msg.method === 'Network.responseReceived' && msg.params && msg.params.type === 'Document') {
                     if (msg.params.response && msg.params.response.status) {
                         mainDocStatus = msg.params.response.status;
@@ -122,8 +133,23 @@ async function capture(url, outputPath) {
         await send('Page.enable');
         await send('DOM.enable');
 
-        // Allow up to 2 seconds for initial load
-        await new Promise(r => setTimeout(r, 1500));
+        // Chờ document.readyState === 'complete' hoặc timeout 6 giây
+        const waitReadyState = async () => {
+            const start = Date.now();
+            while (Date.now() - start < 6000) {
+                try {
+                    const res = await send('Runtime.evaluate', {
+                        expression: 'document.readyState',
+                        returnByValue: true
+                    });
+                    if (res && res.result && res.result.value === 'complete') {
+                        break;
+                    }
+                } catch (e) {}
+                await new Promise(r => setTimeout(r, 200));
+            }
+        };
+        await waitReadyState();
 
         // 1. Kiểm tra HTTP Status của trang chính
         if (mainDocStatus >= 400) {
@@ -182,32 +208,90 @@ async function capture(url, outputPath) {
             }
         }
 
-        // Auto-scroll to trigger lazy loaded images, then scroll back to top
+        // 3. Kích hoạt và ép nạp toàn bộ ảnh lazy-load, phông chữ và scroll tuần tự
         try {
             await send('Runtime.evaluate', {
-                expression: `new Promise((resolve) => {
-                    let totalHeight = 0;
-                    let distance = 350;
-                    let timer = setInterval(() => {
-                        let scrollHeight = Math.min(document.body.scrollHeight || 0, 8000);
-                        window.scrollBy(0, distance);
-                        totalHeight += distance;
-                        if (totalHeight >= scrollHeight) {
-                            clearInterval(timer);
-                            window.scrollTo(0, 0);
-                            setTimeout(resolve, 300);
-                        }
-                    }, 60);
-                })`,
+                expression: `(async () => {
+                    // Chờ Fonts ready
+                    if (document.fonts && document.fonts.ready) {
+                        try { await document.fonts.ready; } catch(e) {}
+                    }
+
+                    // Buộc kích hoạt các thuộc tính data-src, data-lazy, data-original của thư viện lazyload
+                    try {
+                        const lazyImgs = document.querySelectorAll('img[data-src], img[data-original], img[data-lazy], img[data-srcset]');
+                        lazyImgs.forEach(img => {
+                            if (img.dataset.src && !img.src) img.src = img.dataset.src;
+                            if (img.dataset.original && !img.src) img.src = img.dataset.original;
+                            if (img.dataset.lazy && !img.src) img.src = img.dataset.lazy;
+                            if (img.dataset.srcset && !img.srcset) img.srcset = img.dataset.srcset;
+                            if (img.loading === 'lazy') img.loading = 'eager';
+                        });
+
+                        const lazyBgs = document.querySelectorAll('[data-bg], [data-background], [data-bg-image]');
+                        lazyBgs.forEach(el => {
+                            const bg = el.dataset.bg || el.dataset.background || el.dataset.bgImage;
+                            if (bg && !el.style.backgroundImage) {
+                                el.style.backgroundImage = 'url("' + bg + '")';
+                            }
+                        });
+                    } catch(e) {}
+
+                    // Cuộn tuần tự từ đầu đến chân trang để kích hoạt IntersectionObserver & thư viện scroll (AOS/WOW/Lazyload)
+                    await new Promise((resolve) => {
+                        let totalHeight = 0;
+                        const distance = 400;
+                        const scrollHeightLimit = Math.min(document.body.scrollHeight || 0, 15000);
+                        
+                        const timer = setInterval(() => {
+                            window.scrollBy(0, distance);
+                            totalHeight += distance;
+                            if (totalHeight >= scrollHeightLimit) {
+                                clearInterval(timer);
+                                // Dừng lại ở đáy một nhịp ngắn để lazy-load footer kịp nạp
+                                setTimeout(() => {
+                                    window.scrollTo(0, 0);
+                                    setTimeout(resolve, 500);
+                                }, 400);
+                            }
+                        }, 80);
+                    });
+
+                    // Đợi tất cả thẻ <img> đã có trong DOM hoàn thành nạp ảnh
+                    try {
+                        const imgs = Array.from(document.images);
+                        await Promise.all(imgs.map(img => {
+                            if (img.complete && img.naturalWidth !== 0) return Promise.resolve();
+                            return new Promise(res => {
+                                img.addEventListener('load', res, { once: true });
+                                img.addEventListener('error', res, { once: true });
+                                setTimeout(res, 2500);
+                            });
+                        }));
+                    } catch(e) {}
+                })()`,
                 awaitPromise: true,
                 returnByValue: true
             });
         } catch (e) {
-            // Ignore if page blocks eval
+            // Bỏ qua nếu có lỗi script trong trang
         }
 
-        // Wait a tiny bit for layout stabilization
-        await new Promise(r => setTimeout(r, 400));
+        // 4. Chờ Network Idle (không còn request nào trong vòng 500ms hoặc tối đa 3.5s)
+        const waitNetworkIdle = async () => {
+            const maxWait = 3500;
+            const startWait = Date.now();
+            while (Date.now() - startWait < maxWait) {
+                if (inFlightRequests === 0 && (Date.now() - lastRequestTime > 400)) {
+                    break;
+                }
+                await new Promise(r => setTimeout(r, 150));
+            }
+        };
+        await waitNetworkIdle();
+
+        // 5. Đợi layout và các slider animation ổn định lần cuối
+        await new Promise(r => setTimeout(r, 600));
 
         // Full page screenshot
         const captureResult = await send('Page.captureScreenshot', {
