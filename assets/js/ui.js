@@ -210,6 +210,14 @@ const UI = {
 						<span>Chưa có ảnh</span>
 				   </div>`;
 
+			const isCustomPhp = !!p.is_custom_php;
+			const phpDisplay = p.php_display || (p.php_version ? p.php_version.replace(/^php-?/i, 'PHP ') : 'PHP');
+			const phpTitle = isCustomPhp
+				? `Phiên bản PHP riêng: ${p.php_version} (Cấu hình riêng trong sites.json)`
+				: `Phiên bản PHP mặc định hệ thống: ${p.php_version || 'Hệ thống'}`;
+			const phpBadgeClass = isCustomPhp ? 'badge-php-custom' : 'badge-php-default';
+			const phpBadge = `<span class="badge-php ${phpBadgeClass}" title="${phpTitle}">${isCustomPhp ? '<span class="badge-php-dot"></span>' : ''}${phpDisplay}</span>`;
+
 			card.innerHTML = `
                 <div class="item-card-inner">
                     <div class="item-card-thumb-wrap" onclick="event.stopPropagation(); App.previewOrCapture('${safeName}', '${safeCat}', '${p.screenshot ? p.screenshot.replace(/'/g, "\\'") : ''}')" title="${p.screenshot ? 'Nhấn để xem hoặc cập nhật ảnh website' : 'Nhấn để chụp ảnh website'}">
@@ -231,7 +239,10 @@ const UI = {
                         </button>
                     </div>
                     <div class="item-card-footer">
-                        <span class="badge ${badgeClass}">${badgeText}</span>
+                        <div class="item-card-badges" style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap; overflow:hidden;">
+                            <span class="badge ${badgeClass}">${badgeText}</span>
+                            ${phpBadge}
+                        </div>
                         <button class="btn btn-primary ${isLockedDemo ? "btn-deploy-locked" : ""} btn-deploy-small" 
                             onclick="event.stopPropagation(); ${isLockedDemo ? "UI.notify('Dự án này đang bị KHÓA!', 'error')" : `App.deployDemo('${safeName}', '${safeCat}')`}">
                             🚀 Deploy

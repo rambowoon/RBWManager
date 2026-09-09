@@ -90,6 +90,8 @@ const App = {
 		if (projHeader) projHeader.style.display = 'none';
 		const statusEl = document.getElementById('detail-project-status');
 		if (statusEl) statusEl.style.display = 'none';
+		const phpHeaderEl = document.getElementById('detail-project-php');
+		if (phpHeaderEl) phpHeaderEl.style.display = 'none';
 		const navHeader = document.getElementById('nav-header');
 		if (navHeader) navHeader.style.display = 'none';
 		const dashBreadcrumb = document.getElementById('dashboard-breadcrumb');
@@ -154,6 +156,20 @@ const App = {
 					statusEl.style.background = 'var(--surface-2)';
 					statusEl.style.color = 'var(--text-muted)';
 				}
+			}
+
+			// Hiển thị phiên bản PHP của dự án trên Header
+			const phpHeaderEl = document.getElementById('detail-project-php');
+			if (phpHeaderEl) {
+				const isCustom = !!config.is_custom_php;
+				const pDisplay = config.php_display || (config.php_version ? config.php_version.replace(/^php-?/i, 'PHP ') : 'PHP');
+				const pTitle = isCustom
+					? `Phiên bản PHP riêng: ${config.php_version} (Cấu hình riêng trong sites.json)`
+					: `Phiên bản PHP mặc định hệ thống: ${config.php_version || 'Hệ thống'}`;
+				phpHeaderEl.className = `badge-php ${isCustom ? 'badge-php-custom' : 'badge-php-default'}`;
+				phpHeaderEl.innerHTML = `${isCustom ? '<span class="badge-php-dot"></span>' : ''}${pDisplay}`;
+				phpHeaderEl.title = pTitle;
+				phpHeaderEl.style.display = 'inline-flex';
 			}
 
 			UI.fillProjectDetailForm(name, config, category);

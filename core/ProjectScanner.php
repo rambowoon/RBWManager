@@ -288,4 +288,117 @@ class ProjectScanner {
         
         return $projects;
     }
+
+    /**
+     * Đọc cấu hình phiên bản PHP của các site từ RBWStack (data/sites.json)
+     * Tự động nhận diện đường dẫn linh hoạt trên mọi máy tính (C:, D:, E:, Linux, v.v.)
+     *
+     * @return array Mảng map 'relPath' => 'php-x.x.x'
+     */
+    public function getPhpSitesConfig() {
+        $possiblePaths = [];
+
+        // 1. Thư mục gốc RBWStack từ baseDir (baseDir thường là /www => dirname là /RBWStack)
+        if (!empty($this->baseDir)) {
+            $possiblePaths[] = dirname($this->baseDir) . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'sites.json';
+        }
+
+        // 2. Từ vị trí file ProjectScanner.php: ../../../data/sites.json (core -> RBWManager -> www -> RBWStack)
+        $possiblePaths[] = dirname(dirname(dirname(__DIR__))) . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'sites.json';
+        $possiblePaths[] = dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'sites.json';
+
+        // 3. Quét theo ký tự ổ đĩa hiện tại trên Windows (C:\RBWStack, D:\RBWStack,...)
+        if (defined('PHP_OS_FAMILY') && PHP_OS_FAMILY === 'Windows') {
+            $drive = substr(__DIR__, 0, 2);
+            if ($drive) {
+                $possiblePaths[] = $drive . '\\RBWStack\\data\\sites.json';
+            }
+            $possiblePaths[] = 'C:\\RBWStack\\data\\sites.json';
+            $possiblePaths[] = 'D:\\RBWStack\\data\\sites.json';
+        }
+
+        foreach ($possiblePaths as $path) {
+            if ($path && file_exists($path)) {
+                $content = @file_get_contents($path);
+                if ($content) {
+                    $json = json_decode($content, true);
+                    if (is_array($json)) {
+                        return $json;
+                    }
+                }
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Lấy phiên bản PHP mặc định mà hệ thống máy chủ RBWStack đang chạy
+     *
+     * @return string Ví dụ: 'php-8.4.23'
+     */
+    public function getSystemPhpVersion() {
+        return 'php-' . PHP_VERSION;
+    }
+
+    /**
+     * Xác định phiên bản PHP của một dự án:
+     * - Nếu có trong sites.json => lấy phiên bản riêng được cấu hình (is_custom_php = true)
+     * - Nếu không có trong sites.json => lấy theo PHP mặc định hệ thống (is_custom_php = false)
+     *
+     * @param array $project Thông tin dự án
+     * @param array|null $sitesConfig Dữ liệu từ sites.json (nếu đã nạp trước)
+     * @return array [php_version, php_display, is_custom_php, system_php]
+     */
+    public function resolveProjectPhp($project, $sitesConfig = null) {
+        if ($sitesConfig === null) {
+            $sitesConfig = $this->getPhpSitesConfig();
+        }
+
+        $systemPhp = $this->getSystemPhpVersion();
+        
+        $pName = $project['name'] ?? '';
+        $pCat = $project['category'] ?? '';
+        $relPath = str_replace('\\', '/', $project['relPath'] ?? ($pCat ? "$pCat/$pName" : $pName));
+        $trimRelPath = trim($relPath, '/');
+
+        $matchedPhp = null;
+        $isCustom = false;
+
+        // Khớp theo relPath chính xác (ví dụ: '2026_05/hoanggia_0865426w')
+        if (isset($sitesConfig[$relPath])) {
+            $matchedPhp = $sitesConfig[$relPath];
+            $isCustom = true;
+        } elseif (isset($sitesConfig[$trimRelPath])) {
+            $matchedPhp = $sitesConfig[$trimRelPath];
+            $isCustom = true;
+        } elseif (isset($sitesConfig[$pName])) {
+            $matchedPhp = $sitesConfig[$pName];
+            $isCustom = true;
+        } else {
+            // Kiểm tra case-insensitive nếu hệ thống có khác biệt chữ hoa chữ thường
+            foreach ($sitesConfig as $key => $val) {
+                if (strcasecmp($key, $relPath) === 0 || strcasecmp($key, $trimRelPath) === 0 || strcasecmp($key, $pName) === 0) {
+                    $matchedPhp = $val;
+                    $isCustom = true;
+                    break;
+                }
+            }
+        }
+
+        $effectivePhp = $matchedPhp ?: $systemPhp;
+
+        // Rút gọn phiên bản PHP để hiển thị đẹp trên badge (ví dụ: 'PHP 7.4', 'PHP 8.3', 'PHP 8.4')
+        $shortDisplay = $effectivePhp;
+        if (preg_match('/(?:php-?)?(\d+\.\d+)(?:\.\d+)?/i', $effectivePhp, $m)) {
+            $shortDisplay = 'PHP ' . $m[1];
+        }
+
+        return [
+            'php_version' => $effectivePhp,
+            'php_display' => $shortDisplay,
+            'is_custom_php' => $isCustom,
+            'system_php' => $systemPhp
+        ];
+    }
 }

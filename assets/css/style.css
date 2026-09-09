@@ -1202,3 +1202,60 @@ padding-left: 15px; border-left: 2px solid rgba(99, 102, 241, 0.2); margin-top: 
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+
+/* ===== PHP VERSION BADGE ===== */
+.badge-php {
+    height: 28px;
+    padding: 0 9px;
+    border-radius: 8px !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.68rem;
+    font-weight: 750;
+    font-family: var(--mono);
+    box-sizing: border-box;
+    line-height: 1;
+    white-space: nowrap;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+/* PHP mặc định hệ thống: Màu trung tính tinh tế */
+.badge-php-default {
+    background: rgba(255, 255, 255, 0.04);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.badge-php-default:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* PHP riêng biệt (cấu hình trong sites.json): Màu tím PHP / hổ phách nổi bật kèm phát sáng */
+.badge-php-custom {
+    background: rgba(168, 85, 247, 0.14);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.38);
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.12);
+}
+
+.badge-php-custom:hover {
+    background: rgba(168, 85, 247, 0.22);
+    color: #d8b4fe;
+    border-color: rgba(168, 85, 247, 0.55);
+    box-shadow: 0 0 14px rgba(168, 85, 247, 0.25);
+}
+
+/* Chấm tròn phát sáng cho PHP riêng biệt */
+.badge-php-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #c084fc;
+    box-shadow: 0 0 6px #c084fc;
+    display: inline-block;
+    flex-shrink: 0;
+}

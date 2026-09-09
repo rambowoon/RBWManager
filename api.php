@@ -659,11 +659,24 @@ switch ($action) {
         $category = $_GET['category'] ?? '';
         $refresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';
         $projects = $scanner->getProjects($category, $refresh);
+        $sitesConfig = $scanner->getPhpSitesConfig();
+        $systemPhp = $scanner->getSystemPhpVersion();
+
         foreach ($projects as &$p) { 
             $p['config'] = $configManager->getForProject($p['name'], $p['category'] ?? null); 
             $p['screenshot'] = $screenshotService->getScreenshotUrl($p['category'] ?? '', $p['name']);
+
+            // Đọc phiên bản PHP từ sites.json (nếu có) hoặc mặc định hệ thống
+            $phpInfo = $scanner->resolveProjectPhp($p, $sitesConfig);
+            $p['php_version'] = $phpInfo['php_version'];
+            $p['php_display'] = $phpInfo['php_display'];
+            $p['is_custom_php'] = $phpInfo['is_custom_php'];
         }
-        echo json_encode(['status' => 'success', 'data' => $projects]);
+        echo json_encode([
+            'status' => 'success', 
+            'data' => $projects,
+            'system_php' => $systemPhp
+        ]);
         break;
 
     case 'captureScreenshot':
@@ -796,7 +809,16 @@ switch ($action) {
     case 'getProjectConfig':
         $name = $_GET['name'] ?? '';
         $category = $_GET['category'] ?? null;
-        echo json_encode(['status' => 'success', 'data' => $configManager->getForProject($name, $category)]);
+        $config = $configManager->getForProject($name, $category) ?: [];
+        $project = $scanner->getProjectByName($name, $category);
+        if ($project) {
+            $phpInfo = $scanner->resolveProjectPhp($project);
+            $config['php_version'] = $phpInfo['php_version'];
+            $config['php_display'] = $phpInfo['php_display'];
+            $config['is_custom_php'] = $phpInfo['is_custom_php'];
+            $config['system_php'] = $phpInfo['system_php'];
+        }
+        echo json_encode(['status' => 'success', 'data' => $config]);
         break;
 
     case 'deployNewProject':

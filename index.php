@@ -145,6 +145,7 @@
                 </div>
 
                 <div class="header-right flex-center-gap">
+                    <span class="badge-php" id="detail-project-php" style="display:none; margin-right: 6px;"></span>
                     <span class="badge-env" id="detail-project-status" style="display:none; margin-right: 6px;">● DEMO ĐANG CHẠY</span>
                     <!-- THEME DROPDOWN -->
                     <div class="theme-dropdown-wrapper">
