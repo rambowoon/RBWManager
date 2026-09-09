@@ -183,16 +183,16 @@ const UI = {
 			);
 
 			let badgeClass = "badge-pending";
-			let badgeText = "⏳ Đang tiến hành";
+			let badgeText = "⏳ Local";
 			let cardStatusClass = "card-status-pending";
 
 			if (hasProd) {
 				badgeClass = "badge-prod";
-				badgeText = "🚀 Đã up Production";
+				badgeText = "🚀 Production";
 				cardStatusClass = "card-status-prod";
 			} else if (hasDemo) {
 				badgeClass = "badge-ok";
-				badgeText = "🌿 Đã up Demo";
+				badgeText = "🌿 Demo";
 				cardStatusClass = "card-status-demo";
 			}
 
