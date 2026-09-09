@@ -1669,16 +1669,8 @@ const App = {
 
 		const recaptureBtn = document.getElementById('modal-screenshot-recapture-btn');
 		recaptureBtn.onclick = async () => {
-			recaptureBtn.disabled = true;
-			recaptureBtn.innerHTML = '<span class="btn-spinner"></span> Đang chụp...';
+			App.closeScreenshotModal();
 			await App.captureScreenshot(name, category);
-			recaptureBtn.disabled = false;
-			recaptureBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Chụp lại';
-			// Update modal image if URL changed
-			const updatedCard = document.querySelector(`.item-card[data-project="${name}"] img.item-card-thumb-img`);
-			if (updatedCard) {
-				img.src = updatedCard.src;
-			}
 		};
 
 		modal.style.display = 'flex';
@@ -1689,34 +1681,180 @@ const App = {
 		if (modal) modal.style.display = 'none';
 	},
 
-	async captureScreenshot(name, category, customUrl = null) {
+	async captureScreenshot(name, category, customUrl = null, isSilent = false) {
 		const targetCat = category || this.currentCategory || '';
 		
-		// Visual indicator on target card
+		// Visual indicator on target card if visible
 		const card = document.querySelector(`.item-card[data-project="${name}"]`);
 		const thumbWrap = card ? card.querySelector('.item-card-thumb-wrap') : null;
 		if (thumbWrap) {
 			thumbWrap.classList.add('capturing');
 		}
 
-		UI.notify(`Đang chụp ảnh website [${name}]...`, 'info');
+		if (isSilent) {
+			try {
+				const res = await Api.captureScreenshot(name, targetCat, customUrl);
+				if (thumbWrap) thumbWrap.classList.remove('capturing');
+				return res;
+			} catch (err) {
+				if (thumbWrap) thumbWrap.classList.remove('capturing');
+				throw err;
+			}
+		}
+
+		// Khởi tạo Popup Chi tiết Tiến trình Chụp ảnh
+		const modalId = 'single-screenshot-modal';
+		UI.showModal(modalId);
+
+		// Elements
+		const projNameEl = document.getElementById('single-shot-proj-name');
+		const catBadgeEl = document.getElementById('single-shot-category-badge');
+		const targetUrlEl = document.getElementById('single-shot-target-url');
+		const procSection = document.getElementById('single-shot-processing-section');
+		const successSection = document.getElementById('single-shot-success-section');
+		const errorSection = document.getElementById('single-shot-error-section');
+		const statusTextEl = document.getElementById('single-shot-status-text');
+		const timerEl = document.getElementById('single-shot-timer');
+		const progressBar = document.getElementById('single-shot-progress-bar');
+		const previewImg = document.getElementById('single-shot-preview-img');
+		const metaEl = document.getElementById('single-shot-meta');
+		const errorMsgEl = document.getElementById('single-shot-error-msg');
+		const btnClose = document.getElementById('btn-single-shot-close');
+		const btnRetry = document.getElementById('btn-single-shot-retry');
+		const btnViewFull = document.getElementById('btn-single-shot-view-full');
+
+		if (projNameEl) projNameEl.innerText = name;
+		if (catBadgeEl) catBadgeEl.innerText = targetCat || 'Mặc định';
+
+		// Tìm URL dự kiến từ project cache nếu có
+		const pObj = (this.projects || []).find(p => p.name === name);
+		let guessedUrl = customUrl;
+		if (!guessedUrl && pObj) {
+			if (pObj.prod && pObj.prod.web_domain) {
+				const ssl = pObj.prod.ssl ? 'https://' : 'http://';
+				guessedUrl = pObj.prod.web_domain.startsWith('http') ? pObj.prod.web_domain : ssl + pObj.prod.web_domain;
+			} else if (pObj.demo_url) {
+				guessedUrl = pObj.demo_url.startsWith('http') ? pObj.demo_url : 'http://' + pObj.demo_url;
+			} else if (pObj.deployed && pObj.deployed.demo && pObj.deployed.demo.url) {
+				guessedUrl = pObj.deployed.demo.url;
+			}
+		}
+
+		if (targetUrlEl) {
+			if (guessedUrl) {
+				targetUrlEl.innerText = guessedUrl;
+				targetUrlEl.href = guessedUrl;
+			} else {
+				targetUrlEl.innerText = 'Đang tự động xác định URL từ cấu hình...';
+				targetUrlEl.removeAttribute('href');
+			}
+		}
+
+		// Reset hiển thị các section
+		if (procSection) procSection.style.display = 'block';
+		if (successSection) successSection.style.display = 'none';
+		if (errorSection) errorSection.style.display = 'none';
+		if (btnRetry) btnRetry.style.display = 'none';
+		if (btnViewFull) btnViewFull.style.display = 'none';
+		if (progressBar) progressBar.style.width = '15%';
+
+		// Helper cập nhật trạng thái của từng bước
+		const setStepState = (stepNum, state) => {
+			const stepEl = document.getElementById(`step-single-${stepNum}`);
+			if (!stepEl) return;
+			const iconEl = stepEl.querySelector('.shot-step-icon');
+			if (state === 'active') {
+				stepEl.style.opacity = '1';
+				stepEl.style.color = '#38bdf8';
+				if (iconEl) iconEl.innerHTML = '<span class="spinner-small" style="width:13px; height:13px; border:2px solid rgba(255,255,255,0.2); border-top-color:#38bdf8; border-radius:50%; animation:spin 0.8s linear infinite; display:inline-block;"></span>';
+			} else if (state === 'done') {
+				stepEl.style.opacity = '1';
+				stepEl.style.color = '#34d399';
+				if (iconEl) iconEl.innerHTML = '✅';
+			} else if (state === 'error') {
+				stepEl.style.opacity = '1';
+				stepEl.style.color = '#f87171';
+				if (iconEl) iconEl.innerHTML = '❌';
+			} else {
+				stepEl.style.opacity = '0.5';
+				stepEl.style.color = 'var(--muted)';
+				if (iconEl) iconEl.innerHTML = '⚪';
+			}
+		};
+
+		// Reset các bước
+		setStepState(1, 'active');
+		for (let s = 2; s <= 5; s++) setStepState(s, 'waiting');
+
+		// Timer bắt đầu chạy
+		let elapsedSeconds = 0;
+		if (timerEl) timerEl.innerText = '⏱️ 00:00s';
+		const timerInterval = setInterval(() => {
+			elapsedSeconds++;
+			const secStr = elapsedSeconds < 10 ? '0' + elapsedSeconds : elapsedSeconds;
+			if (timerEl) timerEl.innerText = `⏱️ 00:${secStr}s`;
+		}, 1000);
+
+		// Animation tuần tự giả lập các giai đoạn backend đang thực thi
+		const timeout1 = setTimeout(() => {
+			setStepState(1, 'done');
+			setStepState(2, 'active');
+			if (progressBar) progressBar.style.width = '35%';
+			if (statusTextEl) statusTextEl.innerHTML = '<span class="spinner-small" style="width:12px; height:12px; border:2px solid rgba(255,255,255,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; display:inline-block;"></span> Đang nạp trang web & tải toàn bộ tài nguyên...';
+		}, 1200);
+
+		const timeout2 = setTimeout(() => {
+			setStepState(2, 'done');
+			setStepState(3, 'active');
+			if (progressBar) progressBar.style.width = '60%';
+			if (statusTextEl) statusTextEl.innerHTML = '<span class="spinner-small" style="width:12px; height:12px; border:2px solid rgba(255,255,255,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; display:inline-block;"></span> Đang cuộn trang & nạp Lazyload / Slider Swiper...';
+		}, 3000);
+
+		const timeout3 = setTimeout(() => {
+			setStepState(3, 'done');
+			setStepState(4, 'active');
+			if (progressBar) progressBar.style.width = '80%';
+			if (statusTextEl) statusTextEl.innerHTML = '<span class="spinner-small" style="width:12px; height:12px; border:2px solid rgba(255,255,255,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; display:inline-block;"></span> Đang kết xuất ảnh chụp Full Page từ Header đến Footer...';
+		}, 5500);
+
+		const timeout4 = setTimeout(() => {
+			setStepState(4, 'done');
+			setStepState(5, 'active');
+			if (progressBar) progressBar.style.width = '92%';
+			if (statusTextEl) statusTextEl.innerHTML = '<span class="spinner-small" style="width:12px; height:12px; border:2px solid rgba(255,255,255,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; display:inline-block;"></span> Đang tối ưu hóa dung lượng WebP...';
+		}, 8000);
 
 		try {
 			const res = await Api.captureScreenshot(name, targetCat, customUrl);
-			if (res.status === 'success') {
-				UI.notify(`Đã chụp ảnh thành công cho [${name}]!`, 'success');
-				
+			
+			// Dọn dẹp timers
+			clearInterval(timerInterval);
+			clearTimeout(timeout1);
+			clearTimeout(timeout2);
+			clearTimeout(timeout3);
+			clearTimeout(timeout4);
+
+			// Cập nhật URL thực tế nếu có trong phản hồi
+			if (res && res.targetUrl && targetUrlEl) {
+				targetUrlEl.innerText = res.targetUrl;
+				targetUrlEl.href = res.targetUrl;
+			}
+
+			if (res && res.status === 'success') {
+				// Đánh dấu hoàn tất toàn bộ các bước
+				for (let s = 1; s <= 5; s++) setStepState(s, 'done');
+				if (progressBar) progressBar.style.width = '100%';
+
 				const rawUrl = res.screenshot || res.url;
 				const cleanUrl = rawUrl ? rawUrl.split('?')[0] : '';
 				const freshUrl = cleanUrl ? `${cleanUrl}?v=${Date.now()}` : '';
 
-				// Update project in local array
-				const pObj = this.projects.find(p => p.name === name);
+				// Cập nhật model & cache
 				if (pObj) {
 					pObj.screenshot = freshUrl;
 				}
 
-				// Update DOM directly without reload
+				// Cập nhật DOM thumbnail trên card ngoài màn hình chính
 				if (thumbWrap && freshUrl) {
 					thumbWrap.classList.remove('capturing');
 					thumbWrap.onclick = (e) => {
@@ -1741,12 +1879,61 @@ const App = {
 				} else if (thumbWrap) {
 					thumbWrap.classList.remove('capturing');
 				}
+
+				// Hiển thị khung thành công trong modal
+				if (procSection) procSection.style.display = 'none';
+				if (successSection) successSection.style.display = 'flex';
+				if (previewImg && freshUrl) previewImg.src = freshUrl;
+
+				const sizeText = res.size ? `Dung lượng: ~${Math.round(res.size / 1024)} KB` : 'Dung lượng tối ưu';
+				const timeText = elapsedSeconds > 0 ? `Thời gian: ${elapsedSeconds}s` : 'Hoàn tất tức thì';
+				if (metaEl) metaEl.innerText = `${sizeText} | ${timeText} | Định dạng: WebP Full Page`;
+
+				if (btnViewFull && freshUrl) {
+					btnViewFull.href = freshUrl;
+					btnViewFull.style.display = 'inline-flex';
+				}
+
+				if (typeof confetti === 'function') {
+					try { confetti({ particleCount: 40, spread: 50, origin: { y: 0.6 } }); } catch (e) {}
+				}
+				UI.notify(`Đã chụp ảnh thành công cho [${name}]!`, 'success');
 			} else {
 				if (thumbWrap) thumbWrap.classList.remove('capturing');
-				UI.notify('Lỗi chụp ảnh: ' + (res.message || 'Không thể chụp'), 'error');
+				for (let s = 1; s <= 5; s++) {
+					const el = document.getElementById(`step-single-${s}`);
+					if (el && el.style.opacity === '1' && !el.innerText.includes('✅')) {
+						setStepState(s, 'error');
+						break;
+					}
+				}
+
+				if (procSection) procSection.style.display = 'none';
+				if (errorSection) errorSection.style.display = 'flex';
+				const errMsg = (res && res.message) ? res.message : 'Không thể chụp được ảnh website này.';
+				if (errorMsgEl) errorMsgEl.innerText = errMsg;
+
+				if (btnRetry) {
+					btnRetry.style.display = 'inline-flex';
+					btnRetry.onclick = () => App.captureScreenshot(name, category, customUrl);
+				}
+				UI.notify('Lỗi chụp ảnh: ' + errMsg, 'error');
 			}
 		} catch (err) {
 			if (thumbWrap) thumbWrap.classList.remove('capturing');
+			clearInterval(timerInterval);
+			clearTimeout(timeout1);
+			clearTimeout(timeout2);
+			clearTimeout(timeout3);
+			clearTimeout(timeout4);
+
+			if (procSection) procSection.style.display = 'none';
+			if (errorSection) errorSection.style.display = 'flex';
+			if (errorMsgEl) errorMsgEl.innerText = 'Lỗi kết nối máy chủ API: ' + (err.message || 'Network Error');
+			if (btnRetry) {
+				btnRetry.style.display = 'inline-flex';
+				btnRetry.onclick = () => App.captureScreenshot(name, category, customUrl);
+			}
 			UI.notify('Lỗi kết nối khi chụp ảnh website', 'error');
 		}
 	},

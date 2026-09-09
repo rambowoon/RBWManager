@@ -223,12 +223,14 @@ class ScreenshotService
                 $this->resizeFullPageWebp($finalWebp, 768, 80);
 
                 $shotUrl = $this->getScreenshotUrl($category, $projectName);
+                $fileSize = file_exists($finalWebp) ? filesize($finalWebp) : 0;
                 return [
                     'status' => 'success',
                     'message' => 'Chụp ảnh full page website thành công!',
                     'url' => $shotUrl,
                     'screenshot' => $shotUrl,
-                    'targetUrl' => $targetUrl
+                    'targetUrl' => $targetUrl,
+                    'size' => $fileSize
                 ];
             }
 
@@ -277,12 +279,14 @@ class ScreenshotService
         }
 
         $shotUrl = $this->getScreenshotUrl($category, $projectName);
+        $fileSize = file_exists($finalWebp) ? filesize($finalWebp) : 0;
         return [
             'status' => 'success',
             'message' => 'Chụp ảnh full page website thành công!',
             'url' => $shotUrl,
             'screenshot' => $shotUrl,
-            'targetUrl' => $targetUrl
+            'targetUrl' => $targetUrl,
+            'size' => $fileSize
         ];
     }
 

@@ -1258,6 +1258,133 @@
         </div>
     </div>
 
+    <!-- Single Screenshot Progress & Result Modal -->
+    <div id="single-screenshot-modal" class="modal-overlay" style="z-index: 10005;">
+        <div class="modal" style="max-width: 580px; width: 95%;">
+            <div class="modal-header-flex">
+                <h2 id="single-screenshot-title" style="display:flex; align-items:center; gap:8px;">
+                    <span>📸</span> <span id="single-shot-title-text">Chụp ảnh website</span>
+                </h2>
+                <button id="single-screenshot-close-x" class="btn-close-circle" onclick="UI.hideModal('single-screenshot-modal')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Project Target Header -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 15px 0; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:1.1rem;">📂</span>
+                        <span id="single-shot-proj-name" style="font-weight:700; font-size:1rem; color:#fff; font-family:var(--mono);">project_name</span>
+                    </div>
+                    <span id="single-shot-category-badge" class="badge" style="background:rgba(56, 189, 248, 0.15); color:#38bdf8; font-size:0.75rem; border:1px solid rgba(56, 189, 248, 0.3);">2026_08</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--muted); font-family:var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <span>🔗 URL:</span>
+                    <a id="single-shot-target-url" href="#" target="_blank" style="color:var(--primary); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Đang xác định địa chỉ...</a>
+                </div>
+            </div>
+
+            <!-- Progress State Section -->
+            <div id="single-shot-processing-section">
+                <!-- Step tracker list -->
+                <div style="background:#0d1117; border: 1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:14px; display:flex; flex-direction:column; gap:10px; font-size:0.85rem;">
+                    <div id="step-single-1" class="shot-step" style="display:flex; align-items:center; gap:10px; color:#38bdf8; transition:all .3s;">
+                        <span class="shot-step-icon" style="width:22px; text-align:center;">⏳</span>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;" class="shot-step-title">1. Khởi động Headless Chrome & phân giải URL</div>
+                            <div style="font-size:0.75rem; color:var(--muted);" class="shot-step-sub">Kết nối trình duyệt Chromium ngầm</div>
+                        </div>
+                    </div>
+                    <div id="step-single-2" class="shot-step" style="display:flex; align-items:center; gap:10px; color:var(--muted); opacity:0.6; transition:all .3s;">
+                        <span class="shot-step-icon" style="width:22px; text-align:center;">⚪</span>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;" class="shot-step-title">2. Nạp trang web & tải tài nguyên</div>
+                            <div style="font-size:0.75rem; color:var(--muted);" class="shot-step-sub">Chờ DOM, CSS, JS, WebFonts hoàn tất</div>
+                        </div>
+                    </div>
+                    <div id="step-single-3" class="shot-step" style="display:flex; align-items:center; gap:10px; color:var(--muted); opacity:0.6; transition:all .3s;">
+                        <span class="shot-step-icon" style="width:22px; text-align:center;">⚪</span>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;" class="shot-step-title">3. Kích hoạt Swiper / Slider & Lazyload</div>
+                            <div style="font-size:0.75rem; color:var(--muted);" class="shot-step-sub">Tự động cuộn trang từ đầu đến cuối để nạp toàn bộ ảnh</div>
+                        </div>
+                    </div>
+                    <div id="step-single-4" class="shot-step" style="display:flex; align-items:center; gap:10px; color:var(--muted); opacity:0.6; transition:all .3s;">
+                        <span class="shot-step-icon" style="width:22px; text-align:center;">⚪</span>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;" class="shot-step-title">4. Khớp độ phân giải & Chụp Full Page</div>
+                            <div style="font-size:0.75rem; color:var(--muted);" class="shot-step-sub">Chụp toàn bộ chiều cao trang web (Header tới Footer)</div>
+                        </div>
+                    </div>
+                    <div id="step-single-5" class="shot-step" style="display:flex; align-items:center; gap:10px; color:var(--muted); opacity:0.6; transition:all .3s;">
+                        <span class="shot-step-icon" style="width:22px; text-align:center;">⚪</span>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;" class="shot-step-title">5. Nén tối ưu định dạng WebP</div>
+                            <div style="font-size:0.75rem; color:var(--muted);" class="shot-step-sub">Tối ưu dung lượng và lưu trữ vào RBWManager</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live progress bar -->
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span id="single-shot-status-text" style="font-size:0.8rem; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:6px;">
+                            <span class="spinner-small" style="width:12px; height:12px; border:2px solid rgba(255,255,255,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; display:inline-block;"></span>
+                            Đang chuẩn bị môi trường chụp...
+                        </span>
+                        <span id="single-shot-timer" style="font-size:0.8rem; color:var(--muted); font-family:var(--mono);">⏱️ 00:00s</span>
+                    </div>
+                    <div style="height:8px; background:rgba(255,255,255,0.06); border-radius:10px; overflow:hidden;">
+                        <div id="single-shot-progress-bar" style="height:100%; width:15%; background:linear-gradient(90deg, #00d2d3, #10b981); transition:width .4s ease; border-radius:10px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Success Result Section (Hidden initially) -->
+            <div id="single-shot-success-section" style="display:none; flex-direction:column; gap:12px; margin-bottom:15px;">
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius:10px; padding:12px; display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.5rem;">🎉</span>
+                    <div style="flex:1;">
+                        <div style="font-weight:700; color:#34d399; font-size:0.95rem;">Đã chụp ảnh website thành công!</div>
+                        <div id="single-shot-meta" style="font-size:0.75rem; color:var(--muted); margin-top:2px;">Dung lượng: ~350 KB | Định dạng: WebP Full Page</div>
+                    </div>
+                </div>
+                <!-- Thumbnail Preview Frame -->
+                <div style="max-height: 280px; overflow-y:auto; border: 1px solid var(--border); border-radius: 10px; background: #000; text-align:center; padding: 6px;">
+                    <img id="single-shot-preview-img" src="" alt="Screenshot" style="max-width:100%; height:auto; border-radius:6px; display:block; margin: 0 auto; box-shadow:0 4px 12px rgba(0,0,0,0.5);" />
+                </div>
+            </div>
+
+            <!-- Error Result Section (Hidden initially) -->
+            <div id="single-shot-error-section" style="display:none; flex-direction:column; gap:10px; margin-bottom:15px;">
+                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius:10px; padding:14px; display:flex; gap:10px;">
+                    <span style="font-size:1.5rem;">⚠️</span>
+                    <div style="flex:1;">
+                        <div style="font-weight:700; color:#f87171; font-size:0.95rem;">Không thể chụp ảnh website!</div>
+                        <div id="single-shot-error-msg" style="font-size:0.8rem; color:#fca5a5; margin-top:4px; line-height:1.4;">Lỗi chi tiết...</div>
+                    </div>
+                </div>
+                <div style="font-size:0.75rem; color:var(--muted); line-height:1.4; padding:0 4px;">
+                    💡 <strong>Gợi ý:</strong> Hãy đảm bảo website đã được up lên Demo hoặc Production và có thể truy cập được bình thường từ trình duyệt.
+                </div>
+            </div>
+
+            <!-- Footer Buttons -->
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                <button id="btn-single-shot-close" class="btn btn-ghost" onclick="UI.hideModal('single-screenshot-modal')">Đóng</button>
+                <button id="btn-single-shot-retry" class="btn btn-primary" style="display:none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    Thử lại
+                </button>
+                <a id="btn-single-shot-view-full" href="#" target="_blank" class="btn btn-primary" style="display:none; text-decoration:none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    Mở ảnh gốc
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- Shared Action Menu -->
     <!-- Project Detail Modal -->
     <div id="project-detail-modal" class="modal-overlay">
