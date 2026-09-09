@@ -60,6 +60,23 @@ class ScreenshotService
         return null;
     }
 
+    public function findNodeExecutable()
+    {
+        $candidates = [
+            'C:\\Program Files\\nodejs\\node.exe',
+            'C:\\Program Files (x86)\\nodejs\\node.exe',
+            'D:\\RBWStack\\bin\\node\\node.exe',
+            'node'
+        ];
+
+        foreach ($candidates as $cand) {
+            if ($cand !== 'node' && file_exists($cand)) {
+                return $cand;
+            }
+        }
+        return 'node';
+    }
+
     public function determineBestUrl($project, $config = [])
     {
         // 1. Ưu tiên Production
@@ -170,7 +187,8 @@ class ScreenshotService
 
         // 1. Ưu tiên sử dụng Node.js CDP script để chụp Full Page (từ Header đến Footer)
         if (file_exists($nodeScript)) {
-            $cmd = sprintf('node "%s" "%s" "%s" 2>&1', $nodeScript, $targetUrl, $finalWebp);
+            $nodeExec = $this->findNodeExecutable();
+            $cmd = sprintf('"%s" "%s" "%s" "%s" 2>&1', $nodeExec, $nodeScript, $targetUrl, $finalWebp);
             $output = shell_exec($cmd);
 
             if (file_exists($finalWebp) && filesize($finalWebp) > 1000) {
@@ -184,6 +202,16 @@ class ScreenshotService
                     'targetUrl' => $targetUrl
                 ];
             }
+
+            // Nếu Node script đã bắt được lỗi cụ thể (ví dụ Laravel ErrorException, 404, 500, etc.)
+            $decoded = json_decode((string)$output, true);
+            if ($decoded && ($decoded['status'] ?? '') === 'error') {
+                return [
+                    'status' => 'error',
+                    'message' => $decoded['message'] ?? 'Lỗi khi chụp trang web',
+                    'targetUrl' => $targetUrl
+                ];
+            }
         }
 
         // 2. Fallback: Sử dụng Chrome CLI với chiều cao dài
@@ -194,7 +222,7 @@ class ScreenshotService
 
         $tempPng = $this->cacheDir . DIRECTORY_SEPARATOR . 'shot_' . uniqid() . '.png';
         $cmdFallback = sprintf(
-            '"%s" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=1280,3200 --screenshot="%s" "%s" 2>&1',
+            '"%s" --headless=new --disable-gpu --no-sandbox --disable-setuid-sandbox --ignore-certificate-errors --allow-running-insecure-content --hide-scrollbars --window-size=1280,3200 --screenshot="%s" "%s" 2>&1',
             $browserPath,
             $tempPng,
             $targetUrl
