@@ -664,13 +664,37 @@ switch ($action) {
         break;
 
     case 'captureScreenshot':
-        $projectName = $_POST['name'] ?? ($_GET['name'] ?? '');
-        $category = $_POST['category'] ?? ($_GET['category'] ?? '');
-        $url = $_POST['url'] ?? ($_GET['url'] ?? null);
+        $rawInput = file_get_contents('php://input');
+        $jsonInput = json_decode($rawInput, true) ?: [];
+
+        $projectName = $jsonInput['name'] ?? ($_POST['name'] ?? ($_GET['name'] ?? ''));
+        $category = $jsonInput['category'] ?? ($_POST['category'] ?? ($_GET['category'] ?? ''));
+        $url = $jsonInput['url'] ?? ($_POST['url'] ?? ($_GET['url'] ?? null));
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) { 
+            if ($p['name'] === $projectName) { 
+                $project = $p; 
+                if (empty($category) && !empty($p['category'])) {
+                    $category = $p['category'];
+                }
+                break; 
+            } 
+        }
+
+        if (!$project) {
+            // Fallback: Tìm trong tất cả danh mục nếu không thấy trong category chỉ định
+            $allProjects = $scanner->getProjects('');
+            foreach ($allProjects as $p) {
+                if ($p['name'] === $projectName) {
+                    $project = $p;
+                    $category = $p['category'] ?? $category;
+                    break;
+                }
+            }
+        }
+
         $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
 
         $res = $screenshotService->capture($category, $projectName, $url, $project, $projectConfig);
@@ -678,25 +702,34 @@ switch ($action) {
         break;
 
     case 'batchCaptureScreenshots':
-        $category = $_POST['category'] ?? ($_GET['category'] ?? '');
+        $rawInput = file_get_contents('php://input');
+        $jsonInput = json_decode($rawInput, true) ?: [];
+
+        $category = $jsonInput['category'] ?? ($_POST['category'] ?? ($_GET['category'] ?? ''));
         $projects = $scanner->getProjects($category);
         $results = [];
+        $successCount = 0;
         foreach ($projects as $p) {
             $pConfig = $configManager->getForProject($p['name'], $p['category'] ?? null) ?: [];
             $res = $screenshotService->capture($p['category'] ?? '', $p['name'], null, $p, $pConfig);
+            if (($res['status'] ?? '') === 'success') $successCount++;
             $results[] = [
                 'name' => $p['name'],
                 'category' => $p['category'] ?? '',
                 'status' => $res['status'],
+                'message' => $res['message'] ?? '',
                 'url' => $res['url'] ?? null
             ];
         }
-        echo json_encode(['status' => 'success', 'results' => $results]);
+        echo json_encode(['status' => 'success', 'results' => $results, 'successCount' => $successCount, 'total' => count($projects)]);
         break;
 
     case 'deleteScreenshot':
-        $projectName = $_POST['name'] ?? ($_GET['name'] ?? '');
-        $category = $_POST['category'] ?? ($_GET['category'] ?? '');
+        $rawInput = file_get_contents('php://input');
+        $jsonInput = json_decode($rawInput, true) ?: [];
+
+        $projectName = $jsonInput['name'] ?? ($_POST['name'] ?? ($_GET['name'] ?? ''));
+        $category = $jsonInput['category'] ?? ($_POST['category'] ?? ($_GET['category'] ?? ''));
         $screenshotService->deleteScreenshot($category, $projectName);
         echo json_encode(['status' => 'success']);
         break;

@@ -90,12 +90,54 @@ class ScreenshotService
             return rtrim($dUrl, '/') . '/';
         }
 
+        // 2b. Nếu đã deploy Demo (có deployed['demo'] hoặc lock_demo) -> Tự động tìm demo server và ghép relPath
+        if (!empty($demoDeployed) || !empty($config['lock_demo'])) {
+            $demoId = $demoDeployed['demo_server_id'] ?? 'legacy';
+            $globalPath = $this->baseDir . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'demo_config.json';
+            $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
+            
+            $demoDomain = 'demo92.nasanivietnam.net';
+            if (!empty($gConfig['demo_list']) && is_array($gConfig['demo_list'])) {
+                foreach ($gConfig['demo_list'] as $d) {
+                    if (($d['id'] ?? '') === $demoId) {
+                        $demoDomain = $d['web_domain'] ?? $demoDomain;
+                        break;
+                    }
+                }
+            } elseif (!empty($gConfig['web_domain'])) {
+                $demoDomain = $gConfig['web_domain'];
+            }
+
+            $demoDomain = preg_replace('/^https?:\/\//i', '', rtrim($demoDomain, '/'));
+            
+            $rel = '';
+            if (!empty($project['relPath'])) {
+                $rel = str_replace('\\', '/', $project['relPath']);
+            } elseif (!empty($project['name'])) {
+                $cat = !empty($project['category']) ? $project['category'] : '';
+                $rel = ($cat ? $cat . '/' : '') . $project['name'];
+            }
+
+            if (!empty($rel)) {
+                $ssl = !empty($config['demo']['ssl']);
+                return ($ssl ? 'https://' : 'http://') . $demoDomain . '/' . trim($rel, '/') . '/';
+            }
+        }
+
         // Tuyệt đối không fallback về localhost
         return null;
     }
 
     public function capture($category, $projectName, $customUrl = null, $project = null, $config = [])
     {
+        if (!$project) {
+            $project = [
+                'name' => $projectName,
+                'category' => $category,
+                'relPath' => ($category ? $category . '/' : '') . $projectName
+            ];
+        }
+
         $targetUrl = $customUrl ?: $this->determineBestUrl($project, $config);
         if (!$targetUrl) {
             return [
