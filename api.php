@@ -27,6 +27,22 @@ function getDemoConfigForProject($projectConfig = []) {
     return $config;
 }
 
+function getProjectTargetHostConfig($projectConfig, $env = 'demo') {
+    $env = strtolower($env ?: 'demo');
+    if ($env === 'prod' || $env === 'production') {
+        $prod = $projectConfig['prod'] ?? [];
+        if (!empty($projectConfig['deployed']['production'])) {
+            $prod = array_merge($prod, $projectConfig['deployed']['production']);
+        }
+        return ['env' => 'prod', 'config' => $prod];
+    }
+    $demo = getDemoConfigForProject($projectConfig);
+    if (!empty($projectConfig['deployed']['demo'])) {
+        $demo = array_merge($demo, $projectConfig['deployed']['demo']);
+    }
+    return ['env' => 'demo', 'config' => $demo];
+}
+
 function autoCleanOldCacheFiles($days = 7) {
     $cacheBase = __DIR__ . '/cache/remote_edit';
     if (!is_dir($cacheBase)) return;
@@ -44,17 +60,16 @@ function autoCleanOldCacheFiles($days = 7) {
         if ($items === false) return true;
         $isEmpty = true;
         foreach ($items as $item) {
-            if ($item === '.' || $item === '..' || $item === '.last_cleanup') continue;
+            if ($item === '.' || $item === '..') continue;
             $path = $dir . '/' . $item;
             if (is_dir($path)) {
-                $subEmpty = $cleanDir($path);
-                if ($subEmpty) {
+                if ($cleanDir($path)) {
                     @rmdir($path);
                 } else {
                     $isEmpty = false;
                 }
             } else {
-                if (@filemtime($path) < $cutoff) {
+                if (filemtime($path) < $cutoff) {
                     @unlink($path);
                 } else {
                     $isEmpty = false;
@@ -70,12 +85,15 @@ function autoCleanOldCacheFiles($days = 7) {
 // Auto clean cache files older than 7 days
 autoCleanOldCacheFiles(7);
 
-function saveSyncAutoBackup($projectName, $category, $subFolder, $cleanPath, $content) {
+function saveSyncAutoBackup($projectName, $category, $subFolder, $cleanPath, $content, $env = 'demo') {
     if ($content === null || $content === false) return;
     $dateFolder = date('Y-m-d');
     $timePrefix = date('His');
     $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
-    $backupDir = __DIR__ . "/backups/sync_snapshots/{$safeProj}/{$dateFolder}/{$subFolder}/" . dirname($cleanPath);
+    $envKey = (strtolower($env) === 'prod' || strtolower($env) === 'production') ? 'prod' : 'demo';
+    
+    // Tách riêng biệt theo môi trường để không bao giờ bị trùng lặp file backup giữa demo và production
+    $backupDir = __DIR__ . "/backups/sync_snapshots/{$safeProj}/{$envKey}/{$dateFolder}/{$subFolder}/" . dirname($cleanPath);
     if (!is_dir($backupDir)) {
         @mkdir($backupDir, 0777, true);
     }
@@ -88,12 +106,13 @@ function saveSyncAutoBackup($projectName, $category, $subFolder, $cleanPath, $co
         'original_rel_path' => $cleanPath,
         'category' => $category,
         'project_name' => $projectName,
+        'env' => $envKey,
         'type' => $subFolder,
         'date' => $dateFolder,
         'time' => date('H:i:s'),
         'timestamp' => time(),
         'size' => strlen($content),
-        'backup_file' => "{$dateFolder}/{$subFolder}/" . dirname($cleanPath) . "/[{$timePrefix}]_{$fileName}"
+        'backup_file' => "{$envKey}/{$dateFolder}/{$subFolder}/" . dirname($cleanPath) . "/[{$timePrefix}]_{$fileName}"
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
@@ -878,10 +897,14 @@ switch ($action) {
         $path = $data['path'] ?? $_GET['path'] ?? '/';
         
         $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
-        $config = getDemoConfigForProject($projectConfig);
+        $requestEnv = $data['env'] ?? $_GET['env'] ?? 'demo';
+        $hostConfigInfo = getProjectTargetHostConfig($projectConfig, $requestEnv);
+        $currentEnv = $hostConfigInfo['env'];
+        $config = $hostConfigInfo['config'];
+        $envLabel = ($currentEnv === 'prod') ? 'Production Hosting' : 'Demo Hosting';
 
         if (!$config || empty($config['ftp_host'])) {
-            echo json_encode(['status' => 'error', 'message' => 'Demo Server chưa được cấu hình FTP']);
+            echo json_encode(['status' => 'error', 'message' => "Môi trường {$envLabel} chưa được cấu hình FTP trong Cấu hình dự án."]);
             break;
         }
         
@@ -894,26 +917,33 @@ switch ($action) {
         $project = null;
         foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
         
-        $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
-        if (empty($customDomain)) {
-            $webDomain = str_replace(['https://', 'http://', '/'], '', $config['web_domain']);
-            $folderName = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
-            $ftpRoot = '/domains/' . $webDomain . '/public_html/' . $folderName;
+        if ($currentEnv === 'prod') {
+            $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
+            $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/');
+            $customDomain = $config['web_domain'] ?? ($config['domain'] ?? '');
+            if (!empty($customDomain)) {
+                $cleanHost = str_replace(['https://', 'http://', '/'], '', $customDomain);
+            } else {
+                $cleanHost = str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
+            }
+            $remoteBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$cleanHost";
         } else {
-            $ftpRoot = '/domains/' . $customDomain . '/public_html';
+            $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
+            if (empty($customDomain)) {
+                $webDomain = str_replace(['https://', 'http://', '/'], '', $config['web_domain']);
+                $folderName = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
+                $ftpRoot = '/domains/' . $webDomain . '/public_html/' . $folderName;
+                $remoteBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$webDomain/$folderName";
+            } else {
+                $ftpRoot = '/domains/' . $customDomain . '/public_html';
+                $remoteBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$customDomain";
+            }
         }
         
         $cleanPath = ltrim($path, '/');
-        // Ensure path starts from the project's root on the demo server
+        // Ensure path starts from the project's root on the target server
         $remotePath = rtrim($ftpRoot, '/') . '/' . $cleanPath;
         $url = "ftp://$host$remotePath";
-        
-        $demoBaseUrl = '';
-        if (empty($customDomain)) {
-            $demoBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$webDomain/$folderName";
-        } else {
-            $demoBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$customDomain";
-        }
         
         if ($action === 'fmList') {
             $files = RemoteClient::listFtpDirectoryDetailed($url, $userPwd);
@@ -940,7 +970,7 @@ switch ($action) {
                 }
                 unset($f);
             }
-            echo json_encode(['status' => 'success', 'data' => $files, 'baseUrl' => rtrim($demoBaseUrl, '/')]);
+            echo json_encode(['status' => 'success', 'data' => $files, 'baseUrl' => rtrim($remoteBaseUrl, '/'), 'env' => $currentEnv, 'env_label' => $envLabel]);
         } 
         elseif ($action === 'fmGet') {
             $res = RemoteClient::getFtpFileContent($url, $userPwd);
@@ -951,7 +981,7 @@ switch ($action) {
             // Auto Backup before saving remote file
             $existingRemote = RemoteClient::getFtpFileContent($url, $userPwd);
             if (($existingRemote['status'] ?? '') === 'success' && isset($existingRemote['content'])) {
-                saveSyncAutoBackup($projectName, $category, 'remote_before_edit', $cleanPath, $existingRemote['content']);
+                saveSyncAutoBackup($projectName, $category, 'remote_before_edit', $cleanPath, $existingRemote['content'], $currentEnv);
             }
             $res = RemoteClient::saveFtpFileContent($url, $userPwd, $content);
             if ($res === true) {
@@ -997,9 +1027,10 @@ switch ($action) {
             $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
             $backupBase = __DIR__ . "/backups/sync_snapshots/{$safeProj}";
             $backups = [];
+            $filterEnv = $data['env'] ?? $_GET['env'] ?? 'all';
             
             if (is_dir($backupBase)) {
-                $scanMeta = function($dir) use (&$scanMeta, &$backups) {
+                $scanMeta = function($dir) use (&$scanMeta, &$backups, $backupBase, $filterEnv) {
                     $items = @scandir($dir);
                     if ($items === false) return;
                     foreach ($items as $item) {
@@ -1012,7 +1043,20 @@ switch ($action) {
                             if ($raw) {
                                 $meta = json_decode($raw, true);
                                 if ($meta) {
-                                    $backups[] = $meta;
+                                    if (empty($meta['env'])) {
+                                        $relFromBase = ltrim(str_replace(['\\', $backupBase], ['/', ''], $path), '/');
+                                        if (strpos($relFromBase, 'prod/') === 0) {
+                                            $meta['env'] = 'prod';
+                                        } else {
+                                            $meta['env'] = 'demo';
+                                        }
+                                    }
+                                    $relBackupFile = ltrim(str_replace(['\\', $backupBase], ['/', ''], substr($path, 0, -10)), '/');
+                                    $meta['backup_file'] = $relBackupFile;
+
+                                    if ($filterEnv === 'all' || $meta['env'] === $filterEnv) {
+                                        $backups[] = $meta;
+                                    }
                                 }
                             }
                         }
@@ -1044,6 +1088,7 @@ switch ($action) {
             $backupFile = $data['backup_file'] ?? '';
             $target = $data['target'] ?? 'local'; // 'local' or 'remote'
             $relPath = $data['path'] ?? '';
+            $restoreEnv = $data['env'] ?? 'demo';
             
             if (!$project) {
                 echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
@@ -1056,7 +1101,15 @@ switch ($action) {
             
             $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
             $fullBackupPath = __DIR__ . "/backups/sync_snapshots/{$safeProj}/" . ltrim(str_replace(['..', '\\'], ['', '/'], $backupFile), '/');
-            
+            $metaPath = $fullBackupPath . '.meta.json';
+            if (file_exists($metaPath)) {
+                $metaRaw = @file_get_contents($metaPath);
+                $metaJson = json_decode($metaRaw, true);
+                if (!empty($metaJson['env'])) {
+                    $restoreEnv = $metaJson['env'];
+                }
+            }
+
             if (!file_exists($fullBackupPath)) {
                 echo json_encode(['status' => 'error', 'message' => 'File backup không tồn tại']);
                 break;
@@ -1069,28 +1122,57 @@ switch ($action) {
                 $localFile = rtrim(str_replace('\\', '/', $project['path']), '/') . '/' . $cleanRelPath;
                 // Safety backup current local file
                 if (file_exists($localFile)) {
-                    saveSyncAutoBackup($projectName, $category, 'local_before_restore', $cleanRelPath, @file_get_contents($localFile));
+                    saveSyncAutoBackup($projectName, $category, 'local_before_restore', $cleanRelPath, @file_get_contents($localFile), $restoreEnv);
                 }
                 $dir = dirname($localFile);
                 if (!is_dir($dir)) @mkdir($dir, 0777, true);
                 @file_put_contents($localFile, $backupContent);
                 echo json_encode(['status' => 'success', 'message' => "Đã khôi phục file {$cleanRelPath} về Local thành công!"]);
             } else {
-                // Restore to Remote Demo
-                $restoreRemotePath = rtrim($ftpRoot, '/') . '/' . $cleanRelPath;
-                $restoreUrl = "ftp://$host$restoreRemotePath";
-                
-                // Safety backup current remote file
-                $existingRemote = RemoteClient::getFtpFileContent($restoreUrl, $userPwd);
-                if (($existingRemote['status'] ?? '') === 'success' && isset($existingRemote['content'])) {
-                    saveSyncAutoBackup($projectName, $category, 'remote_before_restore', $cleanRelPath, $existingRemote['content']);
+                // Restore to Remote Hosting (Demo or Production depending on backup source)
+                $hostConfigInfo = getProjectTargetHostConfig($projectConfig, $restoreEnv);
+                $tConfig = $hostConfigInfo['config'];
+                $tEnv = $hostConfigInfo['env'];
+                $targetLabel = ($tEnv === 'prod') ? 'Production Hosting' : 'Demo Hosting';
+
+                if (!$tConfig || empty($tConfig['ftp_host'])) {
+                    echo json_encode(['status' => 'error', 'message' => "Chưa cấu hình FTP cho {$targetLabel} để khôi phục"]);
+                    break;
                 }
                 
-                $res = RemoteClient::saveFtpFileContent($restoreUrl, $userPwd, $backupContent);
-                if ($res === true) {
-                    echo json_encode(['status' => 'success', 'message' => "Đã khôi phục file {$cleanRelPath} lên Demo Hosting thành công!"]);
+                $rHost = $tConfig['ftp_host'];
+                $rUser = $tConfig['ftp_user'];
+                $rPass = $tConfig['ftp_pass'];
+                $rUserPwd = "$rUser:$rPass";
+
+                if ($tEnv === 'prod') {
+                    $baseFtpRoot = !empty($tConfig['ftp_root']) ? $tConfig['ftp_root'] : '/public_html';
+                    $rFtpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/');
                 } else {
-                    echo json_encode(['status' => 'error', 'message' => 'Lỗi FTP khi khôi phục: ' . $res]);
+                    $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
+                    if (empty($customDomain)) {
+                        $webDomain = str_replace(['https://', 'http://', '/'], '', $tConfig['web_domain']);
+                        $folderName = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
+                        $rFtpRoot = '/domains/' . $webDomain . '/public_html/' . $folderName;
+                    } else {
+                        $rFtpRoot = '/domains/' . $customDomain . '/public_html';
+                    }
+                }
+
+                $restoreRemotePath = rtrim($rFtpRoot, '/') . '/' . $cleanRelPath;
+                $restoreUrl = "ftp://$rHost$restoreRemotePath";
+                
+                // Safety backup current remote file with target environment
+                $existingRemote = RemoteClient::getFtpFileContent($restoreUrl, $rUserPwd);
+                if (($existingRemote['status'] ?? '') === 'success' && isset($existingRemote['content'])) {
+                    saveSyncAutoBackup($projectName, $category, 'remote_before_restore', $cleanRelPath, $existingRemote['content'], $tEnv);
+                }
+                
+                $res = RemoteClient::saveFtpFileContent($restoreUrl, $rUserPwd, $backupContent);
+                if ($res === true) {
+                    echo json_encode(['status' => 'success', 'message' => "Đã khôi phục file {$cleanRelPath} lên {$targetLabel} thành công!"]);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => "Lỗi FTP khi khôi phục lên {$targetLabel}: " . $res]);
                 }
             }
         }
@@ -1341,9 +1423,14 @@ switch ($action) {
             };
             
             $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
-            $config = getDemoConfigForProject($projectConfig);
+            $syncEnv = $data['env'] ?? 'demo';
+            $hostConfigInfo = getProjectTargetHostConfig($projectConfig, $syncEnv);
+            $currentEnv = $hostConfigInfo['env'];
+            $config = $hostConfigInfo['config'];
+            $envLabel = ($currentEnv === 'prod') ? 'Production Hosting' : 'Demo Hosting';
+
             if (!$config || empty($config['ftp_host'])) {
-                echo json_encode(['status' => 'error', 'message' => 'Chưa cấu hình FTP Demo']);
+                echo json_encode(['status' => 'error', 'message' => "Chưa cấu hình FTP cho {$envLabel}. Vui lòng kiểm tra lại trong Cấu hình dự án."]);
                 break;
             }
             
@@ -1394,14 +1481,21 @@ switch ($action) {
             
             // 2. Call Bridge via HTTP/HTTPS (Fast path: < 0.1s)
             $cleanHost = !empty($config['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $config['web_domain']) : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
-            $webSub = $deployService->getWebSubPath($config['ftp_root'] ?? '');
-            $fullSubPath = rtrim($webSub, '/') . '/' . trim($project['relPath'], '/');
-            
-            // Modern servers force 301 to HTTPS, try HTTPS first, fallback to HTTP
-            $bridgeUrls = [
-                'https://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles',
-                'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles'
-            ];
+            if ($currentEnv === 'prod') {
+                $bridgeUrls = [
+                    'https://' . $cleanHost . '/bridge.php?action=scanFiles',
+                    'http://' . $cleanHost . '/bridge.php?action=scanFiles'
+                ];
+                $deploySubPath = '';
+            } else {
+                $webSub = $deployService->getWebSubPath($config['ftp_root'] ?? '');
+                $fullSubPath = rtrim($webSub, '/') . '/' . trim($project['relPath'], '/');
+                $bridgeUrls = [
+                    'https://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles',
+                    'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles'
+                ];
+                $deploySubPath = $project['relPath'];
+            }
             
             $callBridge = function($targetUrl = null) use (&$bridgeUrls, $defaultExcludes, $includeClearData) {
                 $urls = $targetUrl ? [$targetUrl] : $bridgeUrls;
@@ -1442,7 +1536,7 @@ switch ($action) {
             // If bridge is not yet on server or outdated (missing MD5/readme filter support), upload it fast via deployService
             if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v6_sub_excludes') {
                 try {
-                    $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $project['relPath']);
+                    $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
                     $remoteData = $callBridge();
                 } catch (\Exception $e) {
                     // Upload failure will be caught below
@@ -1451,7 +1545,7 @@ switch ($action) {
 
             if (!$remoteData || ($remoteData['status'] ?? '') !== 'success') {
                 $detail = !empty($remoteData['message']) ? $remoteData['message'] : (!empty($remoteData['curl_err']) ? $remoteData['curl_err'] : ('HTTP ' . ($remoteData['http_code'] ?? 'Unknown')));
-                echo json_encode(['status' => 'error', 'message' => "Bridge không phản hồi ($detail). Vui lòng kiểm tra lại cấu hình Hosting."]);
+                echo json_encode(['status' => 'error', 'message' => "Bridge {$envLabel} không phản hồi ($detail). Vui lòng kiểm tra lại cấu hình Hosting."]);
                 break;
             }
             
@@ -1526,7 +1620,12 @@ switch ($action) {
                 }
             }
             
-            echo json_encode(['status' => 'success', 'comparison' => $comparison]);
+            echo json_encode([
+                'status' => 'success', 
+                'env' => $currentEnv, 
+                'env_label' => $envLabel,
+                'comparison' => $comparison
+            ]);
         }
         elseif ($action === 'fmSyncCenterExecute') {
             @set_time_limit(300);
@@ -1584,9 +1683,14 @@ switch ($action) {
             };
             
             $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
-            $config = getDemoConfigForProject($projectConfig);
+            $syncEnv = $data['env'] ?? 'demo';
+            $hostConfigInfo = getProjectTargetHostConfig($projectConfig, $syncEnv);
+            $currentEnv = $hostConfigInfo['env'];
+            $config = $hostConfigInfo['config'];
+            $envLabel = ($currentEnv === 'prod') ? 'Production Hosting' : 'Demo Hosting';
+
             if (!$config || empty($config['ftp_host'])) {
-                echo json_encode(['status' => 'error', 'message' => 'Chưa cấu hình FTP Demo']);
+                echo json_encode(['status' => 'error', 'message' => "Chưa cấu hình FTP cho {$envLabel}"]);
                 break;
             }
             
@@ -1611,14 +1715,18 @@ switch ($action) {
             $pass = $config['ftp_pass'];
             $userPwd = "$user:$pass";
             
-            $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
-            $subPath = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
-            
-            $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
-            if (!empty($customDomain)) {
-                $ftpRoot = '/domains/' . $customDomain . '/public_html';
+            if ($currentEnv === 'prod') {
+                $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
+                $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/');
             } else {
-                $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/') . '/' . trim($subPath, '/');
+                $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
+                $subPath = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
+                $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
+                if (!empty($customDomain)) {
+                    $ftpRoot = '/domains/' . $customDomain . '/public_html';
+                } else {
+                    $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/') . '/' . trim($subPath, '/');
+                }
             }
             
             $localRoot = rtrim(str_replace('\\', '/', $project['path']), '/');
@@ -1639,10 +1747,10 @@ switch ($action) {
                     $url = "ftp://$host$remotePath";
                     if (file_exists($localFile)) {
                         $content = file_get_contents($localFile);
-                        // Auto Backup: get current remote file before overwriting
+                        // Auto Backup: get current remote file before overwriting (segregated by env)
                         $existingRemote = RemoteClient::getFtpFileContent($url, $userPwd);
                         if (($existingRemote['status'] ?? '') === 'success' && isset($existingRemote['content'])) {
-                            saveSyncAutoBackup($projectName, $category, 'remote_before_upload', $cleanPath, $existingRemote['content']);
+                            saveSyncAutoBackup($projectName, $category, 'remote_before_upload', $cleanPath, $existingRemote['content'], $currentEnv);
                         }
                         $res = RemoteClient::saveFtpFileContent($url, $userPwd, $content);
                         $results[] = ['path' => $cleanPath, 'action' => 'upload', 'status' => $res === true ? 'success' : 'error', 'message' => $res];
@@ -1669,7 +1777,7 @@ switch ($action) {
                         // Auto Backup: backup current local file before overwriting
                         if (file_exists($localFile)) {
                             $existingLocal = @file_get_contents($localFile);
-                            saveSyncAutoBackup($projectName, $category, 'local_before_download', $cleanPath, $existingLocal);
+                            saveSyncAutoBackup($projectName, $category, 'local_before_download', $cleanPath, $existingLocal, $currentEnv);
                         }
                         $dir = dirname($localFile);
                         if (!is_dir($dir)) mkdir($dir, 0777, true);

@@ -626,23 +626,33 @@
                     <!-- TAB: SYNCCENTER -->
                     <div id="d_tab-synccenter" class="project-tab-content d-none">
                         <div class="card-container card-padded fm-shell" style="background: rgba(13, 17, 25, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px;">
-                            <div class="flex-between-center-mb20" style="padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+                            <div class="flex-between-center-mb20" style="padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); flex-wrap: wrap; gap: 12px;">
                                 <div class="flex-align-center-gap10">
                                     <div class="accent-bar-primary" style="width: 4px; height: 18px; border-radius: 2px; background: var(--accent-gradient, #00d2d3);"></div>
                                     <div>
-                                        <h3 class="card-title-sm" style="font-size: 14px; font-weight: 800; letter-spacing: 0.03em; color: #fff; margin: 0;">TRUNG TÂM ĐỒNG BỘ 2 CHIỀU (SYNC CENTER)</h3>
-                                        <p style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Tự động đối soát và đồng bộ mã nguồn giữa Local Workspace và Demo Hosting</p>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <h3 class="card-title-sm" style="font-size: 14px; font-weight: 800; letter-spacing: 0.03em; color: #fff; margin: 0;">TRUNG TÂM ĐỒNG BỘ 2 CHIỀU (SYNC CENTER)</h3>
+                                            <div class="sc-env-switcher" style="display: inline-flex; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 2px; margin-left: 6px;">
+                                                <button type="button" class="sc-env-btn sc-env-demo active" onclick="SyncCenter.setEnv('demo')" id="sc-env-btn-demo" style="height: 26px; padding: 0 10px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: none; background: var(--primary, #00d2d3); color: #000; cursor: pointer; transition: all 0.2s;">
+                                                    🌐 Demo
+                                                </button>
+                                                <button type="button" class="sc-env-btn sc-env-prod" onclick="SyncCenter.setEnv('prod')" id="sc-env-btn-prod" style="height: 26px; padding: 0 10px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: none; background: transparent; color: #94a3b8; cursor: pointer; transition: all 0.2s;">
+                                                    🚀 Production
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <p id="sc-header-desc" style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Tự động đối soát và đồng bộ mã nguồn giữa Local Workspace và Demo Hosting</p>
                                     </div>
                                 </div>
-                                <div class="flex-align-center-gap10" style="display: flex; align-items: center; gap: 10px;">
-                                    <label class="sc-cleardata-toggle" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 0 14px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.15); font-size: 12.5px; font-weight: 600; color: #cbd5e1; user-select: none; transition: all 0.2s; text-transform: none; letter-spacing: normal; margin: 0;" title="Mặc định tắt để bảo vệ dữ liệu Demo. Bật nếu muốn quét và đồng bộ các file chức năng xoá dữ liệu (ClearDataController, router...)">
+                                <div class="flex-align-center-gap10" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                    <label class="sc-cleardata-toggle" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 0 14px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.15); font-size: 12.5px; font-weight: 600; color: #cbd5e1; user-select: none; transition: all 0.2s; text-transform: none; letter-spacing: normal; margin: 0;" title="Mặc định tắt để bảo vệ dữ liệu. Bật nếu muốn quét và đồng bộ các file chức năng xoá dữ liệu (ClearDataController, router...)">
                                         <input type="checkbox" id="sc-check-cleardata" onchange="SyncCenter.toggleClearData(this.checked)" style="accent-color: var(--primary, #00d2d3); width: 15px; height: 15px; cursor: pointer; margin: 0;">
                                         <span style="text-transform: none; letter-spacing: normal;">Đồng bộ ClearData</span>
                                     </label>
                                     <button class="btn btn-ghost btn-sm" onclick="SyncCenter.openBackupHistory()" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); color: #cbd5e1; margin: 0; text-transform: none;">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 📦 Lịch sử Backup &amp; Khôi phục
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 📦 Lịch sử Backup
                                     </button>
-                                    <button class="btn btn-outline btn-sm" onclick="SyncCenter.scan()" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); margin: 0; text-transform: none;">
+                                    <button class="btn btn-outline btn-sm" id="sc-btn-scan" onclick="SyncCenter.scan()" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); margin: 0; text-transform: none;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Quét &amp; So sánh
                                     </button>
                                 </div>
@@ -667,7 +677,7 @@
                                     <div class="accent-bar-primary" style="width: 4px; height: 18px; border-radius: 2px; background: var(--accent-gradient, #00d2d3);"></div>
                                     <div>
                                         <h3 class="card-title-sm" style="font-size: 14px; font-weight: 800; letter-spacing: 0.03em; color: #fff; margin: 0;">LỊCH SỬ SAO LƯU &amp; KHÔI PHỤC (BACKUP SNAPSHOTS)</h3>
-                                        <p style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Tự động lưu trữ bản gốc trước mọi thao tác ghi đè — Khôi phục 1-click về Local hoặc Demo</p>
+                                        <p style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Tự động lưu trữ bản gốc trước mọi thao tác ghi đè — Khôi phục 1-click độc lập theo môi trường Demo hoặc Production</p>
                                     </div>
                                 </div>
                                 <div class="flex-align-center-gap10">
@@ -685,12 +695,22 @@
                     <!-- TAB: FILE MANAGER -->
                     <div id="d_tab-filemanager" class="project-tab-content d-none">
                         <div class="card-container card-padded fm-shell" style="background: rgba(13, 17, 25, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px;">
-                            <div class="flex-between-center-mb20" style="padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+                            <div class="flex-between-center-mb20" style="padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); flex-wrap: wrap; gap: 12px;">
                                 <div class="flex-align-center-gap10">
                                     <div class="accent-bar-primary" style="width: 4px; height: 18px; border-radius: 2px; background: var(--accent-gradient, #00d2d3);"></div>
                                     <div>
-                                        <h3 class="card-title-sm" style="font-size: 14px; font-weight: 800; letter-spacing: 0.03em; color: #fff; margin: 0;">QUẢN LÝ FILE TRÊN HOSTING (FTP)</h3>
-                                        <p style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Duyệt, chỉnh sửa và quản lý file trực tiếp trên Server</p>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <h3 class="card-title-sm" style="font-size: 14px; font-weight: 800; letter-spacing: 0.03em; color: #fff; margin: 0;">QUẢN LÝ FILE TRÊN HOSTING (FTP)</h3>
+                                            <div class="fm-env-switcher" style="display: inline-flex; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 2px; margin-left: 6px;">
+                                                <button type="button" class="fm-env-btn fm-env-demo active" onclick="FileManager.setEnv('demo')" id="fm-env-btn-demo" style="height: 26px; padding: 0 10px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: none; background: var(--primary, #00d2d3); color: #000; cursor: pointer; transition: all 0.2s;">
+                                                    🌐 Demo
+                                                </button>
+                                                <button type="button" class="fm-env-btn fm-env-prod" onclick="FileManager.setEnv('prod')" id="fm-env-btn-prod" style="height: 26px; padding: 0 10px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: none; background: transparent; color: #94a3b8; cursor: pointer; transition: all 0.2s;">
+                                                    🚀 Production
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <p id="fm-header-desc" style="margin: 0; font-size: 12px; color: var(--text-muted, #64748b);">Duyệt, chỉnh sửa và quản lý file trực tiếp trên Server Demo</p>
                                     </div>
                                 </div>
                                 <div class="flex-align-center-gap10">

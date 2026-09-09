@@ -1,5 +1,6 @@
 var FileManager = {
     currentPath: '/',
+    currentEnv: 'demo',
     lastProject: null,
     baseUrl: '',
     rawFiles: [],
@@ -17,6 +18,32 @@ var FileManager = {
         } else if (!document.getElementById('fm-tree-children-root')) {
             this.loadTree(false);
         }
+        this.loadCurrentPath();
+    },
+
+    setEnv(env) {
+        if (this.currentEnv === env) return;
+        this.currentEnv = env;
+        document.querySelectorAll('.fm-env-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.style.background = 'transparent';
+            btn.style.color = '#94a3b8';
+        });
+        const activeBtn = document.getElementById(`fm-env-btn-${env}`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+            activeBtn.style.background = (env === 'prod') ? '#f59e0b' : 'var(--primary, #00d2d3)';
+            activeBtn.style.color = '#000';
+        }
+        const desc = document.getElementById('fm-header-desc');
+        if (desc) {
+            desc.innerHTML = (env === 'prod') 
+                ? '<b style="color:#f59e0b;">🚀 ĐANG KẾT NỐI PRODUCTION HOSTING</b> - Chỉnh sửa file trực tiếp trên Server thật'
+                : 'Duyệt, chỉnh sửa và quản lý file trực tiếp trên Server Demo';
+        }
+        this.currentPath = '/';
+        this.treeCache = {};
+        this.loadTree(true);
         this.loadCurrentPath();
     },
 
@@ -89,7 +116,8 @@ var FileManager = {
             body: JSON.stringify({
                 name: projectName,
                 category: App.currentCategory,
-                path: path
+                path: path,
+                env: this.currentEnv
             })
         }).then(r => r.json()).then(res => {
             if (res.status === 'success') {
@@ -228,7 +256,8 @@ var FileManager = {
             body: JSON.stringify({
                 name: document.getElementById('detail-project-name')?.innerText,
                 category: App.currentCategory,
-                path: this.currentPath
+                path: this.currentPath,
+                env: this.currentEnv
             })
         }).then(res => res.json()).then(res => {
             if (res.status === 'success') {
@@ -490,7 +519,8 @@ var FileManager = {
 
     async deleteItem(path, isDir) {
         const itemName = path.split('/').pop();
-        const msg = `Bạn có chắc chắn muốn xóa ${isDir ? 'thư mục' : 'file'} <b style="color:var(--primary); word-break:break-all;">${itemName}</b> không?<br><span style="color:var(--danger); font-size:0.85em;">⚠️ Hành động này sẽ xóa trực tiếp trên Demo Server và không thể hoàn tác!</span>`;
+        const envLabel = this.currentEnv === 'prod' ? 'Production Server' : 'Demo Server';
+        const msg = `Bạn có chắc chắn muốn xóa ${isDir ? 'thư mục' : 'file'} <b style="color:var(--primary); word-break:break-all;">${itemName}</b> không?<br><span style="color:var(--danger); font-size:0.85em;">⚠️ Hành động này sẽ xóa trực tiếp trên ${envLabel} và không thể hoàn tác!</span>`;
         const confirmed = (typeof UI !== 'undefined' && UI.confirm) ? await UI.confirm(msg) : confirm(`Bạn có chắc chắn muốn xóa không?`);
         if (!confirmed) return;
         
@@ -501,7 +531,8 @@ var FileManager = {
                 name: document.getElementById('detail-project-name')?.innerText,
                 category: App.currentCategory,
                 path: path,
-                isDir: isDir
+                isDir: isDir,
+                env: this.currentEnv
             })
         }).then(res => res.json()).then(res => {
             if (res.status === 'success') {
@@ -524,7 +555,8 @@ var FileManager = {
             body: JSON.stringify({
                 name: document.getElementById('detail-project-name')?.innerText,
                 category: App.currentCategory,
-                path: path
+                path: path,
+                env: this.currentEnv
             })
         }).then(res => res.json()).then(res => {
             if (res.status === 'success') {
@@ -548,6 +580,7 @@ var FileManager = {
             formData.append('category', App.currentCategory);
             formData.append('path', (this.currentPath === '/' ? '' : this.currentPath) + '/' + file.name);
             formData.append('file', file);
+            formData.append('env', this.currentEnv);
             
             UI.showToast('Đang tải lên...', 'info');
             fetch('api.php?action=fmUpload', {
@@ -573,7 +606,8 @@ var FileManager = {
             body: JSON.stringify({
                 name: document.getElementById('detail-project-name')?.innerText,
                 category: App.currentCategory,
-                path: path
+                path: path,
+                env: this.currentEnv
             })
         }).then(res => res.json()).then(res => {
             if (res.status === 'success') {
@@ -755,7 +789,8 @@ var FileManager = {
                 name: document.getElementById('detail-project-name')?.innerText,
                 category: App.currentCategory,
                 path: path,
-                content: content
+                content: content,
+                env: this.currentEnv
             })
         }).then(res => res.json()).then(res => {
             btn.innerText = oldText;
@@ -887,6 +922,7 @@ var FileManager = {
 
 const SyncCenter = {
     lastData: null,
+    currentEnv: 'demo',
     currentFilter: 'all',
     searchQuery: '',
     includeClearData: false,
@@ -898,6 +934,29 @@ const SyncCenter = {
         if (cb) cb.checked = false;
         const cbToolbar = document.getElementById('sc-check-cleardata-toolbar');
         if (cbToolbar) cbToolbar.checked = false;
+    },
+
+    setEnv(env) {
+        if (this.currentEnv === env) return;
+        this.currentEnv = env;
+        document.querySelectorAll('.sc-env-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.style.background = 'transparent';
+            btn.style.color = '#94a3b8';
+        });
+        const activeBtn = document.getElementById(`sc-env-btn-${env}`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+            activeBtn.style.background = (env === 'prod') ? '#f59e0b' : 'var(--primary, #00d2d3)';
+            activeBtn.style.color = '#000';
+        }
+        const desc = document.getElementById('sc-header-desc');
+        if (desc) {
+            desc.innerHTML = (env === 'prod')
+                ? '<b style="color:#f59e0b;">🚀 CHẾ ĐỘ PRODUCTION</b> - Đối soát và đồng bộ trực tiếp với Hosting thật của khách hàng'
+                : 'Tự động đối soát và đồng bộ mã nguồn giữa Local Workspace và Demo Hosting';
+        }
+        this.scan();
     },
     
     toggleClearData(checked) {
@@ -924,11 +983,12 @@ const SyncCenter = {
         const cbHeader = document.getElementById('sc-check-cleardata');
         if (cbHeader) this.includeClearData = cbHeader.checked;
         
+        const envLabel = (this.currentEnv === 'prod') ? 'Production Hosting' : 'Demo Hosting';
         document.getElementById('sync-center-content').innerHTML = `
             <div style="padding: 60px 20px; text-align: center; background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.1); border-radius: 16px;">
-                <div class="loader" style="margin: 0 auto 18px; border: 3px solid rgba(0, 210, 211, 0.15); border-top-color: var(--primary, #00d2d3); border-radius: 50%; width: 36px; height: 36px; animation: sc-spin 0.8s linear infinite;"></div>
-                <h4 style="color: #fff; font-size: 15px; margin-bottom: 6px; font-weight: 600;">Đang quét & đối soát toàn bộ cây thư mục</h4>
-                <p style="color: var(--text-muted, #94a3b8); font-size: 13px;">Hệ thống đang so sánh thời gian & dung lượng giữa Local và Demo...</p>
+                <div class="loader" style="margin: 0 auto 18px; border: 3px solid rgba(0, 210, 211, 0.15); border-top-color: ${this.currentEnv === 'prod' ? '#f59e0b' : 'var(--primary, #00d2d3)'}; border-radius: 50%; width: 36px; height: 36px; animation: sc-spin 0.8s linear infinite;"></div>
+                <h4 style="color: #fff; font-size: 15px; margin-bottom: 6px; font-weight: 600;">Đang quét & đối soát toàn bộ cây thư mục (${envLabel})</h4>
+                <p style="color: var(--text-muted, #94a3b8); font-size: 13px;">Hệ thống đang so sánh thời gian & dung lượng giữa Local và ${envLabel}...</p>
             </div>
             <style>@keyframes sc-spin { 100% { transform:rotate(360deg); } }</style>
         `;
@@ -939,7 +999,8 @@ const SyncCenter = {
             body: JSON.stringify({
                 name: projectName,
                 category: App.currentCategory,
-                include_cleardata: this.includeClearData
+                include_cleardata: this.includeClearData,
+                env: this.currentEnv
             })
         }).then(r => r.json()).then(res => {
             if (res.status === 'success') {
@@ -952,7 +1013,7 @@ const SyncCenter = {
                     <div style="padding: 24px; border-radius: 12px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; display: flex; align-items: center; gap: 12px;">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                         <div>
-                            <div style="font-weight:600; font-size:14px; margin-bottom:2px;">Quét thất bại</div>
+                            <div style="font-weight:600; font-size:14px; margin-bottom:2px;">Quét thất bại (${envLabel})</div>
                             <div style="font-size:13px; opacity:0.9;">${this.escapeHtml(res.message)}</div>
                         </div>
                     </div>
@@ -961,7 +1022,7 @@ const SyncCenter = {
         }).catch(err => {
             document.getElementById('sync-center-content').innerHTML = `
                 <div style="padding: 24px; border-radius: 12px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5;">
-                    Lỗi kết nối khi quét. Vui lòng kiểm tra lại mạng hoặc cấu hình Demo.
+                    Lỗi kết nối khi quét ${envLabel}. Vui lòng kiểm tra lại mạng hoặc cấu hình máy chủ.
                 </div>
             `;
         });
@@ -994,11 +1055,12 @@ const SyncCenter = {
 
     getAllItems() {
         if (!this.lastData) return [];
+        const envName = (this.currentEnv === 'prod') ? 'Production' : 'Demo';
         const items = [];
         this.lastData.local_newer.forEach(f => items.push({ path: f.path, type: 'local_newer', reason: 'Local mới hơn', color: 'emerald', defaultAction: 'upload', local_mtime: f.local_mtime, remote_mtime: f.remote_mtime }));
-        this.lastData.local_only.forEach(f => items.push({ path: f.path, type: 'local_only', reason: 'Chưa có trên Demo', color: 'cyan', defaultAction: 'upload', local_mtime: f.local_mtime, remote_mtime: f.remote_mtime }));
-        this.lastData.remote_newer.forEach(f => items.push({ path: f.path, type: 'remote_newer', reason: 'Demo mới hơn', color: 'purple', defaultAction: 'download', local_mtime: f.local_mtime, remote_mtime: f.remote_mtime }));
-        this.lastData.remote_only.forEach(f => items.push({ path: f.path, type: 'remote_only', reason: 'Chỉ có trên Demo', color: 'indigo', defaultAction: 'download', local_mtime: f.local_mtime, remote_mtime: f.remote_mtime }));
+        this.lastData.local_only.forEach(f => items.push({ path: f.path, type: 'local_only', reason: 'Chưa có trên ' + envName, color: 'cyan', defaultAction: 'upload', local_mtime: f.local_mtime, remote_mtime: f.remote_mtime }));
+        this.lastData.remote_newer.forEach(f => items.push({ path: f.path, type: 'remote_newer', reason: envName + ' mới hơn', color: 'purple', defaultAction: 'download', local_mtime: f.local_mtime, remote_mtime: f.remote_mtime }));
+        this.lastData.remote_only.forEach(f => items.push({ path: f.path, type: 'remote_only', reason: 'Chỉ có trên ' + envName, color: 'indigo', defaultAction: 'download', local_mtime: f.local_mtime, remote_mtime: f.remote_mtime }));
         this.lastData.conflict.forEach(f => items.push({ path: f.path, type: 'conflict', reason: 'Lệch dung lượng (Conflict)', color: 'rose', defaultAction: 'upload', local_mtime: f.local_mtime, remote_mtime: f.remote_mtime }));
         return items;
     },
@@ -1263,7 +1325,7 @@ const SyncCenter = {
                         </button>
                         <button class="sc-pill-btn pill-up ${this.currentFilter === 'upload' ? 'active' : ''}" onclick="SyncCenter.setFilter('upload')">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-                            Đẩy lên Demo <span class="sc-badge-count">${countUpload}</span>
+                            Đẩy lên ${this.currentEnv === 'prod' ? 'Production' : 'Demo'} <span class="sc-badge-count">${countUpload}</span>
                         </button>
                         <button class="sc-pill-btn pill-down ${this.currentFilter === 'download' ? 'active' : ''}" onclick="SyncCenter.setFilter('download')">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
@@ -1328,6 +1390,8 @@ const SyncCenter = {
             return;
         }
 
+        const envLabel = this.currentEnv === 'prod' ? 'Production' : 'Demo';
+
         let tableHtml = `
             <table class="sc-table">
                 <thead>
@@ -1338,8 +1402,8 @@ const SyncCenter = {
                         <th>Đường dẫn File</th>
                         <th style="width: 170px; white-space: nowrap;">Trạng thái / Lý do</th>
                         <th style="width: 155px; white-space: nowrap;">Ngày Local</th>
-                        <th style="width: 155px; white-space: nowrap;">Ngày Demo</th>
-                        <th style="width: 160px; white-space: nowrap;">Hành động</th>
+                        <th style="width: 155px; white-space: nowrap;">Ngày ${envLabel}</th>
+                        <th style="width: 170px; white-space: nowrap;">Hành động</th>
                         <th style="width: 110px; text-align: left; white-space: nowrap;">Xử lý</th>
                     </tr>
                 </thead>
@@ -1387,7 +1451,7 @@ const SyncCenter = {
                     </td>
                     <td style="white-space: nowrap;">
                         <select class="sc-select-action sync-action" data-path="${path}">
-                            <option value="upload" ${isUpload ? 'selected' : ''}>↑ Đẩy lên Demo</option>
+                            <option value="upload" ${isUpload ? 'selected' : ''}>↑ Đẩy lên ${envLabel}</option>
                             <option value="download" ${!isUpload ? 'selected' : ''}>↓ Kéo về Local</option>
                         </select>
                     </td>
@@ -1450,6 +1514,7 @@ const SyncCenter = {
 
     async executeAll() {
         let actions = { upload: [], download: [] };
+        const envLabel = this.currentEnv === 'prod' ? 'Production' : 'Demo';
         
         document.querySelectorAll('.sc-table tbody tr').forEach(row => {
             const cb = row.querySelector('.sync-cb');
@@ -1469,7 +1534,7 @@ const SyncCenter = {
             return;
         }
         
-        if (!await UI.confirm(`Xác nhận đồng bộ?\n- Đẩy lên Demo: ${actions.upload.length} files\n- Kéo về Local: ${actions.download.length} files\n\n🛡️ Hệ thống sẽ TỰ ĐỘNG BACKUP file cũ trước khi ghi đè.`)) return;
+        if (!await UI.confirm(`Xác nhận đồng bộ [Môi trường ${envLabel}]?\n- Đẩy lên ${envLabel}: ${actions.upload.length} files\n- Kéo về Local: ${actions.download.length} files\n\n🛡️ Hệ thống sẽ TỰ ĐỘNG BACKUP file cũ trước khi ghi đè.`)) return;
         
         UI.showLoading('Đang đồng bộ các file & tạo bản sao lưu an toàn...');
         
@@ -1507,6 +1572,7 @@ const SyncCenter = {
             body: JSON.stringify({
                 name: projectName,
                 category: App.currentCategory,
+                env: this.currentEnv,
                 include_cleardata: this.includeClearData,
                 actions: actions
             })
@@ -1525,7 +1591,7 @@ const SyncCenter = {
 
         UI.showLoading('Đang phân tích & so sánh nội dung file...');
 
-        fetch(`api.php?action=fmGetDiff&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory)}&path=${encodeURIComponent(path)}`)
+        fetch(`api.php?action=fmGetDiff&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory)}&path=${encodeURIComponent(path)}&env=${encodeURIComponent(this.currentEnv)}`)
             .then(r => r.json())
             .then(res => {
                 UI.hideLoading();
@@ -1601,6 +1667,9 @@ const SyncCenter = {
         const path = data.path;
         const local = data.local;
         const remote = data.remote;
+        const envLabel = this.currentEnv === 'prod' ? 'Production' : 'Demo';
+        const remoteColor = this.currentEnv === 'prod' ? '#fbbf24' : '#c084fc';
+        const remoteIcon = this.currentEnv === 'prod' ? '🚀' : '☁️';
 
         const isLocalExists = local && local.exists;
         const isRemoteExists = remote && remote.exists;
@@ -1608,7 +1677,7 @@ const SyncCenter = {
         const localContent = isLocalExists ? local.content : '';
         const remoteContent = isRemoteExists ? remote.content : '';
 
-        // Calculate diff: Local as old (left), Demo as new (right)
+        // Calculate diff: Local as old (left), Remote as new (right)
         const diffLines = this.computeLineDiff(localContent, remoteContent);
         const countAdded = diffLines.filter(l => l.type === 'insert').length;
         const countDeleted = diffLines.filter(l => l.type === 'delete').length;
@@ -1695,8 +1764,8 @@ const SyncCenter = {
                             <th style="padding:8px 14px; text-align:left; color:#34d399; font-size:12px; font-weight:700; width:50%; border-right:1px solid rgba(255,255,255,0.08);">
                                 💻 BẢN LOCAL (DEV) ${isLocalExists ? `(${this.formatBytes(local.size)})` : '<span style="color:#f87171;">(Chưa có)</span>'}
                             </th>
-                            <th style="padding:8px 14px; text-align:left; color:#c084fc; font-size:12px; font-weight:700; width:50%;">
-                                ☁️ BẢN DEMO (HOSTING) ${isRemoteExists ? `(${this.formatBytes(remote.size)})` : '<span style="color:#f87171;">(Chưa có)</span>'}
+                            <th style="padding:8px 14px; text-align:left; color:${remoteColor}; font-size:12px; font-weight:700; width:50%;">
+                                ${remoteIcon} BẢN ${envLabel.toUpperCase()} (HOSTING) ${isRemoteExists ? `(${this.formatBytes(remote.size)})` : '<span style="color:#f87171;">(Chưa có)</span>'}
                             </th>
                         </tr>
                     </thead>
@@ -1740,7 +1809,7 @@ const SyncCenter = {
             diffBodyHtml = `
                 <div style="background:#0d121d; position:sticky; top:0; z-index:10; border-bottom:1px solid rgba(255,255,255,0.08); padding:8px 14px; font-size:12px; font-weight:700; display:flex; gap:20px;">
                     <span style="color:#34d399;">💻 Local: ${isLocalExists ? this.formatBytes(local.size) : 'Chưa có'}</span>
-                    <span style="color:#c084fc;">☁️ Demo: ${isRemoteExists ? this.formatBytes(remote.size) : 'Chưa có'}</span>
+                    <span style="color:${remoteColor};">${remoteIcon} ${envLabel}: ${isRemoteExists ? this.formatBytes(remote.size) : 'Chưa có'}</span>
                 </div>
                 <div>${linesHtml}</div>
             `;
@@ -1759,7 +1828,7 @@ const SyncCenter = {
                             <div style="font-size:11.5px; color:#94a3b8; display:flex; align-items:center; gap:12px; margin-top:2px;">
                                 <span><b style="color:#34d399;">+${countAdded}</b> thêm mới</span>
                                 <span><b style="color:#fb7185;">-${countDeleted}</b> xóa/sửa</span>
-                                <span style="display:inline-flex; align-items:center; gap:4px; color:#38bdf8;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Tự động Backup trước khi đè</span>
+                                <span style="display:inline-flex; align-items:center; gap:4px; color:#38bdf8;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Tự động Backup trước khi đè [${envLabel}]</span>
                             </div>
                         </div>
                     </div>
@@ -1787,18 +1856,18 @@ const SyncCenter = {
                 <div class="sc-diff-footer">
                     <div style="font-size:12px; color:#94a3b8; display:flex; align-items:center; gap:8px;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        <span>Bản gốc trước khi ghi đè sẽ được tự động lưu trữ trong thư mục <code>backups/sync_snapshots/</code></span>
+                        <span>Bản gốc trước khi ghi đè sẽ được tự động lưu trữ trong thư mục <code>backups/sync_snapshots/.../${this.currentEnv}/</code></span>
                     </div>
 
                     <div style="display:flex; align-items:center; gap:10px;">
                         <button class="btn btn-ghost" onclick="SyncCenter.closeDiffModal()" style="height:36px; padding:0 14px;">Đóng</button>
                         <button class="btn" style="height:36px; padding:0 16px; font-weight:700; background:linear-gradient(135deg, #a855f7, #7c3aed); color:#fff; border:none;" onclick="SyncCenter.executeSingleDiff('${this.escapeHtml(path)}', 'download')">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
-                            Kéo Demo về Local (Backup Local)
+                            Kéo ${envLabel} về Local (Backup Local)
                         </button>
                         <button class="btn btn-primary" style="height:36px; padding:0 16px; font-weight:700;" onclick="SyncCenter.executeSingleDiff('${this.escapeHtml(path)}', 'upload')">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-                            Đẩy Local lên Demo (Backup Demo)
+                            Đẩy Local lên ${envLabel} (Backup ${envLabel})
                         </button>
                     </div>
                 </div>
@@ -1809,7 +1878,8 @@ const SyncCenter = {
     },
 
     async executeSingleDiff(path, action) {
-        if (!await UI.confirm(`Xác nhận ${action === 'upload' ? 'đẩy bản Local lên ghi đè Demo' : 'kéo bản Demo về ghi đè Local'}?\n\n🛡️ Bản cũ sẽ được tự động backup an toàn.`)) return;
+        const envLabel = this.currentEnv === 'prod' ? 'Production' : 'Demo';
+        if (!await UI.confirm(`Xác nhận ${action === 'upload' ? `đẩy bản Local lên ghi đè ${envLabel}` : `kéo bản ${envLabel} về ghi đè Local`}?\n\n🛡️ Bản cũ sẽ được tự động backup an toàn.`)) return;
 
         const actions = { upload: [], download: [] };
         actions[action].push(path);
@@ -1836,6 +1906,7 @@ const SyncCenter = {
     // ==========================================
     cachedBackups: [],
     backupFilter: 'all',
+    backupEnvFilter: 'all',
     backupSearch: '',
 
     openBackupHistory() {
@@ -1856,7 +1927,8 @@ const SyncCenter = {
 
         UI.showLoading('Đang tải danh sách bản sao lưu...');
 
-        fetch(`api.php?action=fmListBackups&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory || 'projects')}`)
+        const envParam = this.backupEnvFilter || 'all';
+        fetch(`api.php?action=fmListBackups&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory || 'projects')}&env=${encodeURIComponent(envParam)}`)
             .then(r => r.json())
             .then(res => {
                 UI.hideLoading();
@@ -1875,12 +1947,17 @@ const SyncCenter = {
 
     setBackupFilter(type) {
         this.backupFilter = type;
-        document.querySelectorAll('#d_tab-backups .sc-pill-btn, #sc-backup-tab-main .sc-pill-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('#d_tab-backups .sc-pill-type, #sc-backup-tab-main .sc-pill-type').forEach(btn => btn.classList.remove('active'));
         const targetBtn = document.getElementById(`sc-bk-pill-${type}`);
         if (targetBtn) {
             targetBtn.classList.add('active');
         }
         this.renderBackupList();
+    },
+
+    setBackupEnvFilter(env) {
+        this.backupEnvFilter = env;
+        this.openBackupHistoryTab();
     },
 
     setBackupSearch(query) {
@@ -1890,6 +1967,9 @@ const SyncCenter = {
 
     getFilteredBackups() {
         let list = this.cachedBackups;
+        if (this.backupEnvFilter && this.backupEnvFilter !== 'all') {
+            list = list.filter(b => (b.env || 'demo') === this.backupEnvFilter);
+        }
         if (this.backupFilter !== 'all') {
             list = list.filter(b => b.type === this.backupFilter);
         }
@@ -1904,6 +1984,9 @@ const SyncCenter = {
         if (!container) return;
 
         const total = this.cachedBackups.length;
+        const countDemo = this.cachedBackups.filter(b => (b.env || 'demo') === 'demo').length;
+        const countProd = this.cachedBackups.filter(b => b.env === 'prod').length;
+
         const countUpload = this.cachedBackups.filter(b => b.type === 'remote_before_upload').length;
         const countDownload = this.cachedBackups.filter(b => b.type === 'local_before_download').length;
         const countEdit = this.cachedBackups.filter(b => b.type === 'remote_before_edit').length;
@@ -1911,19 +1994,37 @@ const SyncCenter = {
         container.innerHTML = `
             <!-- Toolbar & Filter -->
             <div style="padding: 4px 0 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 18px;">
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="sc-pill-btn pill-all ${this.backupFilter === 'all' ? 'active' : ''}" id="sc-bk-pill-all" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('all')">
-                        Tất cả <span class="sc-badge-count">${total}</span>
-                    </button>
-                    <button class="sc-pill-btn pill-up ${this.backupFilter === 'remote_before_upload' ? 'active' : ''}" id="sc-bk-pill-remote_before_upload" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_upload')">
-                        🛡️ Demo trước khi đè <span class="sc-badge-count">${countUpload}</span>
-                    </button>
-                    <button class="sc-pill-btn pill-down ${this.backupFilter === 'local_before_download' ? 'active' : ''}" id="sc-bk-pill-local_before_download" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('local_before_download')">
-                        💻 Local trước khi kéo <span class="sc-badge-count">${countDownload}</span>
-                    </button>
-                    <button class="sc-pill-btn pill-conflict ${this.backupFilter === 'remote_before_edit' ? 'active' : ''}" id="sc-bk-pill-remote_before_edit" style="height:34px; padding:0 12px; font-size:12px;" onclick="SyncCenter.setBackupFilter('remote_before_edit')">
-                        ✎ Sửa trên Web <span class="sc-badge-count">${countEdit}</span>
-                    </button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                    <!-- Environment Filter Pills -->
+                    <div style="display: inline-flex; background: rgba(255,255,255,0.04); padding: 3px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
+                        <button class="sc-pill-btn ${this.backupEnvFilter === 'all' ? 'active' : ''}" style="height:28px; padding:0 10px; font-size:11.5px; border-radius:6px;" onclick="SyncCenter.setBackupEnvFilter('all')">
+                            Tất cả MT <span class="sc-badge-count">${total}</span>
+                        </button>
+                        <button class="sc-pill-btn ${this.backupEnvFilter === 'demo' ? 'active' : ''}" style="height:28px; padding:0 10px; font-size:11.5px; border-radius:6px; color:#38bdf8;" onclick="SyncCenter.setBackupEnvFilter('demo')">
+                            🌐 Demo <span class="sc-badge-count">${countDemo}</span>
+                        </button>
+                        <button class="sc-pill-btn ${this.backupEnvFilter === 'prod' ? 'active' : ''}" style="height:28px; padding:0 10px; font-size:11.5px; border-radius:6px; color:#fbbf24;" onclick="SyncCenter.setBackupEnvFilter('prod')">
+                            🚀 Production <span class="sc-badge-count">${countProd}</span>
+                        </button>
+                    </div>
+
+                    <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.1); margin: 0 4px;"></div>
+
+                    <!-- Type Filter Pills -->
+                    <div style="display: inline-flex; gap: 6px; flex-wrap: wrap;">
+                        <button class="sc-pill-btn sc-pill-type pill-all ${this.backupFilter === 'all' ? 'active' : ''}" id="sc-bk-pill-all" style="height:32px; padding:0 10px; font-size:11.5px;" onclick="SyncCenter.setBackupFilter('all')">
+                            Tất cả loại
+                        </button>
+                        <button class="sc-pill-btn sc-pill-type pill-up ${this.backupFilter === 'remote_before_upload' ? 'active' : ''}" id="sc-bk-pill-remote_before_upload" style="height:32px; padding:0 10px; font-size:11.5px;" onclick="SyncCenter.setBackupFilter('remote_before_upload')">
+                            🛡️ Trước khi Upload <span class="sc-badge-count">${countUpload}</span>
+                        </button>
+                        <button class="sc-pill-btn sc-pill-type pill-down ${this.backupFilter === 'local_before_download' ? 'active' : ''}" id="sc-bk-pill-local_before_download" style="height:32px; padding:0 10px; font-size:11.5px;" onclick="SyncCenter.setBackupFilter('local_before_download')">
+                            💻 Trước khi Download <span class="sc-badge-count">${countDownload}</span>
+                        </button>
+                        <button class="sc-pill-btn sc-pill-type pill-conflict ${this.backupFilter === 'remote_before_edit' ? 'active' : ''}" id="sc-bk-pill-remote_before_edit" style="height:32px; padding:0 10px; font-size:11.5px;" onclick="SyncCenter.setBackupFilter('remote_before_edit')">
+                            ✎ Trước Sửa Web <span class="sc-badge-count">${countEdit}</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -1968,11 +2069,12 @@ const SyncCenter = {
                         <th style="width: 44px; text-align: center;">
                             <input type="checkbox" class="sc-custom-cb" id="sc-bk-check-all" onchange="SyncCenter.toggleSelectAllBackups(this.checked)">
                         </th>
-                        <th style="width: 160px; white-space: nowrap;">Thời gian Sao lưu</th>
+                        <th style="width: 155px; white-space: nowrap;">Thời gian</th>
+                        <th style="width: 110px; white-space: nowrap;">Môi trường</th>
                         <th>Đường dẫn File gốc</th>
                         <th style="width: 190px; white-space: nowrap;">Loại Snapshot</th>
-                        <th style="width: 90px; white-space: nowrap;">Dung lượng</th>
-                        <th style="width: 270px; text-align: right; white-space: nowrap;">Thao tác</th>
+                        <th style="width: 85px; white-space: nowrap;">Dung lượng</th>
+                        <th style="width: 280px; text-align: right; white-space: nowrap;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1982,22 +2084,40 @@ const SyncCenter = {
             const path = item.original_rel_path || '';
             const icon = this.getFileIcon(path);
             const backupFile = item.backup_file || '';
+            const env = item.env === 'prod' ? 'prod' : 'demo';
             
+            let envBadge = '';
+            if (env === 'prod') {
+                envBadge = `<span class="sc-tag" style="background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.35); font-weight:700;">🚀 Prod</span>`;
+            } else {
+                envBadge = `<span class="sc-tag sc-tag-cyan" style="font-weight:700;">🌐 Demo</span>`;
+            }
+
             let typeLabel = '';
             let typeTagClass = '';
             if (item.type === 'remote_before_upload') {
-                typeLabel = '🛡️ Demo (Trước khi Upload)';
+                typeLabel = `${env === 'prod' ? '🚀 Prod' : '🛡️ Demo'} (Trước Upload)`;
                 typeTagClass = 'sc-tag-emerald';
             } else if (item.type === 'local_before_download') {
-                typeLabel = '💻 Local (Trước khi Download)';
+                typeLabel = '💻 Local (Trước Download)';
                 typeTagClass = 'sc-tag-purple';
             } else if (item.type === 'remote_before_edit') {
-                typeLabel = '✎ Demo (Trước khi Sửa Web)';
+                typeLabel = `${env === 'prod' ? '🚀 Prod' : '✎ Demo'} (Trước Sửa Web)`;
                 typeTagClass = 'sc-tag-cyan';
             } else {
                 typeLabel = '⏪ Bản lưu trước Restore';
                 typeTagClass = 'sc-tag-indigo';
             }
+
+            const restoreRemoteBtn = env === 'prod' ? `
+                <button class="btn btn-ghost btn-sm" style="height:30px; padding:0 10px; font-size:11.5px; font-weight:700; color:#fbbf24; border-color:rgba(245,158,11,0.35);" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'remote', 'prod')" title="Khôi phục ghi đè lại lên Production Hosting">
+                    🚀 Lên Prod
+                </button>
+            ` : `
+                <button class="btn btn-ghost btn-sm" style="height:30px; padding:0 10px; font-size:11.5px; font-weight:700; color:#34d399; border-color:rgba(16,185,129,0.3);" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'remote', 'demo')" title="Khôi phục ghi đè lại lên Demo Hosting">
+                    ⏫ Lên Demo
+                </button>
+            `;
 
             html += `
                 <tr>
@@ -2007,6 +2127,9 @@ const SyncCenter = {
                     <td style="white-space: nowrap; font-family: var(--mono, monospace); font-size: 12px; color: #94a3b8;">
                         <span style="color: #f8fafc; font-weight: 600;">${this.escapeHtml(item.time || '')}</span> 
                         <span style="color: #64748b; font-size: 11px;">${this.escapeHtml(item.date || '')}</span>
+                    </td>
+                    <td style="white-space: nowrap;">
+                        ${envBadge}
                     </td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -2024,16 +2147,14 @@ const SyncCenter = {
                     </td>
                     <td style="text-align: right; white-space: nowrap;">
                         <div style="display: inline-flex; align-items: center; gap: 6px;">
-                            <button class="sc-btn-diff" onclick="SyncCenter.previewBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}')" title="Xem nội dung code bản snapshot này">
+                            <button class="sc-btn-diff" onclick="SyncCenter.previewBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', '${env}')" title="Xem nội dung code bản snapshot này">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                 <span>Xem</span>
                             </button>
-                            <button class="btn btn-ghost btn-sm" style="height:30px; padding:0 10px; font-size:11.5px; font-weight:700; color:#c084fc; border-color:rgba(168,85,247,0.3);" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'local')" title="Khôi phục ghi đè lại file Local">
+                            <button class="btn btn-ghost btn-sm" style="height:30px; padding:0 10px; font-size:11.5px; font-weight:700; color:#c084fc; border-color:rgba(168,85,247,0.3);" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'local', '${env}')" title="Khôi phục ghi đè lại file Local">
                                 ⏪ Về Local
                             </button>
-                            <button class="btn btn-ghost btn-sm" style="height:30px; padding:0 10px; font-size:11.5px; font-weight:700; color:#34d399; border-color:rgba(16,185,129,0.3);" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'remote')" title="Khôi phục ghi đè lại lên Demo Hosting">
-                                ⏫ Lên Demo
-                            </button>
+                            ${restoreRemoteBtn}
                             <button class="btn btn-ghost btn-sm" style="height:30px; width:30px; padding:0; color:#f87171; border-color:rgba(248,113,113,0.25);" onclick="SyncCenter.deleteSingleBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}')" title="Xóa bản sao lưu này">
                                 🗑️
                             </button>
@@ -2127,9 +2248,9 @@ const SyncCenter = {
         });
     },
 
-    async restoreBackup(backupFile, path, target) {
+    async restoreBackup(backupFile, path, target, env = 'demo') {
         const isRemote = target === 'remote';
-        const targetName = isRemote ? 'Demo Hosting' : 'Local Workspace';
+        const targetName = isRemote ? (env === 'prod' ? 'Production Hosting' : 'Demo Hosting') : 'Local Workspace';
         const actionVerb = isRemote ? 'LÊN' : 'VỀ';
         const actionVerbLower = isRemote ? 'lên' : 'về';
         
@@ -2148,7 +2269,8 @@ const SyncCenter = {
                 category: App.currentCategory,
                 backup_file: backupFile,
                 path: path,
-                target: target
+                target: target,
+                env: env
             })
         })
         .then(r => r.json())
@@ -2168,7 +2290,7 @@ const SyncCenter = {
         });
     },
 
-    previewBackup(backupFile, path) {
+    previewBackup(backupFile, path, env = 'demo') {
         const projectName = document.getElementById('detail-project-name')?.innerText;
         UI.showLoading('Đang tải nội dung bản sao lưu...');
 
@@ -2203,11 +2325,14 @@ const SyncCenter = {
                     `;
                 });
 
+                const envLabel = env === 'prod' ? 'Production' : 'Demo';
+                const remoteBtnBg = env === 'prod' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #10b981, #059669)';
+
                 previewModal.innerHTML = `
                     <div class="sc-diff-dialog" style="max-width: 1100px; height: 80vh;">
                         <div class="sc-diff-header">
                             <div style="font-size: 14px; font-weight: 700; color: #fff; font-family: var(--mono, monospace);">
-                                📄 Xem Snapshot: ${this.escapeHtml(path)}
+                                📄 Xem Snapshot [${envLabel}]: ${this.escapeHtml(path)}
                             </div>
                             <button class="btn btn-ghost" onclick="document.getElementById('sc-backup-preview-modal').remove()" style="height:30px; width:30px; padding:0; border-radius:8px;">✕</button>
                         </div>
@@ -2218,11 +2343,11 @@ const SyncCenter = {
                             <span style="font-size: 12px; color: #94a3b8;">${lines.length} dòng | ${this.formatBytes(res.content.length)}</span>
                             <div style="display:flex; gap:10px;">
                                 <button class="btn btn-ghost" onclick="document.getElementById('sc-backup-preview-modal').remove()">Đóng</button>
-                                <button class="btn btn-primary" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'local'); document.getElementById('sc-backup-preview-modal').remove();">
+                                <button class="btn btn-primary" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'local', '${env}'); document.getElementById('sc-backup-preview-modal').remove();">
                                     ⏪ Khôi phục về Local
                                 </button>
-                                <button class="btn" style="background:linear-gradient(135deg, #10b981, #059669); color:#fff; font-weight:700;" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'remote'); document.getElementById('sc-backup-preview-modal').remove();">
-                                    ⏫ Khôi phục lên Demo
+                                <button class="btn" style="background:${remoteBtnBg}; color:#fff; font-weight:700;" onclick="SyncCenter.restoreBackup('${this.escapeHtml(backupFile)}', '${this.escapeHtml(path)}', 'remote', '${env}'); document.getElementById('sc-backup-preview-modal').remove();">
+                                    ⏫ Khôi phục lên ${envLabel}
                                 </button>
                             </div>
                         </div>
