@@ -5,6 +5,9 @@ class ProjectScanner {
     private $baseDir;
 
     public function __construct($baseDir) {
+        if (basename($baseDir) === 'RBWManager') {
+            $baseDir = dirname($baseDir);
+        }
         $this->baseDir = $baseDir;
     }
 
