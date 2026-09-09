@@ -947,6 +947,16 @@ switch ($action) {
         
         if ($action === 'fmList') {
             $files = RemoteClient::listFtpDirectoryDetailed($url, $userPwd);
+            if (empty($files) && $currentEnv === 'demo' && $cleanPath === '') {
+                $deploySubPath = $project['relPath'] ?? '';
+                if ($deploySubPath && !$deployService->remoteDirExists($config, $deploySubPath)) {
+                    echo json_encode([
+                        'status' => 'error',
+                        'message' => "Dự án chưa tồn tại trên Demo Server (thư mục '{$deploySubPath}' chưa được triển khai). Vui lòng Deploy Demo trước!"
+                    ]);
+                    break;
+                }
+            }
             if ($project && !empty($project['path'])) {
                 $localBasePath = rtrim(str_replace('\\', '/', $project['path']), '/') . ($cleanPath ? "/$cleanPath" : '');
                 foreach ($files as &$f) {
@@ -1535,6 +1545,15 @@ switch ($action) {
 
             // If bridge is not yet on server or outdated (missing MD5/readme filter support), upload it fast via deployService
             if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v6_sub_excludes') {
+                if ($currentEnv === 'demo') {
+                    if (!$deployService->remoteDirExists($config, $deploySubPath)) {
+                        echo json_encode([
+                            'status' => 'error',
+                            'message' => "Dự án chưa tồn tại trên Demo Server (thư mục '{$deploySubPath}' chưa được triển khai trên hosting). Vui lòng Deploy Demo trước khi thực hiện Đồng bộ hoặc Quản lý File!"
+                        ]);
+                        break;
+                    }
+                }
                 try {
                     $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
                     $remoteData = $callBridge();
@@ -1890,6 +1909,12 @@ switch ($action) {
 
         if (empty($dbPass)) {
             $dbPass = $targetPass;
+        }
+
+        // Kiểm tra xem dự án có tồn tại trên Demo trước khi upload bridge để kiểm tra Database
+        if ($isDemo && !$deployService->remoteDirExists($config, $relPath)) {
+            echo json_encode(['status' => 'error', 'message' => "Dự án chưa tồn tại trên Demo Server (thư mục '{$relPath}' chưa được triển khai). Vui lòng Deploy Demo trước!"]);
+            break;
         }
 
         // Tải bridge.php lên trước để kiểm tra kết nối localhost
@@ -4175,6 +4200,12 @@ switch ($action) {
         foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại']);
+            break;
+        }
+
+        // Kiểm tra xem thư mục dự án có tồn tại trên Demo trước khi upload bridge
+        if (!$deployService->remoteDirExists($config, $project['relPath'])) {
+            echo json_encode(['status' => 'error', 'message' => "Dự án chưa tồn tại trên Demo Server. Không có dữ liệu để dọn dẹp."]);
             break;
         }
 

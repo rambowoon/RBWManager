@@ -163,6 +163,10 @@ class RemoteClient
         curl_setopt($ch, CURLOPT_USERPWD, $userPwd);
         curl_setopt($ch, CURLOPT_DIRLISTONLY, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        if (defined('CURLOPT_USE_SSL')) curl_setopt($ch, CURLOPT_USE_SSL, 3);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $res = curl_exec($ch);
         $closeStatus = curl_close($ch);
 

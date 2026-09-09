@@ -374,6 +374,25 @@ class DeploymentService
         return RemoteClient::checkFileExistsFtp($ftpUrl, $userPwd);
     }
 
+    public function remoteDirExists($config, $subPath)
+    {
+        $subPath = trim(str_replace('\\', '/', $subPath), '/');
+        if ($subPath === '') return true;
+
+        $ftpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
+        $fullPath = rtrim($ftpRoot, '/') . '/' . $subPath;
+
+        $parentDir = dirname($fullPath);
+        $dirName = basename($fullPath);
+
+        $relativeParent = ltrim(rtrim(str_replace('\\', '/', $parentDir), '/'), '/');
+        $parentUrl = "ftp://{$config['ftp_host']}/" . ($relativeParent ? $relativeParent . '/' : '');
+        $userPwd = "{$config['ftp_user']}:{$config['ftp_pass']}";
+
+        $existingItems = RemoteClient::listFtpDirectory($parentUrl, $userPwd);
+        return in_array($dirName, $existingItems);
+    }
+
     public function createDirectAdminDb($config, $dbSuffix, $dbPass)
     {
         $daPort = $config['da_port'] ?? '1111';

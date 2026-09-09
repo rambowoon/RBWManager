@@ -41,6 +41,11 @@ class PackagingService {
 
         writeJobLog($jobId, ['status' => 'info', 'log' => '🔗 Đang kết nối tới Bridge tại Demo: ' . $demoDomain]);
 
+        // Kiểm tra xem thư mục dự án có tồn tại trên Demo trước khi upload bridge
+        if (!$this->deploymentService->remoteDirExists($demoConfig, $project['relPath'])) {
+            throw new \Exception("Dự án chưa tồn tại trên Demo Server (thư mục '{$project['relPath']}' chưa được triển khai). Vui lòng Deploy Demo trước khi đóng gói!");
+        }
+
         // Đồng bộ bridge.php mới nhất lên Demo trước khi đóng gói
         try {
             $this->deploymentService->upload($demoConfig, ['bridge.php' => __DIR__ . '/../bridge.php'], $project['relPath']);
