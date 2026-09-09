@@ -1056,7 +1056,7 @@ const SyncCenter = {
         this.scan();
     },
     
-    scan() {
+    scan(allowUploadBridge = false) {
         const projectName = document.getElementById('detail-project-name')?.innerText;
         if (!projectName) return;
         
@@ -1064,10 +1064,14 @@ const SyncCenter = {
         if (cbHeader) this.includeClearData = cbHeader.checked;
         
         const envLabel = (this.currentEnv === 'prod') ? 'Production Hosting' : 'Demo Hosting';
+        const loadingTitle = allowUploadBridge
+            ? `Đang tải bridge.php & quét toàn bộ cây thư mục (${envLabel})`
+            : `Đang quét & đối soát toàn bộ cây thư mục (${envLabel})`;
+
         document.getElementById('sync-center-content').innerHTML = `
             <div style="padding: 60px 20px; text-align: center; background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.1); border-radius: 16px;">
                 <div class="loader" style="margin: 0 auto 18px; border: 3px solid rgba(0, 210, 211, 0.15); border-top-color: ${this.currentEnv === 'prod' ? '#f59e0b' : 'var(--primary, #00d2d3)'}; border-radius: 50%; width: 36px; height: 36px; animation: sc-spin 0.8s linear infinite;"></div>
-                <h4 style="color: #fff; font-size: 15px; margin-bottom: 6px; font-weight: 600;">Đang quét & đối soát toàn bộ cây thư mục (${envLabel})</h4>
+                <h4 style="color: #fff; font-size: 15px; margin-bottom: 6px; font-weight: 600;">${loadingTitle}</h4>
                 <p style="color: var(--text-muted, #94a3b8); font-size: 13px;">Hệ thống đang so sánh thời gian & dung lượng giữa Local và ${envLabel}...</p>
             </div>
             <style>@keyframes sc-spin { 100% { transform:rotate(360deg); } }</style>
@@ -1080,7 +1084,8 @@ const SyncCenter = {
                 name: projectName,
                 category: App.currentCategory,
                 include_cleardata: this.includeClearData,
-                env: this.currentEnv
+                env: this.currentEnv,
+                allow_upload_bridge: !!allowUploadBridge
             })
         }).then(r => r.json()).then(res => {
             if (res.status === 'success') {
@@ -1088,6 +1093,8 @@ const SyncCenter = {
                 this.currentFilter = 'all';
                 this.searchQuery = '';
                 this.render();
+            } else if (res.status === 'bridge_missing' || res.code === 'BRIDGE_MISSING') {
+                this.showBridgeUploadModal(res.env_label || envLabel);
             } else {
                 document.getElementById('sync-center-content').innerHTML = `
                     <div style="padding: 24px; border-radius: 12px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; display: flex; align-items: center; gap: 12px;">
@@ -1106,6 +1113,85 @@ const SyncCenter = {
                 </div>
             `;
         });
+    },
+
+    showBridgeUploadModal(envLabel) {
+        let existing = document.getElementById('sc-bridge-confirm-modal');
+        if (existing) existing.remove();
+
+        const envColor = (this.currentEnv === 'prod') ? '#f59e0b' : '#00d2d3';
+
+        const modalHtml = `
+            <div class="modal-overlay" id="sc-bridge-confirm-modal" style="display:flex; z-index:10000; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);">
+                <div class="modal-content" style="max-width:520px; width:92%; background:#18181c; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.12); box-shadow:0 20px 60px rgba(0,0,0,0.85);">
+                    <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; background:#1f1f26; border-bottom:1px solid rgba(255,255,255,0.08);">
+                        <div style="width:36px; height:36px; border-radius:10px; background:rgba(239,68,68,0.15); display:flex; align-items:center; justify-content:center; color:#f87171; font-size:18px;">🛡️</div>
+                        <div>
+                            <h3 style="margin:0; font-size:15px; font-weight:700; color:#fff;">Xác nhận tải tệp kết nối Bridge</h3>
+                            <span style="font-size:12px; color:var(--text-muted, #94a3b8);">Môi trường: <b style="color:${envColor};">${this.escapeHtml(envLabel)}</b></span>
+                        </div>
+                        <button type="button" onclick="SyncCenter.cancelBridgeUpload('${this.escapeHtml(envLabel)}')" style="margin-left:auto; background:none; border:none; color:#71717a; font-size:22px; cursor:pointer; line-height:1; padding:4px 8px; border-radius:6px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#71717a'">×</button>
+                    </div>
+                    <div style="padding:20px; color:#e2e8f0; font-size:13.5px; line-height:1.6;">
+                        <p style="margin:0 0 12px;">
+                            Trên máy chủ <b>${this.escapeHtml(envLabel)}</b> chưa có tệp kết nối <code>bridge.php</code>.
+                        </p>
+                        <div style="background:rgba(255,183,77,0.08); border-left:3px solid #ffb74d; border-radius:4px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:#fcd34d;">
+                            <b>Lưu ý bảo mật:</b> Để tránh tự ý đẩy file lên hosting gây rủi ro an toàn, hệ thống chỉ tải <code>bridge.php</code> khi bạn cho phép. Tệp này hỗ trợ so sánh đối soát file và có thể dọn dẹp sau khi hoàn tất.
+                        </div>
+                        <p style="margin:0; font-size:13px; color:#94a3b8;">
+                            Bạn có đồng ý cho phép tải tệp <code>bridge.php</code> lên máy chủ để tiến hành Quét & So sánh không?
+                        </p>
+                    </div>
+                    <div style="padding:14px 20px; background:#141418; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:flex-end; gap:10px;">
+                        <button type="button" class="btn btn-ghost" onclick="SyncCenter.cancelBridgeUpload('${this.escapeHtml(envLabel)}')" style="padding:8px 16px; font-size:13px; border:1px solid rgba(255,255,255,0.12); border-radius:8px; color:#cbd5e1;">
+                            Hủy bỏ
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="SyncCenter.confirmBridgeUpload()" style="padding:8px 18px; font-size:13px; font-weight:600; border-radius:8px; background:linear-gradient(135deg, #00d2d3, #0984e3); border:none; color:#fff; display:flex; align-items:center; gap:6px;">
+                            <span>✓ Đồng ý tải lên & Quét</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        document.getElementById('sync-center-content').innerHTML = `
+            <div style="padding: 50px 20px; text-align: center; background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.1); border-radius: 16px;">
+                <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
+                <h4 style="color: #fff; font-size: 15px; margin-bottom: 6px; font-weight: 600;">Đang chờ xác nhận bảo mật</h4>
+                <p style="color: var(--text-muted, #94a3b8); font-size: 13px; max-width: 480px; margin: 0 auto 16px;">
+                    Vui lòng xác nhận trên hộp thoại để cho phép tải tệp kết nối <code>bridge.php</code> lên máy chủ ${this.escapeHtml(envLabel)}.
+                </p>
+                <button class="btn btn-primary" onclick="SyncCenter.showBridgeUploadModal('${this.escapeHtml(envLabel)}')" style="padding: 8px 20px; font-weight: 600; border-radius: 8px;">
+                    Mở lại hộp thoại xác nhận
+                </button>
+            </div>
+        `;
+    },
+
+    confirmBridgeUpload() {
+        const modal = document.getElementById('sc-bridge-confirm-modal');
+        if (modal) modal.remove();
+        this.scan(true);
+    },
+
+    cancelBridgeUpload(envLabel) {
+        const modal = document.getElementById('sc-bridge-confirm-modal');
+        if (modal) modal.remove();
+
+        document.getElementById('sync-center-content').innerHTML = `
+            <div style="padding: 50px 20px; text-align: center; background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.1); border-radius: 16px;">
+                <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
+                <h4 style="color: #fff; font-size: 15px; margin-bottom: 6px; font-weight: 600;">Đã hủy tải tệp Bridge</h4>
+                <p style="color: var(--text-muted, #94a3b8); font-size: 13px; max-width: 480px; margin: 0 auto 16px;">
+                    Tệp <code>bridge.php</code> chưa được tải lên máy chủ ${this.escapeHtml(envLabel || '')}. Thao tác so sánh tạm dừng để bảo vệ an toàn hệ thống.
+                </p>
+                <button class="btn btn-primary" onclick="SyncCenter.scan()" style="padding: 8px 20px; font-weight: 600; border-radius: 8px;">
+                    🔄 Quét lại
+                </button>
+            </div>
+        `;
     },
 
     setFilter(filter) {

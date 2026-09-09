@@ -1380,6 +1380,7 @@ switch ($action) {
             
             $projectName = $data['name'] ?? '';
             $category = $data['category'] ?? '';
+            $allowUploadBridge = !empty($data['allow_upload_bridge']);
             $customExcludes = $data['excludes'] ?? [];
             $defaultExcludes = [
                 'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks',
@@ -1554,6 +1555,19 @@ switch ($action) {
                         break;
                     }
                 }
+
+                // BẢO MẬT: Không tự ý tải bridge.php lên server khi chưa có sự đồng ý của người dùng
+                if (!$allowUploadBridge) {
+                    echo json_encode([
+                        'status' => 'bridge_missing',
+                        'code' => 'BRIDGE_MISSING',
+                        'env' => $currentEnv,
+                        'env_label' => $envLabel,
+                        'message' => "Chưa có tệp kết nối bridge.php trên máy chủ {$envLabel}."
+                    ]);
+                    break;
+                }
+
                 try {
                     $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
                     $remoteData = $callBridge();
