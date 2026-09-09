@@ -737,7 +737,7 @@ const App = {
 		
 		// Lấy cấu hình hiện tại để không ghi đè mất các thông tin khác (lock_demo, ssl, deployed...)
 		const pIdx = this.projects.findIndex(p => p.name === name);
-		const existingConfig = (pIdx !== -1 && this.projects[pIdx].config) ? this.projects[pIdx].config : {};
+		const existingConfig = this.currentProjectConfig || ((pIdx !== -1 && this.projects[pIdx].config) ? this.projects[pIdx].config : {});
 		
 		// Clone cấu hình cũ
 		const config = JSON.parse(JSON.stringify(existingConfig));
@@ -760,11 +760,43 @@ const App = {
 		).json();
 
 		if (res.status === 'success') {
-			if (!isDetail) UI.hideModal('config-modal');
-			else {
+			this.currentProjectConfig = config;
+			if (pIdx !== -1) {
+				this.projects[pIdx].config = config;
+			}
+
+			if (!isDetail) {
+				UI.hideModal('config-modal');
+				UI.notify('Đã lưu cấu hình dự án!', 'success');
+			} else {
 				UI.hideModal('detail-config-modal');
 				UI.notify('Đã lưu cấu hình dự án!', 'success');
 			}
+
+			// Cập nhật lại toàn bộ giao diện chi tiết dự án & master actions ngay lập tức
+			UI.fillProjectDetailForm(name, config, this.currentCategory);
+			UI.fillConfigForm(name, config);
+
+			// Cập nhật badge trạng thái dự án trên header
+			const hasDemo = !!(config.deployed && config.deployed.demo);
+			const hasProd = !!(config.deployed && config.deployed.production);
+			const statusEl = document.getElementById('detail-project-status');
+			if (statusEl) {
+				statusEl.style.display = 'inline-flex';
+				if (hasProd) {
+					statusEl.innerText = '● PRODUCTION ĐANG CHẠY';
+					statusEl.className = 'badge-env';
+				} else if (hasDemo) {
+					statusEl.innerText = '● DEMO ĐANG CHẠY';
+					statusEl.className = 'badge-env';
+				} else {
+					statusEl.innerText = '○ CHƯA DEPLOY';
+					statusEl.className = 'badge-env';
+					statusEl.style.background = 'var(--surface-2)';
+					statusEl.style.color = 'var(--text-muted)';
+				}
+			}
+
 			await this.loadProjects(this.currentCategory);
 		} else {
 			UI.notify('Lưu thất bại: ' + res.message, 'error');

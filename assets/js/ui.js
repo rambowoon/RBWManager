@@ -639,7 +639,7 @@ const UI = {
 				</div>
 				<div class="chip-row">
 					<div class="chip util" onclick="UI.showModal('${prefix ? "detail-config-modal" : "config-modal"}')"><div class="ic">⚙</div><div class="lbl">Cấu hình Hosting</div></div>
-					${hasProd && prodUrl ? `<div class="chip neutral" onclick="window.open('${getUrl(prodUrl, isProdSsl)}', '_blank')"><div class="ic">🌐</div><div class="lbl">Website (Prod)</div></div>` : ""}
+					${prodUrl ? `<div class="chip neutral" onclick="window.open('${getUrl(prodUrl, isProdSsl)}', '_blank')"><div class="ic">🌐</div><div class="lbl">Website (Prod)</div></div>` : ""}
 					<div class="chip util" onclick="App.installSSL('${safeName}', '${safeCat}')"><div class="ic">🔒</div><div class="lbl">Install SSL</div></div>
 					<div class="chip util" onclick="App.showChangePhpVersionModal('${safeName}', '${safeCat}')"><div class="ic">🌐</div><div class="lbl">Đổi PHP Version</div></div>
 					<div class="chip danger" onclick="App.cleanupTools('${safeName}','${safeCat}', 'production')"><div class="ic">✎</div><div class="lbl">Dọn dẹp Production</div></div>
