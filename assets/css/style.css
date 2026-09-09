@@ -149,11 +149,14 @@ to { opacity: 1; transform: translateY(0); }
     height: 100%;
     object-fit: cover;
     object-position: top center;
-    transition: transform 0.35s ease;
+    transition: object-position 1.8s cubic-bezier(0.25, 1, 0.5, 1);
     display: block;
+    will-change: object-position;
 }
+.item-card:hover .item-card-thumb-img,
 .item-card-thumb-wrap:hover .item-card-thumb-img {
-    transform: scale(1.04);
+    object-position: bottom center;
+    transition: object-position 5.5s ease-in-out;
 }
 .item-card-thumb-placeholder {
     display: flex;
@@ -200,7 +203,7 @@ to { opacity: 1; transform: translateY(0); }
     pointer-events: none;
 }
 .item-card-thumb-wrap.capturing::after {
-    content: "⏳ Đang chụp...";
+    content: "⏳ Đang chụp full page...";
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0.78);
@@ -233,24 +236,23 @@ to { opacity: 1; transform: translateY(0); }
 
 /* Screenshot Preview Modal */
 .modal-screenshot-preview {
-    max-width: 860px !important;
+    max-width: 900px !important;
     width: 92% !important;
 }
 .screenshot-img-frame {
     width: 100%;
-    aspect-ratio: 16 / 9;
+    max-height: 72vh;
+    overflow-y: auto;
+    overflow-x: hidden;
     background: #090d16;
     border-radius: 12px;
-    overflow: hidden;
     border: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    scroll-behavior: smooth;
 }
 .screenshot-img-frame img {
     width: 100%;
-    height: 100%;
-    object-fit: contain;
+    height: auto;
+    display: block;
 }
 
 /* ===== THEME SWITCHER COMPONENT ===== */

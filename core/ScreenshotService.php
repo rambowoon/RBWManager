@@ -113,17 +113,43 @@ class ScreenshotService
 
         $tempPng = $this->cacheDir . DIRECTORY_SEPARATOR . 'shot_' . uniqid() . '.png';
         $finalWebp = $this->getScreenshotPath($category, $projectName);
+        $nodeScript = __DIR__ . DIRECTORY_SEPARATOR . 'capture_fullpage.js';
 
-        // Command to capture 1280x720 screenshot via headless Chrome/Edge
-        $cmd = sprintf(
-            '"%s" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=1280,720 --screenshot="%s" "%s" 2>&1',
+        @set_time_limit(90);
+
+        // 1. Ưu tiên sử dụng Node.js CDP script để chụp Full Page (từ Header đến Footer)
+        if (file_exists($nodeScript)) {
+            $cmd = sprintf('node "%s" "%s" "%s" 2>&1', $nodeScript, $targetUrl, $finalWebp);
+            $output = shell_exec($cmd);
+
+            if (file_exists($finalWebp) && filesize($finalWebp) > 1000) {
+                // Tối ưu chiều rộng 768px giữ nguyên tỷ lệ chiều cao full-page
+                $this->resizeFullPageWebp($finalWebp, 768, 80);
+
+                return [
+                    'status' => 'success',
+                    'message' => 'Chụp ảnh full page website thành công!',
+                    'url' => $this->getScreenshotUrl($category, $projectName),
+                    'targetUrl' => $targetUrl
+                ];
+            }
+        }
+
+        // 2. Fallback: Sử dụng Chrome CLI với chiều cao dài
+        $browserPath = $this->findBrowserExecutable();
+        if (!$browserPath) {
+            return ['status' => 'error', 'message' => 'Không tìm thấy trình duyệt Chrome hoặc Edge trên hệ thống để chụp ảnh màn hình.'];
+        }
+
+        $tempPng = $this->cacheDir . DIRECTORY_SEPARATOR . 'shot_' . uniqid() . '.png';
+        $cmdFallback = sprintf(
+            '"%s" --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=1280,3200 --screenshot="%s" "%s" 2>&1',
             $browserPath,
             $tempPng,
             $targetUrl
         );
 
-        @set_time_limit(60);
-        $output = shell_exec($cmd);
+        $output = shell_exec($cmdFallback);
 
         if (!file_exists($tempPng) || filesize($tempPng) < 1000) {
             @unlink($tempPng);
@@ -134,8 +160,7 @@ class ScreenshotService
             ];
         }
 
-        // Resize and optimize to WebP (640x360 for high-density crisp preview)
-        $converted = $this->optimizeAndSaveWebp($tempPng, $finalWebp, 640, 360, 82);
+        $converted = $this->optimizeAndSaveWebp($tempPng, $finalWebp, 768, 80);
         @unlink($tempPng);
 
         if (!$converted) {
@@ -144,16 +169,50 @@ class ScreenshotService
 
         return [
             'status' => 'success',
-            'message' => 'Chụp ảnh màn hình website thành công!',
+            'message' => 'Chụp ảnh full page website thành công!',
             'url' => $this->getScreenshotUrl($category, $projectName),
             'targetUrl' => $targetUrl
         ];
     }
 
-    private function optimizeAndSaveWebp($srcPngPath, $destWebpPath, $targetW = 640, $targetH = 360, $quality = 82)
+    private function resizeFullPageWebp($srcWebpPath, $maxWidth = 768, $quality = 80)
+    {
+        if (!function_exists('imagecreatefromwebp') || !function_exists('imagewebp')) {
+            return true;
+        }
+
+        $srcImg = @imagecreatefromwebp($srcWebpPath);
+        if (!$srcImg) return true;
+
+        $origW = imagesx($srcImg);
+        $origH = imagesy($srcImg);
+
+        if ($origW <= $maxWidth) {
+            imagedestroy($srcImg);
+            return true;
+        }
+
+        $newW = $maxWidth;
+        $newH = (int) round(($origH * $newW) / $origW);
+
+        $dstImg = imagecreatetruecolor($newW, $newH);
+        imagealphablending($dstImg, false);
+        imagesavealpha($dstImg, true);
+
+        imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+
+        @unlink($srcWebpPath);
+        $res = imagewebp($dstImg, $srcWebpPath, $quality);
+
+        imagedestroy($srcImg);
+        imagedestroy($dstImg);
+
+        return $res;
+    }
+
+    private function optimizeAndSaveWebp($srcPngPath, $destWebpPath, $maxWidth = 768, $quality = 80)
     {
         if (!function_exists('imagecreatefrompng') || !function_exists('imagewebp')) {
-            // Fallback if GD is missing: just copy PNG
             return @copy($srcPngPath, str_replace('.webp', '.png', $destWebpPath));
         }
 
@@ -165,12 +224,14 @@ class ScreenshotService
         $origW = imagesx($srcImg);
         $origH = imagesy($srcImg);
 
-        $dstImg = imagecreatetruecolor($targetW, $targetH);
+        $newW = min($origW, $maxWidth);
+        $newH = (int) round(($origH * $newW) / $origW);
+
+        $dstImg = imagecreatetruecolor($newW, $newH);
         imagealphablending($dstImg, false);
         imagesavealpha($dstImg, true);
 
-        // Resample with high quality interpolation
-        imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $targetW, $targetH, $origW, $origH);
+        imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
 
         $res = imagewebp($dstImg, $destWebpPath, $quality);
 
