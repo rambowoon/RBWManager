@@ -618,8 +618,11 @@ $scanner = new ProjectScanner($baseDir);
 $configManager = new ConfigManager($configPath);
 $deployService = new DeploymentService($baseDir);
 $packagingService = new PackagingService($scanner, $deployService, $configManager);
-$projectDeployer = new ProjectDeployer($baseDir);
-$screenshotService = new ScreenshotService(__DIR__);
+$appDir = __DIR__;
+if (strpos($appDir, '\\\\.\\') === 0 || strpos($appDir, '\\\\?\\') === 0) {
+    $appDir = substr($appDir, 4);
+}
+$screenshotService = new ScreenshotService($appDir);
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $jobId = $_POST['jobId'] ?? $_GET['jobId'] ?? null;

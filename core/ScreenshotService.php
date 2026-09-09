@@ -9,7 +9,11 @@ class ScreenshotService
 
     public function __construct($baseDir = null)
     {
-        $this->baseDir = $baseDir ?: dirname(__DIR__);
+        $dir = $baseDir ?: dirname(__DIR__);
+        if (strpos($dir, '\\\\.\\') === 0 || strpos($dir, '\\\\?\\') === 0) {
+            $dir = substr($dir, 4);
+        }
+        $this->baseDir = rtrim(str_replace('/', DIRECTORY_SEPARATOR, $dir), DIRECTORY_SEPARATOR);
         $this->screenshotsDir = $this->baseDir . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'screenshots';
         $this->cacheDir = $this->baseDir . DIRECTORY_SEPARATOR . 'cache';
 
@@ -203,15 +207,16 @@ class ScreenshotService
 
         $tempPng = $this->cacheDir . DIRECTORY_SEPARATOR . 'shot_' . uniqid() . '.png';
         $finalWebp = $this->getScreenshotPath($category, $projectName);
-        $nodeScript = __DIR__ . DIRECTORY_SEPARATOR . 'capture_fullpage.js';
+        $nodeScript = $this->baseDir . DIRECTORY_SEPARATOR . 'core' . DIRECTORY_SEPARATOR . 'capture_fullpage.js';
 
         @set_time_limit(90);
 
         // 1. Ưu tiên sử dụng Node.js CDP script để chụp Full Page (từ Header đến Footer)
         if (file_exists($nodeScript)) {
             $nodeExec = $this->findNodeExecutable();
-            $cmd = sprintf('"%s" "%s" "%s" "%s" 2>&1', $nodeExec, $nodeScript, $targetUrl, $finalWebp);
-            $output = shell_exec($cmd);
+            $cmd = sprintf('"%s" "%s" "%s" "%s"', $nodeExec, $nodeScript, $targetUrl, $finalWebp);
+            $procRes = $this->executeCommand($cmd);
+            $output = $procRes['stdout'] ?: $procRes['output'];
 
             if (file_exists($finalWebp) && filesize($finalWebp) > 1000) {
                 // Tối ưu chiều rộng 768px giữ nguyên tỷ lệ chiều cao full-page
@@ -246,13 +251,14 @@ class ScreenshotService
 
         $tempPng = $this->cacheDir . DIRECTORY_SEPARATOR . 'shot_' . uniqid() . '.png';
         $cmdFallback = sprintf(
-            '"%s" --headless=new --disable-gpu --no-sandbox --disable-setuid-sandbox --ignore-certificate-errors --allow-running-insecure-content --hide-scrollbars --window-size=1280,3200 --screenshot="%s" "%s" 2>&1',
+            '"%s" --headless=new --disable-gpu --no-sandbox --disable-setuid-sandbox --ignore-certificate-errors --allow-running-insecure-content --hide-scrollbars --window-size=1280,3200 --screenshot="%s" "%s"',
             $browserPath,
             $tempPng,
             $targetUrl
         );
 
-        $output = shell_exec($cmdFallback);
+        $procFallback = $this->executeCommand($cmdFallback);
+        $output = $procFallback['output'];
 
         if (!file_exists($tempPng) || filesize($tempPng) < 1000) {
             @unlink($tempPng);
@@ -450,6 +456,39 @@ class ScreenshotService
         }
 
         return ['ok' => true, 'code' => $httpCode];
+    }
+
+    private function executeCommand($cmd, $cwd = null)
+    {
+        $cleanCwd = $cwd ?: $this->baseDir;
+        if (strpos($cleanCwd, '\\\\.\\') === 0 || strpos($cleanCwd, '\\\\?\\') === 0) {
+            $cleanCwd = substr($cleanCwd, 4);
+        }
+
+        $descriptorspec = [
+            0 => ["pipe", "r"],
+            1 => ["pipe", "w"],
+            2 => ["pipe", "w"]
+        ];
+
+        $process = proc_open($cmd, $descriptorspec, $pipes, $cleanCwd);
+        if (!is_resource($process)) {
+            return ['code' => -1, 'stdout' => '', 'stderr' => 'proc_open failed', 'output' => 'proc_open failed'];
+        }
+
+        fclose($pipes[0]);
+        $stdout = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+
+        $code = proc_close($process);
+        return [
+            'code' => $code,
+            'stdout' => trim((string)$stdout),
+            'stderr' => trim((string)$stderr),
+            'output' => trim($stdout . "\n" . $stderr)
+        ];
     }
 }
 
