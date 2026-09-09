@@ -208,78 +208,112 @@ async function capture(url, outputPath) {
             }
         }
 
-        // 3. Kích hoạt và ép nạp toàn bộ ảnh lazy-load, phông chữ và scroll tuần tự
+        // 3. Cuộn từ từ toàn trang để Splide, Swiper và các JS component kích hoạt tính toán kích thước
+        try {
+            await send('Runtime.evaluate', {
+                expression: `new Promise((resolve) => {
+                    let totalHeight = 0;
+                    const distance = 400;
+                    const scrollHeightLimit = Math.min(document.body.scrollHeight || 0, 15000);
+                    const timer = setInterval(() => {
+                        window.scrollBy(0, distance);
+                        totalHeight += distance;
+                        if (totalHeight >= scrollHeightLimit) {
+                            clearInterval(timer);
+                            window.scrollTo(0, 0);
+                            setTimeout(resolve, 400);
+                        }
+                    }, 50);
+                })`,
+                awaitPromise: true
+            });
+        } catch (e) {}
+
+        // 4. Ép hiển thị 100% tất cả animation (AOS, data-sa, wow), tắt delay và transition
+        try {
+            await send('Runtime.evaluate', {
+                expression: `(() => {
+                    const style = document.createElement('style');
+                    style.id = 'rbw-screenshot-override';
+                    style.textContent = \`
+                        *, *::before, *::after {
+                            -webkit-transition: none !important;
+                            -moz-transition: none !important;
+                            -o-transition: none !important;
+                            transition: none !important;
+                            -webkit-animation: none !important;
+                            -moz-animation: none !important;
+                            -o-animation: none !important;
+                            animation: none !important;
+                        }
+                        [data-sa], [data-aos], .wow, [class*="animate__"] {
+                            opacity: 1 !important;
+                            transform: none !important;
+                            visibility: visible !important;
+                        }
+                        .sa-animate, .aos-animate, .animated {
+                            opacity: 1 !important;
+                            transform: none !important;
+                            visibility: visible !important;
+                        }
+                    \`;
+                    document.head.appendChild(style);
+
+                    document.querySelectorAll('[data-sa]').forEach(el => el.classList.add('sa-animate'));
+                    document.querySelectorAll('[data-aos]').forEach(el => el.classList.add('aos-animate'));
+                    document.querySelectorAll('.wow').forEach(el => el.classList.add('animated'));
+                })()`
+            });
+        } catch (e) {}
+
+        // 5. Ép tải toàn bộ ảnh (data-src, lazy-load, loading="eager" và fonts ready)
         try {
             await send('Runtime.evaluate', {
                 expression: `(async () => {
-                    // Chờ Fonts ready
+                    const imgs = document.querySelectorAll('img');
+                    imgs.forEach(img => {
+                        if (img.dataset.src && (!img.src || img.src.includes('data:image'))) img.src = img.dataset.src;
+                        if (img.dataset.original && (!img.src || img.src.includes('data:image'))) img.src = img.dataset.original;
+                        if (img.dataset.lazy && (!img.src || img.src.includes('data:image'))) img.src = img.dataset.lazy;
+                        if (img.dataset.srcset && !img.srcset) img.srcset = img.dataset.srcset;
+
+                        if (img.loading === 'lazy') {
+                            img.loading = 'eager';
+                            const cur = img.src;
+                            img.src = '';
+                            img.src = cur;
+                        }
+                    });
+
+                    const lazyBgs = document.querySelectorAll('[data-bg], [data-background], [data-bg-image]');
+                    lazyBgs.forEach(el => {
+                        const bg = el.dataset.bg || el.dataset.background || el.dataset.bgImage;
+                        if (bg && !el.style.backgroundImage) {
+                            el.style.backgroundImage = 'url("' + bg + '")';
+                        }
+                    });
+
+                    // Chờ toàn bộ hình ảnh nạp hoàn tất
+                    await Promise.all(Array.from(document.images).map(img => {
+                        if (img.complete && img.naturalWidth !== 0) return Promise.resolve();
+                        return new Promise(res => {
+                            img.onload = res;
+                            img.onerror = res;
+                            setTimeout(res, 3500);
+                        });
+                    }));
+
                     if (document.fonts && document.fonts.ready) {
                         try { await document.fonts.ready; } catch(e) {}
                     }
-
-                    // Buộc kích hoạt các thuộc tính data-src, data-lazy, data-original của thư viện lazyload
-                    try {
-                        const lazyImgs = document.querySelectorAll('img[data-src], img[data-original], img[data-lazy], img[data-srcset]');
-                        lazyImgs.forEach(img => {
-                            if (img.dataset.src && !img.src) img.src = img.dataset.src;
-                            if (img.dataset.original && !img.src) img.src = img.dataset.original;
-                            if (img.dataset.lazy && !img.src) img.src = img.dataset.lazy;
-                            if (img.dataset.srcset && !img.srcset) img.srcset = img.dataset.srcset;
-                            if (img.loading === 'lazy') img.loading = 'eager';
-                        });
-
-                        const lazyBgs = document.querySelectorAll('[data-bg], [data-background], [data-bg-image]');
-                        lazyBgs.forEach(el => {
-                            const bg = el.dataset.bg || el.dataset.background || el.dataset.bgImage;
-                            if (bg && !el.style.backgroundImage) {
-                                el.style.backgroundImage = 'url("' + bg + '")';
-                            }
-                        });
-                    } catch(e) {}
-
-                    // Cuộn tuần tự từ đầu đến chân trang để kích hoạt IntersectionObserver & thư viện scroll (AOS/WOW/Lazyload)
-                    await new Promise((resolve) => {
-                        let totalHeight = 0;
-                        const distance = 400;
-                        const scrollHeightLimit = Math.min(document.body.scrollHeight || 0, 15000);
-                        
-                        const timer = setInterval(() => {
-                            window.scrollBy(0, distance);
-                            totalHeight += distance;
-                            if (totalHeight >= scrollHeightLimit) {
-                                clearInterval(timer);
-                                // Dừng lại ở đáy một nhịp ngắn để lazy-load footer kịp nạp
-                                setTimeout(() => {
-                                    window.scrollTo(0, 0);
-                                    setTimeout(resolve, 500);
-                                }, 400);
-                            }
-                        }, 80);
-                    });
-
-                    // Đợi tất cả thẻ <img> đã có trong DOM hoàn thành nạp ảnh
-                    try {
-                        const imgs = Array.from(document.images);
-                        await Promise.all(imgs.map(img => {
-                            if (img.complete && img.naturalWidth !== 0) return Promise.resolve();
-                            return new Promise(res => {
-                                img.addEventListener('load', res, { once: true });
-                                img.addEventListener('error', res, { once: true });
-                                setTimeout(res, 2500);
-                            });
-                        }));
-                    } catch(e) {}
                 })()`,
-                awaitPromise: true,
-                returnByValue: true
+                awaitPromise: true
             });
-        } catch (e) {
-            // Bỏ qua nếu có lỗi script trong trang
-        }
+        } catch (e) {}
 
-        // 4. Chờ Network Idle (không còn request nào trong vòng 500ms hoặc tối đa 3.5s)
+        // 6. Chờ Network Idle (không còn request nào trong vòng 400ms hoặc tối đa 3s)
         const waitNetworkIdle = async () => {
-            const maxWait = 3500;
+            const maxWait = 3000;
             const startWait = Date.now();
             while (Date.now() - startWait < maxWait) {
                 if (inFlightRequests === 0 && (Date.now() - lastRequestTime > 400)) {
@@ -290,8 +324,8 @@ async function capture(url, outputPath) {
         };
         await waitNetworkIdle();
 
-        // 5. Đợi layout và các slider animation ổn định lần cuối
-        await new Promise(r => setTimeout(r, 600));
+        // 7. Đợi layout và các slider animation ổn định lần cuối
+        await new Promise(r => setTimeout(r, 500));
 
         // Full page screenshot
         const captureResult = await send('Page.captureScreenshot', {
