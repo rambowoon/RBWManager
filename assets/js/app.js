@@ -1706,24 +1706,28 @@ const App = {
 			if (res.status === 'success') {
 				UI.notify(`Đã chụp ảnh thành công cho [${name}]!`, 'success');
 				
+				const rawUrl = res.screenshot || res.url;
+				const cleanUrl = rawUrl ? rawUrl.split('?')[0] : '';
+				const freshUrl = cleanUrl ? `${cleanUrl}?v=${Date.now()}` : '';
+
 				// Update project in local array
 				const pObj = this.projects.find(p => p.name === name);
 				if (pObj) {
-					pObj.screenshot = res.screenshot;
+					pObj.screenshot = freshUrl;
 				}
 
 				// Update DOM directly without reload
-				if (thumbWrap) {
+				if (thumbWrap && freshUrl) {
 					thumbWrap.classList.remove('capturing');
 					thumbWrap.onclick = (e) => {
 						e.stopPropagation();
-						App.previewOrCapture(name, targetCat, res.screenshot);
+						App.previewOrCapture(name, targetCat, freshUrl);
 					};
 					thumbWrap.title = 'Nhấn để xem hoặc cập nhật ảnh website';
 					
 					let existingImg = thumbWrap.querySelector('.item-card-thumb-img');
 					if (existingImg) {
-						existingImg.src = res.screenshot;
+						existingImg.src = freshUrl;
 					} else {
 						const placeholder = thumbWrap.querySelector('.item-card-thumb-placeholder');
 						if (placeholder) placeholder.remove();
@@ -1731,9 +1735,11 @@ const App = {
 						const newImg = document.createElement('img');
 						newImg.className = 'item-card-thumb-img';
 						newImg.alt = name;
-						newImg.src = res.screenshot;
+						newImg.src = freshUrl;
 						thumbWrap.insertBefore(newImg, thumbWrap.firstChild);
 					}
+				} else if (thumbWrap) {
+					thumbWrap.classList.remove('capturing');
 				}
 			} else {
 				if (thumbWrap) thumbWrap.classList.remove('capturing');

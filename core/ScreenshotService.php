@@ -195,10 +195,12 @@ class ScreenshotService
                 // Tối ưu chiều rộng 768px giữ nguyên tỷ lệ chiều cao full-page
                 $this->resizeFullPageWebp($finalWebp, 768, 80);
 
+                $shotUrl = $this->getScreenshotUrl($category, $projectName);
                 return [
                     'status' => 'success',
                     'message' => 'Chụp ảnh full page website thành công!',
-                    'url' => $this->getScreenshotUrl($category, $projectName),
+                    'url' => $shotUrl,
+                    'screenshot' => $shotUrl,
                     'targetUrl' => $targetUrl
                 ];
             }
@@ -246,10 +248,12 @@ class ScreenshotService
             return ['status' => 'error', 'message' => 'Lỗi khi nén ảnh thumbnail sang định dạng WebP.'];
         }
 
+        $shotUrl = $this->getScreenshotUrl($category, $projectName);
         return [
             'status' => 'success',
             'message' => 'Chụp ảnh full page website thành công!',
-            'url' => $this->getScreenshotUrl($category, $projectName),
+            'url' => $shotUrl,
+            'screenshot' => $shotUrl,
             'targetUrl' => $targetUrl
         ];
     }
