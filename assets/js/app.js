@@ -554,22 +554,30 @@ const App = {
 		lines.forEach(line => {
 			line = line.trim();
 			if (!line) return;
-			const lowerLine = line.toLowerCase();
-			if (lowerLine.includes('tên miền')) {
-				const hosts = findHosts(line);
-				if (hosts.length > 0) demo.web_domain = hosts[0];
-			}
-			if (lowerLine.includes('control panel') || lowerLine.includes('host name') || lowerLine.includes('ip') || lowerLine.includes('hosting')) {
-				const hosts = findHosts(line);
-				if (hosts.length > 0) demo.ftp_host = hosts[0];
-			}
-			if (lowerLine.includes('username') || lowerLine.includes('tên đăng nhập') || lowerLine.includes('tài khoản')) {
-				const val = line.replace(/.*?(username|tên đăng nhập|tài khoản)[\s:]*/i, '').trim();
-				if (val) demo.ftp_user = val.split(/\s/)[0];
-			}
-			if (lowerLine.includes('password') || lowerLine.includes('mật khẩu') || lowerLine.includes('pass')) {
-				const val = line.replace(/.*?(password|mật khẩu|pass)[\s:]*/i, '').trim();
-				if (val) demo.ftp_pass = val.split(/\s/)[0];
+			const extractVal = (l) => {
+				const m = l.match(/^([^:]+):\s*(.*)$/);
+				return m ? m[2].trim() : l.trim();
+			};
+			const cleanHost = (s) => {
+				return (s || '').replace(/^https?:\/\//i, '').replace(/^ftp:\/\//i, '').replace(/\/.*$/, '').split(':')[0].trim();
+			};
+
+			if (/^(domain|tên\s*miền|web\s*domain|website)\s*:/i.test(line)) {
+				demo.web_domain = cleanHost(extractVal(line));
+			} else if (/^(ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|host\s*ip|ip\s*host|host\s*name)\s*:/i.test(line)) {
+				demo.ftp_host = cleanHost(extractVal(line));
+			} else if (/^host\s*:/i.test(line)) {
+				if (!demo.ftp_host) demo.ftp_host = cleanHost(extractVal(line));
+			} else if (/^(control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị)\s*:/i.test(line)) {
+				const raw = extractVal(line);
+				const portM = raw.match(/:(\d{2,5})/);
+				if (portM) demo.da_port = portM[1];
+				const host = cleanHost(raw);
+				if (host && !demo.ftp_host) demo.ftp_host = host;
+			} else if (/^(ftp\s*user|panel\s*user|da\s*user|username|tài\s*khoản|tên\s*đăng\s*nhập|user)\s*:/i.test(line)) {
+				demo.ftp_user = extractVal(line);
+			} else if (/^(ftp\s*pass|panel\s*pass|da\s*pass|password|mật\s*khẩu|pass)\s*:/i.test(line)) {
+				demo.ftp_pass = extractVal(line);
 			}
 		});
 

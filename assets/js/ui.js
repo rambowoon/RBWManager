@@ -856,87 +856,129 @@ const UI = {
 
 	parseQuickConfig(mode = "") {
 		const prefix = mode === "detail" ? "d_" : "";
-		const text = document
-			.getElementById(prefix + "quick_paste")
-			.value.trim();
+		const textarea =
+			document.getElementById(prefix + "quick_paste") ||
+			document.getElementById("d_quick_paste") ||
+			document.getElementById("quick_paste");
+		if (!textarea) return;
+		const text = textarea.value.trim();
 		if (!text) return;
 
 		const config = { da_port: "1111" };
 		const lines = text.split(/\r?\n/);
 
-		const findHosts = (str) => {
-			const matches =
-				str.match(
-					/(?:https?:\/\/|ftp\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|(?:\d{1,3}\.){3}\d{1,3})/gi,
-				) || [];
-			return matches.map(
-				(m) =>
-					m
-						.replace(/https?:\/\//i, "")
-						.replace(/ftp\./i, "")
-						.split(":")[0],
-			);
+		const extractVal = (line) => {
+			const m = line.match(/^([^:]+):\s*(.*)$/);
+			return m ? m[2].trim() : line.trim();
+		};
+
+		const cleanHost = (str) => {
+			if (!str) return "";
+			return str
+				.replace(/^https?:\/\//i, "")
+				.replace(/^ftp:\/\//i, "")
+				.replace(/\/.*$/, "")
+				.split(":")[0]
+				.trim();
 		};
 
 		let currentSection = "";
+
 		lines.forEach((line) => {
 			line = line.trim();
 			if (!line) return;
-			if (line.match(/Hosting/i) || line.match(/Control Panel/i))
-				currentSection = "DA";
-			else if (line.match(/FTP/i)) currentSection = "FTP";
 
-			if (line.match(/tên miền/i)) {
-				const hosts = findHosts(line);
-				if (hosts.length > 0) config.web_domain = hosts[0];
+			// Section headers detection
+			if (/^(===|---|\[)?\s*(hosting|control\s*panel|directadmin|cpanel)\s*(===|---|\])?$/i.test(line)) {
+				currentSection = "DA";
+				return;
 			}
-			if (line.match(/Control panel/i) || line.match(/Host name/i)) {
-				const hosts = findHosts(line);
-				if (hosts.length > 0) {
-					const ip = hosts.find((h) =>
-						/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h),
-					);
-					const host = ip || hosts[0];
-					if (currentSection === "DA" || !config.ftp_host)
-						config.ftp_host = host;
+			if (/^(===|---|\[)?\s*(ftp)\s*(===|---|\])?$/i.test(line)) {
+				currentSection = "FTP";
+				return;
+			}
+
+			// 1. Tên miền / Domain
+			if (/^(domain|tên\s*miền|web\s*domain|website)\s*:/i.test(line)) {
+				config.web_domain = cleanHost(extractVal(line));
+			}
+			// 2. FTP Host / Server Host / IP
+			else if (/^(ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|host\s*ip|ip\s*host|host\s*name)\s*:/i.test(line)) {
+				config.ftp_host = cleanHost(extractVal(line));
+			}
+			else if (/^host\s*:/i.test(line)) {
+				if (!config.ftp_host || currentSection === "FTP") {
+					config.ftp_host = cleanHost(extractVal(line));
 				}
 			}
-			if (line.match(/Username/i)) {
-				const val = line
-					.replace(/Username[:\s\t]+/i, "")
-					.split(/[\s\t]+/)[0];
-				if (val) {
-					if (currentSection === "DA") config.da_user = val;
-					else config.ftp_user = val;
+			// 3. Control Panel URL
+			else if (/^(control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị)\s*:/i.test(line)) {
+				const rawVal = extractVal(line);
+				const portMatch = rawVal.match(/:(\d{2,5})/);
+				if (portMatch) config.da_port = portMatch[1];
+				const host = cleanHost(rawVal);
+				if (host && !config.ftp_host) config.ftp_host = host;
+			}
+			// 4. FTP User
+			else if (/^(ftp\s*user|ftp\s*username|tài\s*khoản\s*ftp)\s*:/i.test(line)) {
+				config.ftp_user = extractVal(line);
+			}
+			// 5. Panel User / DA User
+			else if (/^(panel\s*user|da\s*user|directadmin\s*user|cpanel\s*user|hosting\s*user)\s*:/i.test(line)) {
+				config.da_user = extractVal(line);
+				if (!config.ftp_user) config.ftp_user = config.da_user;
+			}
+			// 6. Generic User
+			else if (/^(user|username|tài\s*khoản|tên\s*đăng\s*nhập)\s*:/i.test(line)) {
+				const val = extractVal(line);
+				if (currentSection === "DA") {
+					config.da_user = val;
+					if (!config.ftp_user) config.ftp_user = val;
+				} else if (currentSection === "FTP") {
+					config.ftp_user = val;
+					if (!config.da_user) config.da_user = val;
+				} else {
+					if (!config.ftp_user) config.ftp_user = val;
+					if (!config.da_user) config.da_user = val;
 				}
 			}
-			if (line.match(/Password/i)) {
-				const val = line
-					.replace(/Password[:\s\t]+/i, "")
-					.split(/[\s\t]+/)[0];
-				if (val) config.ftp_pass = val;
+			// 7. FTP Pass
+			else if (/^(ftp\s*pass|ftp\s*password|mật\s*khẩu\s*ftp)\s*:/i.test(line)) {
+				config.ftp_pass = extractVal(line);
+			}
+			// 8. Panel Pass / DA Pass
+			else if (/^(panel\s*pass|da\s*pass|directadmin\s*pass|cpanel\s*pass|hosting\s*pass)\s*:/i.test(line)) {
+				const val = extractVal(line);
+				if (!config.ftp_pass) config.ftp_pass = val;
+			}
+			// 9. Generic Password
+			else if (/^(password|pass|mật\s*khẩu)\s*:/i.test(line)) {
+				const val = extractVal(line);
+				if (!config.ftp_pass) config.ftp_pass = val;
 			}
 		});
 
-		// Đổ dữ liệu
-		if (config.web_domain && document.getElementById(prefix + "web_domain"))
-			document.getElementById(prefix + "web_domain").value =
-				config.web_domain;
-		if (config.ftp_host && document.getElementById(prefix + "ftp_host"))
-			document.getElementById(prefix + "ftp_host").value =
-				config.ftp_host;
-		if (config.ftp_user && document.getElementById(prefix + "ftp_user"))
-			document.getElementById(prefix + "ftp_user").value =
-				config.ftp_user;
-		if (config.da_user && document.getElementById(prefix + "da_user"))
-			document.getElementById(prefix + "da_user").value = config.da_user;
-		if (config.ftp_pass && document.getElementById(prefix + "ftp_pass"))
-			document.getElementById(prefix + "ftp_pass").value =
-				config.ftp_pass;
+		// Đổ dữ liệu vào tất cả các form tương ứng
+		const setVal = (field, val) => {
+			if (!val) return;
+			const el1 = document.getElementById(prefix + field);
+			if (el1) el1.value = val;
+			const el2 = document.getElementById("d_" + field);
+			if (el2) el2.value = val;
+			const el3 = document.getElementById(field);
+			if (el3) el3.value = val;
+		};
 
-		document.getElementById(prefix + "quick_paste").value = "";
+		setVal("web_domain", config.web_domain);
+		setVal("ftp_host", config.ftp_host);
+		setVal("ftp_user", config.ftp_user);
+		setVal("da_user", config.da_user);
+		setVal("ftp_pass", config.ftp_pass);
+		if (config.da_port) setVal("da_port", config.da_port);
+
+		textarea.value = "";
 		if (mode === "detail") this.hideModal("quick-paste-modal");
-		this.notify("Đã phân tích xong dữ liệu!", "success");
+		this.notify("Đã phân tích xong dữ liệu cấu hình!", "success");
 	},
 
 	togglePassword(targetId, btn) {
