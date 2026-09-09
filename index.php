@@ -1218,6 +1218,46 @@
         </div>
     </div>
 
+    <!-- Batch Screenshot Progress Modal -->
+    <div id="batch-screenshot-modal" class="modal-overlay" style="z-index: 10004;">
+        <div class="modal" style="max-width: 560px; width: 95%;">
+            <div class="modal-header-flex">
+                <h2 id="batch-screenshot-title" style="display:flex; align-items:center; gap:8px;">
+                    <span>📸</span> Tiến trình chụp ảnh website
+                </h2>
+                <button id="batch-screenshot-close-x" class="btn-close-circle" style="display:none;" onclick="UI.hideModal('batch-screenshot-modal')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div style="margin: 15px 0 20px 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div id="batch-screenshot-current-project" style="font-weight:700; font-size:0.95rem; color:#fff; font-family:var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%;">
+                        Đang chuẩn bị...
+                    </div>
+                    <div id="batch-screenshot-count" style="font-size:0.8rem; color:var(--primary); font-weight:700; font-family:var(--mono);">
+                        0 / 0
+                    </div>
+                </div>
+                <div style="height:8px; background:rgba(255,255,255,0.06); border-radius:10px; overflow:hidden; margin-bottom:10px;">
+                    <div id="batch-screenshot-progress-fill" style="height:100%; width:0%; background:linear-gradient(90deg, #00d2d3, #10b981); transition:width .3s ease; border-radius:10px;"></div>
+                </div>
+                <div id="batch-screenshot-status-text" style="font-size:0.8rem; color:var(--muted); display:flex; align-items:center; gap:6px;">
+                    <span id="batch-screenshot-spinner" class="spinner-small" style="width:12px; height:12px; border:2px solid rgba(255,255,255,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; display:inline-block;"></span>
+                    <span id="batch-screenshot-status-msg">Đang nạp danh sách dự án...</span>
+                </div>
+            </div>
+            
+            <div id="batch-screenshot-log" style="max-height:220px; overflow-y:auto; background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:12px; font-size:0.8rem; font-family:var(--mono); display:flex; flex-direction:column; gap:6px;">
+                <!-- Live items logged here -->
+            </div>
+
+            <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+                <button id="btn-batch-screenshot-stop" class="btn btn-ghost" style="color:#f87171;" onclick="App.stopBatchCapture()">Dừng lại</button>
+                <button id="btn-batch-screenshot-done" class="btn btn-primary" style="display:none; min-width:120px;" onclick="UI.hideModal('batch-screenshot-modal'); App.loadProjects(App.currentCategory);">Hoàn tất</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Shared Action Menu -->
     <!-- Project Detail Modal -->
     <div id="project-detail-modal" class="modal-overlay">

@@ -1751,6 +1751,14 @@ const App = {
 		}
 	},
 
+	stopBatchCapture() {
+		this.isBatchCapturing = false;
+		const statusMsg = document.getElementById('batch-screenshot-status-msg');
+		if (statusMsg) statusMsg.innerText = 'Đang dừng lại sau dự án này...';
+		const stopBtn = document.getElementById('btn-batch-screenshot-stop');
+		if (stopBtn) stopBtn.disabled = true;
+	},
+
 	async batchCaptureScreenshots(category = null) {
 		const targetCat = category || this.currentCategory;
 		if (!targetCat) {
@@ -1758,36 +1766,167 @@ const App = {
 			return;
 		}
 
-		const confirmed = await UI.confirm(`Bạn có chắc muốn tự động chụp ảnh tất cả website trong danh mục [${targetCat}] không?\nQuá trình này có thể mất từ 10-30 giây tùy theo số lượng website.`);
+		const confirmed = await UI.confirm(`Bạn có chắc muốn tự động chụp ảnh tất cả website trong danh mục [${targetCat}] không?\nQuá trình này sẽ chụp tuần tự từng website để đảm bảo hình ảnh đầy đủ.`);
 		if (!confirmed) {
 			return;
 		}
+
+		const titleEl = document.getElementById('batch-screenshot-title');
+		const closeX = document.getElementById('batch-screenshot-close-x');
+		const currentProjEl = document.getElementById('batch-screenshot-current-project');
+		const countEl = document.getElementById('batch-screenshot-count');
+		const progressFill = document.getElementById('batch-screenshot-progress-fill');
+		const spinner = document.getElementById('batch-screenshot-spinner');
+		const statusMsg = document.getElementById('batch-screenshot-status-msg');
+		const logBox = document.getElementById('batch-screenshot-log');
+		const stopBtn = document.getElementById('btn-batch-screenshot-stop');
+		const doneBtn = document.getElementById('btn-batch-screenshot-done');
+
+		if (titleEl) titleEl.innerHTML = `<span>📸</span> Tiến trình chụp ảnh danh mục [${targetCat}]`;
+		if (closeX) closeX.style.display = 'none';
+		if (currentProjEl) currentProjEl.innerText = 'Đang lấy danh sách dự án...';
+		if (countEl) countEl.innerText = '0 / 0';
+		if (progressFill) progressFill.style.width = '0%';
+		if (spinner) spinner.style.display = 'inline-block';
+		if (statusMsg) statusMsg.innerText = 'Đang chuẩn bị...';
+		if (logBox) logBox.innerHTML = '';
+		if (stopBtn) {
+			stopBtn.style.display = 'inline-flex';
+			stopBtn.disabled = false;
+		}
+		if (doneBtn) doneBtn.style.display = 'none';
+
+		UI.showModal('batch-screenshot-modal');
+		this.isBatchCapturing = true;
 
 		const btn = document.getElementById('btn-batch-screenshot');
 		const originalHtml = btn ? btn.innerHTML : '';
 		if (btn) {
 			btn.disabled = true;
-			btn.innerHTML = '⏳ Đang chụp hàng loạt...';
+			btn.innerHTML = '⏳ Đang chụp...';
 		}
 
-		UI.notify(`Đang tiến hành chụp ảnh hàng loạt cho danh mục [${targetCat}]...`, 'info');
-
 		try {
-			const res = await Api.batchCaptureScreenshots(targetCat);
-			if (res.status === 'success') {
-				UI.notify(`Hoàn tất! Đã chụp thành công ${res.successCount}/${res.total} dự án.`, 'success');
-				// Reload project list to refresh all thumbnails
-				await this.loadProjects(targetCat);
-			} else {
-				UI.notify('Lỗi chụp hàng loạt: ' + (res.message || 'Thất bại'), 'error');
+			const pRes = await Api.getProjects(targetCat);
+			const projects = (pRes && pRes.status === 'success' && Array.isArray(pRes.data)) ? pRes.data : (this.projects || []);
+			
+			if (!projects || projects.length === 0) {
+				if (currentProjEl) currentProjEl.innerText = 'Không có dự án nào';
+				if (statusMsg) statusMsg.innerText = 'Danh mục này trống hoặc không tìm thấy dự án.';
+				if (spinner) spinner.style.display = 'none';
+				if (stopBtn) stopBtn.style.display = 'none';
+				if (doneBtn) doneBtn.style.display = 'inline-flex';
+				if (closeX) closeX.style.display = 'flex';
+				return;
+			}
+
+			const total = projects.length;
+			let successCount = 0;
+			let failCount = 0;
+
+			const addLog = (icon, text, color) => {
+				if (!logBox) return;
+				const div = document.createElement('div');
+				div.style.color = color;
+				div.style.lineHeight = '1.4';
+				div.style.wordBreak = 'break-word';
+				div.innerHTML = `${icon} ${text}`;
+				logBox.appendChild(div);
+				logBox.scrollTop = logBox.scrollHeight;
+			};
+
+			addLog('🚀', `Bắt đầu chụp ảnh tự động cho ${total} website...`, '#38bdf8');
+
+			for (let i = 0; i < total; i++) {
+				if (!this.isBatchCapturing) {
+					addLog('⏹️', 'Tiến trình đã được dừng lại theo yêu cầu.', '#fbbf24');
+					break;
+				}
+
+				const p = projects[i];
+				const pName = p.name;
+				const pCat = p.category || targetCat;
+				const stepNum = i + 1;
+
+				if (currentProjEl) currentProjEl.innerText = `📂 ${pName}`;
+				if (countEl) countEl.innerText = `${stepNum} / ${total}`;
+				const pct = Math.round(((i) / total) * 100);
+				if (progressFill) progressFill.style.width = `${pct}%`;
+				if (statusMsg) statusMsg.innerText = `[${stepNum}/${total}] Đang nạp trang & chụp ảnh website...`;
+
+				const itemLog = document.createElement('div');
+				itemLog.style.color = '#94a3b8';
+				itemLog.style.lineHeight = '1.4';
+				itemLog.innerHTML = `⏳ [${stepNum}/${total}] <strong>${pName}</strong>: Đang xử lý...`;
+				logBox.appendChild(itemLog);
+				logBox.scrollTop = logBox.scrollHeight;
+
+				try {
+					const res = await Api.captureScreenshot(pName, pCat);
+					if (res && res.status === 'success') {
+						successCount++;
+						const sizeKb = res.size ? ` (${Math.round(res.size / 1024)} KB)` : '';
+						itemLog.style.color = '#34d399';
+						itemLog.innerHTML = `✅ [${stepNum}/${total}] <strong>${pName}</strong>: Chụp thành công${sizeKb}`;
+
+						// Cập nhật realtime ảnh thumbnail trên card nếu đang mở
+						const safeName = pName.replace(/[^a-zA-Z0-9_-]/g, '_');
+						const safeCat = pCat.replace(/[^a-zA-Z0-9_-]/g, '_');
+						const card = document.querySelector(`.item-card[data-project="${safeName}"][data-category="${safeCat}"]`);
+						if (card && res.url) {
+							const freshUrl = res.url + '?v=' + Date.now();
+							const thumbWrap = card.querySelector('.item-card-thumb-wrap');
+							if (thumbWrap) {
+								let existingImg = thumbWrap.querySelector('.item-card-thumb-img');
+								if (existingImg) {
+									existingImg.src = freshUrl;
+								} else {
+									const placeholder = thumbWrap.querySelector('.item-card-thumb-placeholder');
+									if (placeholder) placeholder.remove();
+									const newImg = document.createElement('img');
+									newImg.className = 'item-card-thumb-img';
+									newImg.alt = pName;
+									newImg.src = freshUrl;
+									thumbWrap.insertBefore(newImg, thumbWrap.firstChild);
+								}
+							}
+						}
+					} else {
+						failCount++;
+						const errMsg = (res && res.message) ? res.message : 'Không thể chụp ảnh';
+						itemLog.style.color = '#fb7185';
+						itemLog.innerHTML = `⚠️ [${stepNum}/${total}] <strong>${pName}</strong>: ${errMsg}`;
+					}
+				} catch (err) {
+					failCount++;
+					itemLog.style.color = '#fb7185';
+					itemLog.innerHTML = `❌ [${stepNum}/${total}] <strong>${pName}</strong>: Lỗi kết nối API`;
+				}
+
+				if (progressFill) progressFill.style.width = `${Math.round(((i + 1) / total) * 100)}%`;
+			}
+
+			// Hoàn tất tiến trình
+			if (progressFill) progressFill.style.width = '100%';
+			if (currentProjEl) currentProjEl.innerText = this.isBatchCapturing ? 'Hoàn tất!' : 'Đã dừng!';
+			if (spinner) spinner.style.display = 'none';
+			if (statusMsg) statusMsg.innerText = `Đã xử lý xong: ${successCount} thành công, ${failCount} thất bại / bỏ qua (Tổng ${total} dự án).`;
+			addLog('🏁', `Hoàn tất tiến trình chụp ảnh! Thành công: ${successCount}/${total}`, '#38bdf8');
+
+			if (successCount > 0 && typeof confetti === 'function') {
+				try { confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } }); } catch (e) {}
 			}
 		} catch (err) {
-			UI.notify('Lỗi kết nối API khi chụp hàng loạt', 'error');
+			if (statusMsg) statusMsg.innerText = 'Lỗi trong quá trình chụp hàng loạt: ' + err.message;
 		} finally {
+			this.isBatchCapturing = false;
 			if (btn) {
 				btn.disabled = false;
 				btn.innerHTML = originalHtml;
 			}
+			if (stopBtn) stopBtn.style.display = 'none';
+			if (doneBtn) doneBtn.style.display = 'inline-flex';
+			if (closeX) closeX.style.display = 'flex';
 		}
 	}
 };
