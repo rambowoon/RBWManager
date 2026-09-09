@@ -309,24 +309,47 @@ class ScreenshotService
         }
 
         if (is_string($body) && strlen($body) > 0) {
-            $bodySample = substr(strip_tags($body), 0, 2000);
+            $rawSample = substr($body, 0, 5000);
+            $textSample = substr(strip_tags($body), 0, 3000);
+
             $errorPatterns = [
+                // Laravel / Framework Exceptions
+                '/ErrorException/i' => 'Lỗi Laravel ErrorException (Property/Variable/Method không tồn tại)',
+                '/FatalErrorException/i' => 'Lỗi Laravel FatalErrorException',
+                '/FatalThrowableError/i' => 'Lỗi Laravel FatalThrowableError',
+                '/Undefined (property|variable|index|offset)/i' => 'Lỗi PHP: Undefined property/variable/array index',
+                '/Attempt to read property .* on (null|bool|string|array)/i' => 'Lỗi PHP: Attempt to read property on null',
+                '/Trying to get property .* of non-object/i' => 'Lỗi PHP: Trying to get property of non-object',
+                '/Call to undefined (function|method)/i' => 'Lỗi PHP: Call to undefined function/method',
+                '/Whoops!/i' => 'Lỗi giao diện debug Whoops/Laravel',
+                '/Whoops, looks like something went wrong/i' => 'Lỗi trang mặc định Laravel Whoops',
+                '/View \[.*?\] not found/i' => 'Lỗi View Blade template không tìm thấy',
+                '/Uncaught (Exception|Error)/i' => 'Lỗi Uncaught Exception/Error',
+                '/Fatal error:/i' => 'Lỗi PHP Fatal error',
+                '/Parse error:/i' => 'Lỗi cú pháp PHP (Parse error)',
+
+                // Database Errors
+                '/Error establishing a database connection/i' => 'Lỗi kết nối cơ sở dữ liệu (Database Error)',
+                '/Database Error/i' => 'Lỗi cơ sở dữ liệu (Database Error)',
+                '/SQLSTATE\[/i' => 'Lỗi truy vấn cơ sở dữ liệu (SQLSTATE Error)',
+
+                // Web Server Defaults / Not Configured
                 '/Apache is functioning normally/i' => 'Trang mặc định của Apache (chưa cấu hình source code)',
                 '/Welcome to nginx!/i' => 'Trang mặc định của Nginx (chưa deploy source code)',
                 '/Default Web Site Page/i' => 'Trang mặc định của Hosting/Web Server',
-                '/Error establishing a database connection/i' => 'Lỗi kết nối cơ sở dữ liệu (Database Error)',
-                '/Database Error/i' => 'Lỗi cơ sở dữ liệu (Database Error)',
+                '/Site under construction/i' => 'Trang web chưa hoàn thiện (Site under construction)',
+
+                // Generic HTTP Errors
                 '/500 Internal Server Error/i' => 'Lỗi 500 Internal Server Error',
-                '/404 Not Found/i' => 'Lỗi 404 Not Found',
-                '/Site under construction/i' => 'Trang web chưa hoàn thiện (Site under construction)'
+                '/404 Not Found/i' => 'Lỗi 404 Not Found'
             ];
 
             foreach ($errorPatterns as $pattern => $reason) {
-                if (preg_match($pattern, $bodySample)) {
+                if (preg_match($pattern, $rawSample) || preg_match($pattern, $textSample)) {
                     return [
                         'ok' => false,
                         'code' => $httpCode,
-                        'message' => "Website đang ở trạng thái: $reason. Đã hủy chụp ảnh."
+                        'message' => "Website đang gặp sự cố: $reason. Đã hủy chụp ảnh."
                     ];
                 }
             }

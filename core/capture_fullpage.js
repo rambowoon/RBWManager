@@ -131,25 +131,49 @@ async function capture(url, outputPath) {
             const evalCheck = await send('Runtime.evaluate', {
                 expression: `(() => {
                     const title = document.title || '';
-                    const bodyText = (document.body ? document.body.innerText : '').substring(0, 2000);
-                    const combined = title + ' ' + bodyText;
-                    if (/404 Not Found/i.test(combined)) return 'Lỗi 404 Not Found';
-                    if (/500 Internal Server Error/i.test(combined)) return 'Lỗi 500 Internal Server Error';
+                    const bodyText = (document.body ? document.body.innerText : '').substring(0, 3000);
+                    const htmlSample = (document.documentElement ? document.documentElement.innerHTML : '').substring(0, 5000);
+                    const combined = title + ' ' + bodyText + ' ' + htmlSample;
+
+                    // Laravel & PHP Errors
+                    if (/ErrorException/i.test(combined)) return 'Lỗi Laravel ErrorException';
+                    if (/FatalErrorException/i.test(combined)) return 'Lỗi Laravel FatalErrorException';
+                    if (/FatalThrowableError/i.test(combined)) return 'Lỗi Laravel FatalThrowableError';
+                    if (/Undefined (property|variable|index|offset)/i.test(combined)) return 'Lỗi PHP: Undefined property/variable';
+                    if (/Attempt to read property .* on (null|bool|string|array)/i.test(combined)) return 'Lỗi PHP: Attempt to read property on null';
+                    if (/Trying to get property .* of non-object/i.test(combined)) return 'Lỗi PHP: Trying to get property of non-object';
+                    if (/Call to undefined (function|method)/i.test(combined)) return 'Lỗi PHP: Call to undefined function/method';
+                    if (/Whoops!/i.test(combined)) return 'Lỗi giao diện Whoops/Laravel';
+                    if (/Whoops, looks like something went wrong/i.test(combined)) return 'Lỗi mặc định Laravel Whoops';
+                    if (/View \\[.*?\\] not found/i.test(combined)) return 'Lỗi View Blade template không tìm thấy';
+                    if (/Uncaught (Exception|Error)/i.test(combined)) return 'Lỗi Uncaught Exception/Error';
+                    if (/Fatal error:/i.test(combined)) return 'Lỗi PHP Fatal error';
+                    if (/Parse error:/i.test(combined)) return 'Lỗi PHP Parse error';
+
+                    // Database Errors
                     if (/Error establishing a database connection/i.test(combined)) return 'Lỗi kết nối cơ sở dữ liệu (Database Error)';
                     if (/Database Error/i.test(combined)) return 'Lỗi cơ sở dữ liệu (Database Error)';
+                    if (/SQLSTATE\\[/i.test(combined)) return 'Lỗi SQLSTATE Database';
+
+                    // Server Defaults & Not Configured
                     if (/Apache is functioning normally/i.test(combined)) return 'Trang mặc định của Apache (chưa cấu hình source code)';
                     if (/Welcome to nginx!/i.test(combined)) return 'Trang mặc định của Nginx (chưa deploy code)';
                     if (/Default Web Site Page/i.test(combined)) return 'Trang mặc định của máy chủ';
+
+                    // Generic HTTP Errors
+                    if (/500 Internal Server Error/i.test(combined)) return 'Lỗi 500 Internal Server Error';
+                    if (/404 Not Found/i.test(combined)) return 'Lỗi 404 Not Found';
+
                     return null;
                 })()`,
                 returnByValue: true
             });
 
             if (evalCheck && evalCheck.result && evalCheck.result.value) {
-                throw new Error(`Website đang ở trạng thái lỗi: ${evalCheck.result.value}. Bỏ qua chụp ảnh.`);
+                throw new Error(`Website đang gặp sự cố: ${evalCheck.result.value}. Bỏ qua chụp ảnh.`);
             }
         } catch (errEval) {
-            if (errEval.message && errEval.message.includes('Website đang ở trạng thái')) {
+            if (errEval.message && errEval.message.includes('Website đang gặp sự cố')) {
                 throw errEval;
             }
         }
