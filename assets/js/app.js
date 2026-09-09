@@ -1758,7 +1758,8 @@ const App = {
 			return;
 		}
 
-		if (!confirm(`Bạn có chắc muốn tự động chụp ảnh tất cả website trong danh mục [${targetCat}] không?\nQuá trình này có thể mất từ 10-30 giây tùy theo số lượng website.`)) {
+		const confirmed = await UI.confirm(`Bạn có chắc muốn tự động chụp ảnh tất cả website trong danh mục [${targetCat}] không?\nQuá trình này có thể mất từ 10-30 giây tùy theo số lượng website.`);
+		if (!confirmed) {
 			return;
 		}
 
