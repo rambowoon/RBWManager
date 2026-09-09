@@ -1618,6 +1618,171 @@ const App = {
 			UI.notify('Lỗi kết nối API', 'error');
 		}
 	},
+
+	async previewOrCapture(name, category, screenshotUrl) {
+		if (screenshotUrl) {
+			this.showScreenshotModal(name, category, screenshotUrl);
+		} else {
+			await this.captureScreenshot(name, category);
+		}
+	},
+
+	showScreenshotModal(name, category, screenshotUrl) {
+		let modal = document.getElementById('screenshot-preview-modal');
+		if (!modal) {
+			modal = document.createElement('div');
+			modal.id = 'screenshot-preview-modal';
+			modal.className = 'modal-backdrop';
+			modal.innerHTML = `
+				<div class="modal-card modal-screenshot-preview" onclick="event.stopPropagation();">
+					<div class="modal-header">
+						<div class="modal-title-wrap">
+							<span style="font-size: 1.2rem;">📸</span>
+							<h3 class="modal-title" id="modal-screenshot-title">Ảnh Website</h3>
+						</div>
+						<button class="modal-close-btn" onclick="App.closeScreenshotModal()">✕</button>
+					</div>
+					<div class="modal-body" style="padding: 14px; text-align: center;">
+						<div class="screenshot-img-frame">
+							<img id="modal-screenshot-img" src="" alt="Screenshot" />
+						</div>
+					</div>
+					<div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
+						<div id="modal-screenshot-url-text" style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;"></div>
+						<div style="display: flex; gap: 8px;">
+							<button class="btn btn-ghost" onclick="App.closeScreenshotModal()">Đóng</button>
+							<button class="btn btn-primary" id="modal-screenshot-recapture-btn">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+								Chụp lại
+							</button>
+						</div>
+					</div>
+				</div>
+			`;
+			modal.onclick = () => App.closeScreenshotModal();
+			document.body.appendChild(modal);
+		}
+
+		document.getElementById('modal-screenshot-title').textContent = `${name} - Ảnh đại diện`;
+		const img = document.getElementById('modal-screenshot-img');
+		img.src = screenshotUrl;
+
+		const recaptureBtn = document.getElementById('modal-screenshot-recapture-btn');
+		recaptureBtn.onclick = async () => {
+			recaptureBtn.disabled = true;
+			recaptureBtn.innerHTML = '<span class="btn-spinner"></span> Đang chụp...';
+			await App.captureScreenshot(name, category);
+			recaptureBtn.disabled = false;
+			recaptureBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Chụp lại';
+			// Update modal image if URL changed
+			const updatedCard = document.querySelector(`.item-card[data-project="${name}"] img.item-card-thumb-img`);
+			if (updatedCard) {
+				img.src = updatedCard.src;
+			}
+		};
+
+		modal.style.display = 'flex';
+	},
+
+	closeScreenshotModal() {
+		const modal = document.getElementById('screenshot-preview-modal');
+		if (modal) modal.style.display = 'none';
+	},
+
+	async captureScreenshot(name, category, customUrl = null) {
+		const targetCat = category || this.currentCategory || '';
+		
+		// Visual indicator on target card
+		const card = document.querySelector(`.item-card[data-project="${name}"]`);
+		const thumbWrap = card ? card.querySelector('.item-card-thumb-wrap') : null;
+		if (thumbWrap) {
+			thumbWrap.classList.add('capturing');
+		}
+
+		UI.notify(`Đang chụp ảnh website [${name}]...`, 'info');
+
+		try {
+			const res = await Api.captureScreenshot(name, targetCat, customUrl);
+			if (res.status === 'success') {
+				UI.notify(`Đã chụp ảnh thành công cho [${name}]!`, 'success');
+				
+				// Update project in local array
+				const pObj = this.projects.find(p => p.name === name);
+				if (pObj) {
+					pObj.screenshot = res.screenshot;
+				}
+
+				// Update DOM directly without reload
+				if (thumbWrap) {
+					thumbWrap.classList.remove('capturing');
+					thumbWrap.onclick = (e) => {
+						e.stopPropagation();
+						App.previewOrCapture(name, targetCat, res.screenshot);
+					};
+					thumbWrap.title = 'Nhấn để xem hoặc cập nhật ảnh website';
+					
+					let existingImg = thumbWrap.querySelector('.item-card-thumb-img');
+					if (existingImg) {
+						existingImg.src = res.screenshot;
+					} else {
+						const placeholder = thumbWrap.querySelector('.item-card-thumb-placeholder');
+						if (placeholder) placeholder.remove();
+						
+						const newImg = document.createElement('img');
+						newImg.className = 'item-card-thumb-img';
+						newImg.alt = name;
+						newImg.src = res.screenshot;
+						thumbWrap.insertBefore(newImg, thumbWrap.firstChild);
+					}
+				}
+			} else {
+				if (thumbWrap) thumbWrap.classList.remove('capturing');
+				UI.notify('Lỗi chụp ảnh: ' + (res.message || 'Không thể chụp'), 'error');
+			}
+		} catch (err) {
+			if (thumbWrap) thumbWrap.classList.remove('capturing');
+			UI.notify('Lỗi kết nối khi chụp ảnh website', 'error');
+		}
+	},
+
+	async batchCaptureScreenshots(category = null) {
+		const targetCat = category || this.currentCategory;
+		if (!targetCat) {
+			UI.notify('Vui lòng chọn một danh mục tháng cụ thể để chụp ảnh!', 'warning');
+			return;
+		}
+
+		if (!confirm(`Bạn có chắc muốn tự động chụp ảnh tất cả website trong danh mục [${targetCat}] không?\nQuá trình này có thể mất từ 10-30 giây tùy theo số lượng website.`)) {
+			return;
+		}
+
+		const btn = document.getElementById('btn-batch-screenshot');
+		const originalHtml = btn ? btn.innerHTML : '';
+		if (btn) {
+			btn.disabled = true;
+			btn.innerHTML = '⏳ Đang chụp hàng loạt...';
+		}
+
+		UI.notify(`Đang tiến hành chụp ảnh hàng loạt cho danh mục [${targetCat}]...`, 'info');
+
+		try {
+			const res = await Api.batchCaptureScreenshots(targetCat);
+			if (res.status === 'success') {
+				UI.notify(`Hoàn tất! Đã chụp thành công ${res.successCount}/${res.total} dự án.`, 'success');
+				// Reload project list to refresh all thumbnails
+				await this.loadProjects(targetCat);
+			} else {
+				UI.notify('Lỗi chụp hàng loạt: ' + (res.message || 'Thất bại'), 'error');
+			}
+		} catch (err) {
+			UI.notify('Lỗi kết nối API khi chụp hàng loạt', 'error');
+		} finally {
+			if (btn) {
+				btn.disabled = false;
+				btn.innerHTML = originalHtml;
+			}
+		}
+	}
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());

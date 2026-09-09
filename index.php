@@ -310,6 +310,11 @@
 
                                     <div class="toolbar-sep"></div>
 
+                                    <button class="btn btn-ghost" id="btn-batch-screenshot" onclick="App.batchCaptureScreenshots()" title="Tự động chụp ảnh tất cả website trong danh mục này" style="font-size:0.8rem; padding:6px 12px; height:34px; display:inline-flex; align-items:center; gap:6px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                        Chụp ảnh danh mục
+                                    </button>
+
                                     <button class="btn btn-ghost" onclick="App.createCustomMonthFolder()" style="font-size:0.8rem; padding:6px 12px; height:34px;">
                                         ➕ Tạo thư mục
                                     </button>

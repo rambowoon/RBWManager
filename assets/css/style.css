@@ -123,6 +123,136 @@ to { opacity: 1; transform: translateY(0); }
 .grid-container.list-mode .item-card-title { font-size: 0.9rem !important; }
 .grid-container.list-mode .item-card-date { margin-top: 0 !important; }
 .grid-container.list-mode .item-card-footer { margin-top: 0 !important; padding-top: 0 !important; border-top: none !important; flex-shrink: 0 !important; gap: 10px !important; }
+
+/* ===== SCREENSHOT THUMBNAIL STYLES ===== */
+.item-card-thumb-wrap {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.item-card-thumb-wrap:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.item-card-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    transition: transform 0.35s ease;
+    display: block;
+}
+.item-card-thumb-wrap:hover .item-card-thumb-img {
+    transform: scale(1.04);
+}
+.item-card-thumb-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    opacity: 0.65;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.04) 0%, transparent 70%);
+}
+.btn-thumb-capture {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 2;
+}
+.item-card-thumb-wrap:hover .btn-thumb-capture {
+    opacity: 1;
+}
+.btn-thumb-capture:hover {
+    background: var(--primary);
+    color: #0d1117;
+    border-color: var(--primary);
+    transform: scale(1.08);
+}
+.item-card-thumb-wrap.capturing {
+    pointer-events: none;
+}
+.item-card-thumb-wrap.capturing::after {
+    content: "⏳ Đang chụp...";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    animation: modalPulse 1.5s infinite;
+}
+
+/* List Mode Support for Thumbnails */
+.grid-container.list-mode .item-card-thumb-wrap {
+    width: 68px !important;
+    height: 40px !important;
+    margin-bottom: 0 !important;
+    flex-shrink: 0 !important;
+    border-radius: 6px !important;
+}
+.grid-container.list-mode .item-card-thumb-placeholder svg {
+    width: 16px;
+    height: 16px;
+}
+.grid-container.list-mode .item-card-thumb-placeholder span {
+    display: none;
+}
+
+/* Screenshot Preview Modal */
+.modal-screenshot-preview {
+    max-width: 860px !important;
+    width: 92% !important;
+}
+.screenshot-img-frame {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #090d16;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.screenshot-img-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
 /* ===== THEME SWITCHER COMPONENT ===== */
 .theme-dropdown-wrapper { position: relative; display: inline-block; }
 .theme-toggle-btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; box-sizing: border-box; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); transition: all 0.2s ease; }

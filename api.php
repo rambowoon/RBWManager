@@ -597,6 +597,7 @@ require_once __DIR__ . '/core/SchemaManager.php';
 require_once __DIR__ . '/core/RemoteClient.php';
 require_once __DIR__ . '/core/ProjectDeployer.php';
 require_once __DIR__ . '/core/ImageTrimService.php';
+require_once __DIR__ . '/core/ScreenshotService.php';
 
 use RamboWoon\ProjectScanner;
 use RamboWoon\ConfigManager;
@@ -605,6 +606,7 @@ use RamboWoon\PackagingService;
 use RamboWoon\RemoteClient;
 use RamboWoon\ProjectDeployer;
 use RamboWoon\ImageTrimService;
+use RamboWoon\ScreenshotService;
 
 $baseDir = dirname(__DIR__);
 if (strpos($baseDir, '\\\\.\\') === 0 || strpos($baseDir, '\\\\?\\') === 0) {
@@ -617,6 +619,7 @@ $configManager = new ConfigManager($configPath);
 $deployService = new DeploymentService($baseDir);
 $packagingService = new PackagingService($scanner, $deployService, $configManager);
 $projectDeployer = new ProjectDeployer($baseDir);
+$screenshotService = new ScreenshotService(__DIR__);
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $jobId = $_POST['jobId'] ?? $_GET['jobId'] ?? null;
@@ -655,8 +658,47 @@ switch ($action) {
         $projects = $scanner->getProjects($category, $refresh);
         foreach ($projects as &$p) { 
             $p['config'] = $configManager->getForProject($p['name'], $p['category'] ?? null); 
+            $p['screenshot'] = $screenshotService->getScreenshotUrl($p['category'] ?? '', $p['name']);
         }
         echo json_encode(['status' => 'success', 'data' => $projects]);
+        break;
+
+    case 'captureScreenshot':
+        $projectName = $_POST['name'] ?? ($_GET['name'] ?? '');
+        $category = $_POST['category'] ?? ($_GET['category'] ?? '');
+        $url = $_POST['url'] ?? ($_GET['url'] ?? null);
+
+        $projects = $scanner->getProjects($category);
+        $project = null;
+        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
+
+        $res = $screenshotService->capture($category, $projectName, $url, $project, $projectConfig);
+        echo json_encode($res);
+        break;
+
+    case 'batchCaptureScreenshots':
+        $category = $_POST['category'] ?? ($_GET['category'] ?? '');
+        $projects = $scanner->getProjects($category);
+        $results = [];
+        foreach ($projects as $p) {
+            $pConfig = $configManager->getForProject($p['name'], $p['category'] ?? null) ?: [];
+            $res = $screenshotService->capture($p['category'] ?? '', $p['name'], null, $p, $pConfig);
+            $results[] = [
+                'name' => $p['name'],
+                'category' => $p['category'] ?? '',
+                'status' => $res['status'],
+                'url' => $res['url'] ?? null
+            ];
+        }
+        echo json_encode(['status' => 'success', 'results' => $results]);
+        break;
+
+    case 'deleteScreenshot':
+        $projectName = $_POST['name'] ?? ($_GET['name'] ?? '');
+        $category = $_POST['category'] ?? ($_GET['category'] ?? '');
+        $screenshotService->deleteScreenshot($category, $projectName);
+        echo json_encode(['status' => 'success']);
         break;
 
     case 'reindexProjects':
@@ -2283,6 +2325,11 @@ switch ($action) {
             $configManager->save($projectName, $projectConfig, $category);
             $configManager->addHistory($projectName, 'Deploy ' . ($isDemo ? 'Demo' : 'Production'), 'Thành công', $category);
 
+            // Tự động chụp ảnh màn hình website sau khi Deploy thành công
+            try {
+                $screenshotService->capture($category, $projectName, null, $project, $projectConfig);
+            } catch (\Throwable $e) {}
+
             writeJobLog($jobId, ['status' => 'success', 'message' => 'Deployment thành công!', 'logs' => [$daLogString]]);
             echo json_encode(['status' => 'success']);
         } else {
@@ -2466,6 +2513,12 @@ switch ($action) {
                 $projectConfig['lock_production'] = true; 
                 $configManager->save($projectName, $projectConfig, $category);
                 $configManager->addHistory($projectName, 'Publish Production', 'Full Setup hoàn tất', $category);
+
+                // Tự động chụp ảnh website production
+                try {
+                    $prodUrl = (!empty($prodConfig['ssl']) ? 'https://' : 'http://') . $domain;
+                    $screenshotService->capture($category, $projectName, $prodUrl, null, $projectConfig);
+                } catch (\Throwable $e) {}
                 
                 writeJobLog($jobId, ['status' => 'success', 'message' => 'Cloud transfer & Full Setup hoàn tất!']);
                 echo json_encode(['status' => 'success']);

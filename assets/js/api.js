@@ -55,5 +55,21 @@ const Api = {
 
     async reindexProjects() {
         return this.fetch('reindexProjects');
+    },
+
+    async captureScreenshot(name, category = '', url = null) {
+        return this.fetch('captureScreenshot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, category, url })
+        });
+    },
+
+    async batchCaptureScreenshots(category = '') {
+        return this.fetch('batchCaptureScreenshots', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category })
+        });
     }
 };
