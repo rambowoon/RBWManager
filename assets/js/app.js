@@ -166,7 +166,17 @@ const App = {
 				const pTitle = isCustom
 					? `Phiên bản PHP riêng: ${config.php_version} (Cấu hình riêng trong sites.json)`
 					: `Phiên bản PHP mặc định hệ thống: ${config.php_version || 'Hệ thống'}`;
-				phpHeaderEl.className = `badge-php ${isCustom ? 'badge-php-custom' : 'badge-php-default'}`;
+
+				const vNum = parseFloat((config.php_version || '').replace(/[^0-9.]/g, ''));
+				let vClass = 'php-v-default';
+				if (!isNaN(vNum)) {
+					if (vNum >= 8.4) vClass = 'php-v84';
+					else if (vNum >= 8.3 && vNum < 8.4) vClass = 'php-v83';
+					else if (vNum < 8.0) vClass = 'php-v74';
+					else vClass = 'php-v8x';
+				}
+
+				phpHeaderEl.className = `badge-php ${vClass} ${isCustom ? 'is-custom' : ''}`;
 				phpHeaderEl.innerHTML = `${isCustom ? '<span class="badge-php-dot"></span>' : ''}${pDisplay}`;
 				phpHeaderEl.title = pTitle;
 				phpHeaderEl.style.display = 'inline-flex';

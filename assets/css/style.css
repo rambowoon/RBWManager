@@ -1221,32 +1221,87 @@ padding-left: 15px; border-left: 2px solid rgba(99, 102, 241, 0.2); margin-top: 
     transition: all 0.2s ease;
 }
 
-/* PHP mặc định hệ thống: Màu trung tính tinh tế */
-.badge-php-default {
-    background: rgba(255, 255, 255, 0.04);
-    color: #94a3b8;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+/* 1. PHP 8.4 trở lên (>= 8.4): Màu Xanh Băng Mint / Cyan tươi mới */
+.badge-php.php-v84 {
+    background: rgba(0, 210, 211, 0.12);
+    color: #00d2d3;
+    border: 1px solid rgba(0, 210, 211, 0.3);
+}
+.badge-php.php-v84.is-custom {
+    background: rgba(0, 210, 211, 0.2);
+    border-color: rgba(0, 210, 211, 0.55);
+    box-shadow: 0 0 10px rgba(0, 210, 211, 0.2);
+}
+.badge-php.php-v84 .badge-php-dot {
+    background: #00d2d3;
+    box-shadow: 0 0 6px #00d2d3;
+}
+.badge-php.php-v84:hover {
+    background: rgba(0, 210, 211, 0.25);
+    border-color: rgba(0, 210, 211, 0.6);
 }
 
-.badge-php-default:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #e2e8f0;
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* PHP riêng biệt (cấu hình trong sites.json): Màu tím PHP / hổ phách nổi bật kèm phát sáng */
-.badge-php-custom {
-    background: rgba(168, 85, 247, 0.14);
+/* 2. PHP 8.3: Màu Tím PHP Neon (PHP Purple) */
+.badge-php.php-v83 {
+    background: rgba(168, 85, 247, 0.12);
     color: #c084fc;
-    border: 1px solid rgba(168, 85, 247, 0.38);
-    box-shadow: 0 0 10px rgba(168, 85, 247, 0.12);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+}
+.badge-php.php-v83.is-custom {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: rgba(168, 85, 247, 0.55);
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+}
+.badge-php.php-v83 .badge-php-dot {
+    background: #c084fc;
+    box-shadow: 0 0 6px #c084fc;
+}
+.badge-php.php-v83:hover {
+    background: rgba(168, 85, 247, 0.25);
+    border-color: rgba(168, 85, 247, 0.6);
 }
 
-.badge-php-custom:hover {
-    background: rgba(168, 85, 247, 0.22);
-    color: #d8b4fe;
-    border-color: rgba(168, 85, 247, 0.55);
-    box-shadow: 0 0 14px rgba(168, 85, 247, 0.25);
+/* 3. PHP 7.4 (hoặc < 8.0): Màu Cam Hổ Phách (Amber) */
+.badge-php.php-v74 {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.32);
+}
+.badge-php.php-v74.is-custom {
+    background: rgba(245, 158, 11, 0.22);
+    border-color: rgba(245, 158, 11, 0.58);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.22);
+}
+.badge-php.php-v74 .badge-php-dot {
+    background: #fbbf24;
+    box-shadow: 0 0 6px #fbbf24;
+}
+.badge-php.php-v74:hover {
+    background: rgba(245, 158, 11, 0.28);
+    border-color: rgba(245, 158, 11, 0.65);
+}
+
+/* 4. Phiên bản trung gian 8.0 - 8.2 (Xanh Biển Sky) */
+.badge-php.php-v8x {
+    background: rgba(56, 189, 248, 0.12);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.badge-php.php-v8x.is-custom {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: rgba(56, 189, 248, 0.55);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+.badge-php.php-v8x .badge-php-dot {
+    background: #38bdf8;
+    box-shadow: 0 0 6px #38bdf8;
+}
+
+/* Default fallback */
+.badge-php.php-v-default {
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 /* Chấm tròn phát sáng cho PHP riêng biệt */
@@ -1254,8 +1309,58 @@ padding-left: 15px; border-left: 2px solid rgba(99, 102, 241, 0.2); margin-top: 
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #c084fc;
-    box-shadow: 0 0 6px #c084fc;
     display: inline-block;
     flex-shrink: 0;
+}
+
+/* ===== SYSTEM PHP BADGE TRÊN TOP NAVBAR HEADER ===== */
+.system-php-header-badge {
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.74rem;
+    font-weight: 750;
+    font-family: var(--mono);
+    box-sizing: border-box;
+    cursor: default;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+.system-php-header-badge.php-v84 {
+    background: rgba(0, 210, 211, 0.1);
+    color: #00d2d3;
+    border: 1px solid rgba(0, 210, 211, 0.28);
+}
+.system-php-header-badge.php-v83 {
+    background: rgba(168, 85, 247, 0.1);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.28);
+}
+.system-php-header-badge.php-v74 {
+    background: rgba(245, 158, 11, 0.1);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.28);
+}
+.system-php-header-badge.php-v8x {
+    background: rgba(56, 189, 248, 0.1);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.28);
+}
+.system-php-header-badge:hover {
+    filter: brightness(1.15);
+}
+.system-php-header-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+    animation: pulseDot 2s infinite ease-in-out;
+}
+@keyframes pulseDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.55; transform: scale(0.8); }
 }

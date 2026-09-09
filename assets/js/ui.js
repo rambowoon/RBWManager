@@ -215,8 +215,19 @@ const UI = {
 			const phpTitle = isCustomPhp
 				? `Phiên bản PHP riêng: ${p.php_version} (Cấu hình riêng trong sites.json)`
 				: `Phiên bản PHP mặc định hệ thống: ${p.php_version || 'Hệ thống'}`;
-			const phpBadgeClass = isCustomPhp ? 'badge-php-custom' : 'badge-php-default';
-			const phpBadge = `<span class="badge-php ${phpBadgeClass}" title="${phpTitle}">${isCustomPhp ? '<span class="badge-php-dot"></span>' : ''}${phpDisplay}</span>`;
+
+			// Phân loại màu theo phiên bản: >= 8.4 (php-v84), 8.3 (php-v83), 7.4 / < 8.0 (php-v74)
+			const vNum = parseFloat((p.php_version || '').replace(/[^0-9.]/g, ''));
+			let vClass = 'php-v-default';
+			if (!isNaN(vNum)) {
+				if (vNum >= 8.4) vClass = 'php-v84';
+				else if (vNum >= 8.3 && vNum < 8.4) vClass = 'php-v83';
+				else if (vNum < 8.0) vClass = 'php-v74';
+				else vClass = 'php-v8x';
+			}
+
+			const customClass = isCustomPhp ? 'is-custom' : '';
+			const phpBadge = `<span class="badge-php ${vClass} ${customClass}" title="${phpTitle}">${isCustomPhp ? '<span class="badge-php-dot"></span>' : ''}${phpDisplay}</span>`;
 
 			card.innerHTML = `
                 <div class="item-card-inner">

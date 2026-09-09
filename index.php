@@ -145,6 +145,18 @@
                 </div>
 
                 <div class="header-right flex-center-gap">
+                    <?php
+                        $sysPhpVer = PHP_VERSION;
+                        $sysPhpShort = 'PHP ' . PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+                        $sysPhpNum = (float) PHP_VERSION;
+                        $sysPhpClass = ($sysPhpNum >= 8.4) ? 'php-v84' : (($sysPhpNum >= 8.3) ? 'php-v83' : (($sysPhpNum < 8.0) ? 'php-v74' : 'php-v8x'));
+                    ?>
+                    <!-- SYSTEM PHP BADGE (Always visible on header) -->
+                    <div class="system-php-header-badge <?= $sysPhpClass ?>" id="system-php-header-badge" title="Phiên bản PHP máy chủ hệ thống RBWStack: php-<?= $sysPhpVer ?>">
+                        <span class="system-php-header-dot"></span>
+                        <span id="system-php-header-text"><?= $sysPhpShort ?></span>
+                    </div>
+
                     <span class="badge-php" id="detail-project-php" style="display:none; margin-right: 6px;"></span>
                     <span class="badge-env" id="detail-project-status" style="display:none; margin-right: 6px;">● DEMO ĐANG CHẠY</span>
                     <!-- THEME DROPDOWN -->
