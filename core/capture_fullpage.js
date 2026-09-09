@@ -151,6 +151,9 @@ async function capture(url, outputPath) {
         };
         await waitReadyState();
 
+        // Chờ 1.5s để jQuery, apps.js và các slider (Splide, Swiper) khởi tạo hoàn tất
+        await new Promise(r => setTimeout(r, 1500));
+
         // 1. Kiểm tra HTTP Status của trang chính
         if (mainDocStatus >= 400) {
             throw new Error(`Website trả về mã lỗi HTTP ${mainDocStatus} (trang không tồn tại hoặc lỗi máy chủ).`);
@@ -221,7 +224,8 @@ async function capture(url, outputPath) {
                         if (totalHeight >= scrollHeightLimit) {
                             clearInterval(timer);
                             window.scrollTo(0, 0);
-                            setTimeout(resolve, 400);
+                            window.dispatchEvent(new Event('resize'));
+                            setTimeout(resolve, 500);
                         }
                     }, 50);
                 })`,
@@ -279,9 +283,12 @@ async function capture(url, outputPath) {
 
                         if (img.loading === 'lazy') {
                             img.loading = 'eager';
-                            const cur = img.src;
-                            img.src = '';
-                            img.src = cur;
+                            // Chỉ ép re-fetch nếu ảnh chưa nạp xong
+                            if (!img.complete || img.naturalWidth === 0) {
+                                const cur = img.src;
+                                img.src = '';
+                                img.src = cur;
+                            }
                         }
                     });
 
