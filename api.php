@@ -1461,7 +1461,96 @@ switch ($action) {
                 break;
             }
             
-            // 1. Scan Local
+            // 1. Kiểm tra Bridge trên Remote Host trước tiên (Fast ping: < 0.2s)
+            $cleanHost = !empty($config['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $config['web_domain']) : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
+            if ($currentEnv === 'prod') {
+                $bridgePingUrls = [
+                    'https://' . $cleanHost . '/bridge.php?action=ping',
+                    'http://' . $cleanHost . '/bridge.php?action=ping'
+                ];
+                $bridgeUrls = [
+                    'https://' . $cleanHost . '/bridge.php?action=scanFiles',
+                    'http://' . $cleanHost . '/bridge.php?action=scanFiles'
+                ];
+                $deploySubPath = '';
+            } else {
+                $webSub = $deployService->getWebSubPath($config['ftp_root'] ?? '');
+                $fullSubPath = rtrim($webSub, '/') . '/' . trim($project['relPath'], '/');
+                $bridgePingUrls = [
+                    'https://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=ping',
+                    'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=ping'
+                ];
+                $bridgeUrls = [
+                    'https://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles',
+                    'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles'
+                ];
+                $deploySubPath = $project['relPath'];
+            }
+
+            // Ping nhanh bridge để kiểm tra sự tồn tại (timeout 2.5s)
+            $pingBridge = function() use (&$bridgePingUrls) {
+                foreach ($bridgePingUrls as $url) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $url);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+                    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                    $res = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($httpCode === 200) {
+                        $data = json_decode($res, true);
+                        if (is_array($data) && ($data['status'] ?? '') === 'success') {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
+            $bridgeReady = $pingBridge();
+
+            // Nếu Bridge chưa sẵn sàng trên Host
+            if (!$bridgeReady) {
+                if ($currentEnv === 'demo') {
+                    if (!$deployService->remoteDirExists($config, $deploySubPath)) {
+                        echo json_encode([
+                            'status' => 'error',
+                            'message' => "Dự án chưa tồn tại trên Demo Server (thư mục '{$deploySubPath}' chưa được triển khai trên hosting). Vui lòng Deploy Demo trước khi thực hiện Đồng bộ hoặc Quản lý File!"
+                        ]);
+                        break;
+                    }
+                }
+
+                // BẢO MẬT: Kiểm tra xem người dùng đã đồng ý cho tải bridge.php lên server chưa
+                if (!$allowUploadBridge) {
+                    echo json_encode([
+                        'status' => 'bridge_missing',
+                        'code' => 'BRIDGE_MISSING',
+                        'env' => $currentEnv,
+                        'env_label' => $envLabel,
+                        'message' => "Chưa có tệp kết nối bridge.php trên máy chủ {$envLabel}."
+                    ]);
+                    break;
+                }
+
+                // Người dùng đã xác nhận đồng ý -> tiến hành tải bridge.php lên host
+                try {
+                    $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
+                } catch (\Exception $e) {
+                    echo json_encode([
+                        'status' => 'error',
+                        'message' => "Không thể tải tệp bridge.php lên {$envLabel}: " . $e->getMessage()
+                    ]);
+                    break;
+                }
+            }
+
+            // 2. Khi Bridge đã sẵn sàng -> Bắt đầu Scan Local
             $localFiles = [];
             $localRoot = rtrim($project['path'], '/\\');
             $scanLocal = function($dir, $relPrefix = '') use (&$scanLocal, &$localFiles, $isPathExcluded, $localRoot, $includeClearData, $isClearDataFile) {
@@ -1489,25 +1578,8 @@ switch ($action) {
                 }
             };
             $scanLocal($localRoot);
-            
-            // 2. Call Bridge via HTTP/HTTPS (Fast path: < 0.1s)
-            $cleanHost = !empty($config['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $config['web_domain']) : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
-            if ($currentEnv === 'prod') {
-                $bridgeUrls = [
-                    'https://' . $cleanHost . '/bridge.php?action=scanFiles',
-                    'http://' . $cleanHost . '/bridge.php?action=scanFiles'
-                ];
-                $deploySubPath = '';
-            } else {
-                $webSub = $deployService->getWebSubPath($config['ftp_root'] ?? '');
-                $fullSubPath = rtrim($webSub, '/') . '/' . trim($project['relPath'], '/');
-                $bridgeUrls = [
-                    'https://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles',
-                    'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=scanFiles'
-                ];
-                $deploySubPath = $project['relPath'];
-            }
-            
+
+            // 3. Gọi Bridge scan Remote Files
             $callBridge = function($targetUrl = null) use (&$bridgeUrls, $defaultExcludes, $includeClearData) {
                 $urls = $targetUrl ? [$targetUrl] : $bridgeUrls;
                 $lastRes = null;
@@ -1517,7 +1589,7 @@ switch ($action) {
                     curl_setopt($ch, CURLOPT_POST, true);
                     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['excludes' => $defaultExcludes, 'include_cleardata' => $includeClearData]));
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
                     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
                     curl_setopt($ch, CURLOPT_POSTREDIR, 3);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
@@ -1544,35 +1616,13 @@ switch ($action) {
 
             $remoteData = $callBridge();
 
-            // If bridge is not yet on server or outdated (missing MD5/readme filter support), upload it fast via deployService
+            // Nếu bridge vừa ping được nhưng scanFiles báo phiên bản cũ -> cập nhật lại
             if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v6_sub_excludes') {
-                if ($currentEnv === 'demo') {
-                    if (!$deployService->remoteDirExists($config, $deploySubPath)) {
-                        echo json_encode([
-                            'status' => 'error',
-                            'message' => "Dự án chưa tồn tại trên Demo Server (thư mục '{$deploySubPath}' chưa được triển khai trên hosting). Vui lòng Deploy Demo trước khi thực hiện Đồng bộ hoặc Quản lý File!"
-                        ]);
-                        break;
-                    }
-                }
-
-                // BẢO MẬT: Không tự ý tải bridge.php lên server khi chưa có sự đồng ý của người dùng
-                if (!$allowUploadBridge) {
-                    echo json_encode([
-                        'status' => 'bridge_missing',
-                        'code' => 'BRIDGE_MISSING',
-                        'env' => $currentEnv,
-                        'env_label' => $envLabel,
-                        'message' => "Chưa có tệp kết nối bridge.php trên máy chủ {$envLabel}."
-                    ]);
-                    break;
-                }
-
-                try {
-                    $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
-                    $remoteData = $callBridge();
-                } catch (\Exception $e) {
-                    // Upload failure will be caught below
+                if ($allowUploadBridge) {
+                    try {
+                        $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
+                        $remoteData = $callBridge();
+                    } catch (\Exception $e) {}
                 }
             }
 
