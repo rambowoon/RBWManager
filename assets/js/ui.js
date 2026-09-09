@@ -629,17 +629,17 @@ const UI = {
 				</div>
 				`
 						: `
-				<p class="section-sub">Website chính thức — mọi thao tác tại đây ảnh hưởng người dùng thật.</p>
-				<div class="hero-action prod-hero" onclick="${isLockedProd ? "UI.notify('Production đang bị KHÓA!', 'error')" : `App.publishToProduction('${safeName}','${safeCat}')`}">
+				<p class="section-sub">Website chính thức — mọi thao tác tại đây ảnh hưởng người dùng thật ${isLockedProd ? "— hiện đang bị khóa." : ""}</p>
+				<div class="hero-action prod-hero" onclick="${prodUrl ? `window.open('${getUrl(prodUrl, isProdSsl)}', '_blank')` : "UI.notify('Chưa cấu hình Domain Production!', 'warning')"}">
 					<div class="content">
-						<div class="icon">◉</div>
-						<div class="txt"><div class="t">Publish Production</div><div class="s">Đưa bản mới nhất lên chính thức</div></div>
+						<div class="icon">🌐</div>
+						<div class="txt"><div class="t">Mở Website (Prod)</div><div class="s">${prodUrl || "Chưa xác định Web Domain"}</div></div>
 						<div class="arrow">→</div>
 					</div>
 				</div>
 				<div class="chip-row">
 					<div class="chip util" onclick="UI.showModal('${prefix ? "detail-config-modal" : "config-modal"}')"><div class="ic">⚙</div><div class="lbl">Cấu hình Hosting</div></div>
-					${prodUrl ? `<div class="chip neutral" onclick="window.open('${getUrl(prodUrl, isProdSsl)}', '_blank')"><div class="ic">🌐</div><div class="lbl">Website (Prod)</div></div>` : ""}
+					<div class="chip ${isLockedProd ? "locked" : ""}" onclick="${isLockedProd ? "UI.notify('Production đang bị KHÓA!', 'error')" : `App.publishToProduction('${safeName}','${safeCat}')`}"><div class="ic" style="background:rgba(63,216,160,0.15);color:#5FF0BE;">◉</div><div class="lbl">Publish Production</div></div>
 					<div class="chip util" onclick="App.installSSL('${safeName}', '${safeCat}')"><div class="ic">🔒</div><div class="lbl">Install SSL</div></div>
 					<div class="chip util" onclick="App.showChangePhpVersionModal('${safeName}', '${safeCat}')"><div class="ic">🌐</div><div class="lbl">Đổi PHP Version</div></div>
 					<div class="chip danger" onclick="App.cleanupTools('${safeName}','${safeCat}', 'production')"><div class="ic">✎</div><div class="lbl">Dọn dẹp Production</div></div>
