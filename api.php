@@ -181,10 +181,20 @@ register_shutdown_function(function () use (&$jobId) {
     global $jobId;
     $error = error_get_last();
     if ($error && ($error['type'] === E_ERROR || $error['type'] === E_PARSE || $error['type'] === E_COMPILE_ERROR || $error['type'] === E_CORE_ERROR)) {
-        writeJobLog($jobId, [
-            'status' => 'error',
-            'message' => '🔴 Lỗi Hệ Thống (Fatal Error): ' . $error['message'] . ' trong file ' . basename($error['file']) . ' dòng ' . $error['line']
-        ]);
+        if ($jobId) {
+            writeJobLog($jobId, [
+                'status' => 'error',
+                'message' => '🔴 Lỗi Hệ Thống (Fatal Error): ' . $error['message'] . ' trong file ' . basename($error['file']) . ' dòng ' . $error['line']
+            ]);
+        } else {
+            if (!headers_sent()) {
+                header('Content-Type: application/json');
+            }
+            echo json_encode([
+                'status' => 'error',
+                'message' => '🔴 Lỗi Hệ Thống (Fatal Error): ' . $error['message'] . ' trong ' . basename($error['file']) . ' dòng ' . $error['line']
+            ]);
+        }
     }
 });
 
@@ -623,6 +633,7 @@ if (strpos($appDir, '\\\\.\\') === 0 || strpos($appDir, '\\\\?\\') === 0) {
     $appDir = substr($appDir, 4);
 }
 $screenshotService = new ScreenshotService($appDir);
+$projectDeployer = new ProjectDeployer($baseDir);
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $jobId = $_POST['jobId'] ?? $_GET['jobId'] ?? null;
