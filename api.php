@@ -3250,7 +3250,7 @@ switch ($action) {
             $envExamplePath = $projectPath . DIRECTORY_SEPARATOR . '.env.example';
             $sitePath = '/' . str_replace('\\', '/', trim($project['relPath'], '/\\')) . '/';
 
-            if (file_exists($configPhpPath) && !file_exists($envPath) && !file_exists($envExamplePath)) {
+            if (file_exists($configPhpPath)) {
                 // Source tự viết: Cấu hình thông qua libraries/config.php
                 $configUpdates = [
                     'host' => 'localhost',
