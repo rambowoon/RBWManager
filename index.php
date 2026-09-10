@@ -220,6 +220,10 @@
                         </div>
                     </div>
 
+                    <button class="btn btn-ghost" id="btn-check-deploy-status" onclick="App.checkCategoryDeployStatus()" title="Kiểm tra trạng thái dự án trên các phân vùng Demo / Production" style="border-color: rgba(95, 240, 190, 0.3); color: #5FF0BE;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>
+                        Check Demo / Prod
+                    </button>
                     <button class="btn btn-primary" onclick="App.showDeployProjectModal()">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                         Triển khai dự án
@@ -1821,6 +1825,25 @@ Pass: password123..." style="height:200px;"></textarea>
                 <button id="btn-db-overwrite" class="btn btn-primary" style="width:100%; justify-content:center; background:var(--danger); border-color:var(--danger);">💥 Xoá hết dữ liệu cũ &amp; Import mới</button>
                 <button id="btn-db-skip" class="btn btn-ghost" style="width:100%; justify-content:center; color:#fff; background:rgba(255,255,255,0.05);">⏭️ Giữ lại dữ liệu cũ &amp; Bỏ qua import</button>
                 <button class="btn btn-ghost" onclick="UI.hideModal('deploy-db-confirm-modal')" style="width:100%; justify-content:center;">Hủy</button>
+            </div>
+        </div>
+    <!-- MODAL: CHECK DEPLOY STATUS -->
+    <div id="check-deploy-status-modal" class="modal-overlay" style="z-index: 10006;">
+        <div class="modal" style="max-width: 720px; width: 90%;">
+            <div class="modal-header-flex">
+                <h2 id="check-deploy-modal-title" style="display: flex; align-items: center; gap: 8px; font-size: 1.1rem;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5FF0BE" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>
+                    <span>Kiểm tra trạng thái Demo / Production</span>
+                </h2>
+                <button class="btn-close-circle" onclick="UI.hideModal('check-deploy-status-modal')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="modal-body" id="check-deploy-modal-body" style="padding: 15px 0; max-height: 65vh; overflow-y: auto;">
+                <!-- Content injected via JS -->
+            </div>
+            <div class="modal-footer-actions" style="justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="UI.hideModal('check-deploy-status-modal')">Đóng</button>
             </div>
         </div>
     </div>

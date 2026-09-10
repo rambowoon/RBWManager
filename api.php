@@ -772,6 +772,193 @@ switch ($action) {
         ]);
         break;
 
+    case 'checkCategoryDeployStatus':
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true) ?: [];
+        $category = $data['category'] ?? ($_GET['category'] ?? '');
+        $specificName = $data['name'] ?? null;
+
+        if (!$category) {
+            echo json_encode(['status' => 'error', 'message' => 'Vui lòng chọn danh mục/tháng để kiểm tra']);
+            break;
+        }
+
+        $globalPath = __DIR__ . '/data/demo_config.json';
+        $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
+        $demoList = $gConfig['demo_list'] ?? [];
+
+        if (empty($demoList)) {
+            echo json_encode(['status' => 'error', 'message' => 'Chưa cấu hình danh sách phân vùng Demo']);
+            break;
+        }
+
+        $projects = $scanner->getProjects($category);
+        $sitesConfig = $scanner->getPhpSitesConfig();
+
+        // 1. Quét danh sách thư mục từ tất cả phân vùng Demo
+        $serverFolders = [];
+        foreach ($demoList as $demo) {
+            $ftpRoot = !empty($demo['ftp_root']) ? $demo['ftp_root'] : '/public_html';
+            $relativeRoot = ltrim(rtrim($ftpRoot, '/'), '/');
+            $parentUrl = "ftp://{$demo['ftp_host']}/" . ($relativeRoot ? $relativeRoot . '/' : '') . trim($category, '/') . '/';
+            $userPwd = "{$demo['ftp_user']}:{$demo['ftp_pass']}";
+
+            $items = RemoteClient::listFtpDirectory($parentUrl, $userPwd);
+            $items = array_filter($items, function($it) {
+                return $it !== '.' && $it !== '..' && !empty($it);
+            });
+            $serverFolders[$demo['id']] = [
+                'demo' => $demo,
+                'items' => array_values($items)
+            ];
+        }
+
+        $results = [];
+        $counts = ['local' => 0, 'demo' => 0, 'production' => 0];
+
+        foreach ($projects as $p) {
+            $pName = $p['name'];
+            if ($specificName && $pName !== $specificName) continue;
+
+            $pConfig = $configManager->getForProject($pName, $category) ?: [];
+            $phpInfo = $scanner->resolveProjectPhp($p, $sitesConfig);
+            $pPhp = (float)preg_replace('/[^0-9.]/', '', $phpInfo['php_version'] ?? '');
+
+            // Sắp xếp thứ tự ưu tiên kiểm tra server cho dự án
+            $orderedServers = [];
+
+            // Ưu tiên 1: Server đã từng lưu trong cấu hình
+            $savedServerId = $pConfig['deployed']['demo']['demo_server_id'] ?? ($pConfig['demo_server_id'] ?? null);
+            if ($savedServerId && isset($serverFolders[$savedServerId])) {
+                $orderedServers[] = $savedServerId;
+            }
+
+            // Ưu tiên 2: Phân vùng theo phiên bản PHP
+            foreach ($demoList as $d) {
+                if (in_array($d['id'], $orderedServers)) continue;
+                $dName = strtolower($d['name']);
+                if ($pPhp >= 8.4 && strpos($dName, '8.4') !== false) {
+                    $orderedServers[] = $d['id'];
+                } elseif ($pPhp >= 8.2 && $pPhp < 8.4 && strpos($dName, '8.3') !== false) {
+                    $orderedServers[] = $d['id'];
+                } elseif ($pPhp < 8.0 && $pPhp > 0 && strpos($dName, '7.4') !== false) {
+                    $orderedServers[] = $d['id'];
+                }
+            }
+
+            // Ưu tiên 3: Các server còn lại (quét dự phòng toàn diện)
+            foreach ($demoList as $d) {
+                if (!in_array($d['id'], $orderedServers)) {
+                    $orderedServers[] = $d['id'];
+                }
+            }
+
+            $detectedStatus = 'local';
+            $detectedServer = null;
+            $matchedFolder = null;
+
+            foreach ($orderedServers as $sId) {
+                if (!isset($serverFolders[$sId])) continue;
+                $items = $serverFolders[$sId]['items'];
+                $demo = $serverFolders[$sId]['demo'];
+
+                $pNameLower = strtolower($pName);
+
+                // 1. Kiểm tra dấu hiệu Production (có tiền/hậu tố _old hoặc _xxx)
+                foreach ($items as $item) {
+                    if ($item === $pName) continue;
+                    $itemLower = strtolower($item);
+
+                    $isProd = (
+                        strpos($itemLower, $pNameLower . '_') === 0 || 
+                        strpos($itemLower, $pNameLower . '-') === 0 || 
+                        strpos($itemLower, '_old_' . $pNameLower) === 0 || 
+                        strpos($itemLower, '_old' . $pNameLower) === 0 ||
+                        strpos($itemLower, 'old_' . $pNameLower) === 0
+                    );
+
+                    if ($isProd) {
+                        $detectedStatus = 'production';
+                        $detectedServer = $demo;
+                        $matchedFolder = $item;
+                        break;
+                    }
+                }
+
+                if ($detectedStatus === 'production') break;
+
+                // 2. Kiểm tra Demo (tồn tại thư mục trùng tên dự án)
+                foreach ($items as $item) {
+                    if (strtolower($item) === $pNameLower) {
+                        $detectedStatus = 'demo';
+                        $detectedServer = $demo;
+                        $matchedFolder = $item;
+                        break;
+                    }
+                }
+
+                if ($detectedStatus === 'demo') break;
+            }
+
+            // Cập nhật cấu hình dự án
+            $updated = false;
+            if ($detectedStatus === 'production') {
+                $counts['production']++;
+                if (!isset($pConfig['deployed']['production'])) {
+                    $pConfig['deployed']['production'] = [];
+                }
+                if (empty($pConfig['deployed']['production']['deploy_time'])) {
+                    $pConfig['deployed']['production']['deploy_time'] = date('Y-m-d H:i:s');
+                }
+                $pConfig['deployed']['production']['matched_folder'] = $matchedFolder;
+                if ($detectedServer) {
+                    $pConfig['deployed']['production']['server_name'] = $detectedServer['name'];
+                }
+                $pConfig['lock_production'] = true;
+                $updated = true;
+            } elseif ($detectedStatus === 'demo') {
+                $counts['demo']++;
+                if (!isset($pConfig['deployed']['demo'])) {
+                    $pConfig['deployed']['demo'] = [];
+                }
+                if (empty($pConfig['deployed']['demo']['deploy_time'])) {
+                    $pConfig['deployed']['demo']['deploy_time'] = date('Y-m-d H:i:s');
+                }
+                if ($detectedServer) {
+                    $pConfig['deployed']['demo']['demo_server_id'] = $detectedServer['id'];
+                    $pConfig['deployed']['demo']['server_name'] = $detectedServer['name'];
+                    $domain = $detectedServer['web_domain'];
+                    $protocol = (!empty($detectedServer['ssl']) ? 'https://' : 'http://');
+                    $pConfig['deployed']['demo']['url'] = $protocol . $domain . '/' . $category . '/' . $pName . '/';
+                }
+                $pConfig['deployed']['demo']['matched_folder'] = $matchedFolder;
+                $updated = true;
+            } else {
+                $counts['local']++;
+            }
+
+            if ($updated) {
+                $configManager->save($pName, $pConfig, $category);
+            }
+
+            $results[] = [
+                'name' => $pName,
+                'status' => $detectedStatus,
+                'server_name' => $detectedServer['name'] ?? null,
+                'server_id' => $detectedServer['id'] ?? null,
+                'matched_folder' => $matchedFolder
+            ];
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'category' => $category,
+            'counts' => $counts,
+            'total' => count($results),
+            'results' => $results
+        ]);
+        break;
+
     case 'saveConfig':
         $data = json_decode(file_get_contents('php://input'), true);
         $category = $data['category'] ?? null;

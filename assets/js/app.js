@@ -2141,6 +2141,135 @@ const App = {
 			if (doneBtn) doneBtn.style.display = 'inline-flex';
 			if (closeX) closeX.style.display = 'flex';
 		}
+	},
+
+	async checkCategoryDeployStatus() {
+		const category = this.currentCategory;
+		if (!category) {
+			UI.showToast('Vui lòng chọn danh mục/tháng trước khi kiểm tra!', 'warning');
+			return;
+		}
+
+		const btn = document.getElementById('btn-check-deploy-status');
+		const originalHtml = btn ? btn.innerHTML : '';
+		if (btn) {
+			btn.disabled = true;
+			btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Đang quét...`;
+		}
+
+		const titleEl = document.getElementById('check-deploy-modal-title');
+		const bodyEl = document.getElementById('check-deploy-modal-body');
+
+		if (titleEl) {
+			titleEl.innerHTML = `
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5FF0BE" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>
+				<span>Trạng thái Demo / Production: <strong>${category}</strong></span>
+			`;
+		}
+		if (bodyEl) {
+			bodyEl.innerHTML = `
+				<div style="text-align:center; padding: 30px 10px;">
+					<div class="spinner" style="margin: 0 auto 15px auto; width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #5FF0BE; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+					<div style="font-size: 1rem; color: #fff; font-weight: 600; margin-bottom: 6px;">Đang quét các phân vùng Demo...</div>
+					<div style="font-size: 0.8rem; color: var(--muted);">Đang kết nối FTP để kiểm tra thư mục mã nguồn trên tất cả các server Demo</div>
+				</div>
+			`;
+		}
+		UI.showModal('check-deploy-status-modal');
+
+		try {
+			const res = await Api.checkCategoryDeployStatus(category);
+
+			if (res.status === 'success') {
+				const counts = res.counts || { local: 0, demo: 0, production: 0 };
+				const results = res.results || [];
+
+				let rowsHtml = '';
+				results.forEach((item, idx) => {
+					let badge = `<span class="badge badge-pending" style="font-size:0.75rem;">⏳ Local</span>`;
+					let statusColor = '#94a3b8';
+					if (item.status === 'production') {
+						badge = `<span class="badge badge-prod" style="font-size:0.75rem;">🚀 Production</span>`;
+						statusColor = '#fb7185';
+					} else if (item.status === 'demo') {
+						badge = `<span class="badge badge-ok" style="font-size:0.75rem;">🌿 Demo</span>`;
+						statusColor = '#5FF0BE';
+					}
+
+					const serverText = item.server_name ? `<span style="color:#38bdf8; font-size:0.78rem;">${item.server_name}</span>` : `<span style="color:var(--muted); font-size:0.78rem;">—</span>`;
+					const folderText = item.matched_folder ? `<code style="font-size:0.75rem; color:${statusColor}; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${item.matched_folder}</code>` : `<span style="color:var(--muted); font-size:0.75rem;">—</span>`;
+
+					rowsHtml += `
+						<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+							<td style="padding: 9px 8px; font-size: 0.8rem; color: #94a3b8;">${idx + 1}</td>
+							<td style="padding: 9px 8px; font-weight: 600; font-size: 0.85rem; color: #fff;">${item.name}</td>
+							<td style="padding: 9px 8px;">${badge}</td>
+							<td style="padding: 9px 8px;">${serverText}</td>
+							<td style="padding: 9px 8px;">${folderText}</td>
+						</tr>
+					`;
+				});
+
+				if (bodyEl) {
+					bodyEl.innerHTML = `
+						<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
+							<div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; text-align: center;">
+								<div style="font-size: 0.72rem; color: var(--muted); margin-bottom: 4px;">Tổng dự án</div>
+								<div style="font-size: 1.25rem; font-weight: 700; color: #fff;">${res.total}</div>
+							</div>
+							<div style="background: rgba(95, 240, 190, 0.06); border: 1px solid rgba(95, 240, 190, 0.25); border-radius: 8px; padding: 10px 12px; text-align: center;">
+								<div style="font-size: 0.72rem; color: #5FF0BE; margin-bottom: 4px;">🌿 Đã Up Demo</div>
+								<div style="font-size: 1.25rem; font-weight: 700; color: #5FF0BE;">${counts.demo}</div>
+							</div>
+							<div style="background: rgba(251, 113, 133, 0.06); border: 1px solid rgba(251, 113, 133, 0.25); border-radius: 8px; padding: 10px 12px; text-align: center;">
+								<div style="font-size: 0.72rem; color: #fb7185; margin-bottom: 4px;">🚀 Đã Up Production</div>
+								<div style="font-size: 1.25rem; font-weight: 700; color: #fb7185;">${counts.production}</div>
+							</div>
+							<div style="background: rgba(148, 163, 184, 0.06); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 10px 12px; text-align: center;">
+								<div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 4px;">⏳ Đang ở Local</div>
+								<div style="font-size: 1.25rem; font-weight: 700; color: #94a3b8;">${counts.local}</div>
+							</div>
+						</div>
+
+						<div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+							<table style="width: 100%; border-collapse: collapse; text-align: left;">
+								<thead>
+									<tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">
+										<th style="padding: 8px;">#</th>
+										<th style="padding: 8px;">Dự án</th>
+										<th style="padding: 8px;">Trạng thái</th>
+										<th style="padding: 8px;">Phân vùng Demo</th>
+										<th style="padding: 8px;">Thư mục nhận diện</th>
+									</tr>
+								</thead>
+								<tbody>
+									${rowsHtml}
+								</tbody>
+							</table>
+						</div>
+					`;
+				}
+
+				UI.showToast(`Đã đồng bộ trạng thái: ${counts.demo} Demo, ${counts.production} Production, ${counts.local} Local`, 'success');
+				// Tự động load lại danh sách dự án để cập nhật badge ngay lập tức
+				await this.loadProjects(category, true);
+			} else {
+				if (bodyEl) {
+					bodyEl.innerHTML = `<div style="color: var(--danger); text-align:center; padding:20px;">❌ Lỗi: ${res.message || 'Không thể kiểm tra trạng thái'}</div>`;
+				}
+				UI.showToast(res.message || 'Lỗi kiểm tra trạng thái', 'error');
+			}
+		} catch (err) {
+			if (bodyEl) {
+				bodyEl.innerHTML = `<div style="color: var(--danger); text-align:center; padding:20px;">❌ Lỗi kết nối: ${err.message}</div>`;
+			}
+			UI.showToast('Lỗi kết nối kiểm tra trạng thái: ' + err.message, 'error');
+		} finally {
+			if (btn) {
+				btn.disabled = false;
+				btn.innerHTML = originalHtml;
+			}
+		}
 	}
 };
 

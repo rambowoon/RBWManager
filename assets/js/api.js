@@ -71,5 +71,13 @@ const Api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ category })
         });
+    },
+
+    async checkCategoryDeployStatus(category, name = null) {
+        return this.fetch('checkCategoryDeployStatus', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category, name })
+        });
     }
 };
