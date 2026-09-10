@@ -641,11 +641,17 @@ class RamboWoonBridge
 
         $fullUrl = $appConfig['app_url'] ?? '';
         $sitePath = "/";
+        $hasSsl = !empty($appConfig['ssl']) || (strpos($fullUrl, 'https://') === 0);
+
         if (!empty($fullUrl)) {
             $parsed = parse_url($fullUrl);
             $sitePath = '/' . trim($parsed['path'] ?? '', '/') . '/';
             if ($sitePath === '//') $sitePath = '/';
         }
+
+        // Cập nhật biến $http theo SSL nếu có
+        $httpVal = $hasSsl ? 'https://' : 'http://';
+        $content = preg_replace("/(\\\$http\s*=\s*['\"])[^'\"]*(['\"];)/i", '${1}' . $httpVal . '${2}', $content);
 
         $updates = [
             'host' => $dbConfig['host'] ?? 'localhost',

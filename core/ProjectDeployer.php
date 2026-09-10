@@ -223,7 +223,18 @@ class ProjectDeployer
         if (!file_exists($configPath)) return false;
         $content = file_get_contents($configPath);
 
+        // Cập nhật biến $http theo SSL nếu có
+        if (isset($updates['http'])) {
+            $httpVal = (strpos($updates['http'], 'https') !== false) ? 'https://' : 'http://';
+            $content = preg_replace("/(\\\$http\s*=\s*['\"])[^'\"]*(['\"];)/i", '${1}' . $httpVal . '${2}', $content);
+        } elseif (isset($updates['ssl'])) {
+            $httpVal = !empty($updates['ssl']) ? 'https://' : 'http://';
+            $content = preg_replace("/(\\\$http\s*=\s*['\"])[^'\"]*(['\"];)/i", '${1}' . $httpVal . '${2}', $content);
+        }
+
         foreach ($updates as $key => $value) {
+            if ($key === 'http' || $key === 'ssl') continue;
+
             if ($key === 'debug-developer') {
                 $boolVal = ($value === false || $value === 'false' || $value === 0 || $value === '0') ? 'false' : 'true';
                 $pattern = "/(['\"]debug-developer['\"]\s*=>\s*)(true|false|[01])/i";

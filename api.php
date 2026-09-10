@@ -3263,6 +3263,8 @@ switch ($action) {
 
             if (file_exists($configPhpPath)) {
                 // Source tự viết: Cấu hình thông qua libraries/config.php
+                $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
+                $hasSsl = !empty($projectConfig['local_ssl']) || !empty($projectConfig['ssl']);
                 $configUpdates = [
                     'host' => 'localhost',
                     'username' => 'root',
@@ -3270,7 +3272,8 @@ switch ($action) {
                     'dbname' => $dbName,
                     'url' => $sitePath,
                     'port' => 3306,
-                    'debug-developer' => true
+                    'debug-developer' => true,
+                    'ssl' => $hasSsl
                 ];
                 $projectDeployer->updateConfigFile($configPhpPath, $configUpdates);
             } else {
