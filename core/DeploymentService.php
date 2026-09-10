@@ -252,6 +252,8 @@ class DeploymentService
     {
         $dbLocal = ['host' => 'localhost', 'name' => '', 'user' => 'root', 'pass' => ''];
         $envPath = $projectPath . '/.env';
+        $configPhpPath = $projectPath . '/libraries/config.php';
+
         if (file_exists($envPath)) {
             $lines = file($envPath);
             foreach ($lines as $line) {
@@ -260,8 +262,15 @@ class DeploymentService
                 if (strpos($line, 'DB_PASSWORD=') === 0) $dbLocal['pass'] = trim(substr($line, 12));
                 if (strpos($line, 'DB_HOST=') === 0) $dbLocal['host'] = trim(substr($line, 8));
             }
+        } elseif (file_exists($configPhpPath)) {
+            $content = file_get_contents($configPhpPath);
+            if (preg_match("/['\"]host['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['host'] = $m[1];
+            if (preg_match("/['\"]dbname['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['name'] = $m[1];
+            if (preg_match("/['\"]username['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['user'] = $m[1];
+            if (preg_match("/['\"]password['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['pass'] = $m[1];
         }
-        if (!$dbLocal['name']) return "Khong tim thay DB_DATABASE trong file .env";
+
+        if (!$dbLocal['name']) return "Khong tim thay DB_DATABASE trong file .env hoac libraries/config.php";
 
         // Override mysqldump with the robust native PDO exporter to avoid PATH issues
         $res = $this->exportLocalDatabase($dbLocal, $sqlFile);
@@ -774,14 +783,13 @@ class DeploymentService
         return in_array($dbName, $databases);
     }
 
-    public function downloadRemoteEnv($config, $remoteProjectFolder)
+    public function downloadRemoteFile($config, $remoteFilePath)
     {
         $ftpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
-        $ftpUrl = "ftp://{$config['ftp_host']}" . rtrim($ftpRoot, '/') . '/' . ltrim($remoteProjectFolder, '/') . '/.env';
+        $ftpUrl = "ftp://{$config['ftp_host']}" . rtrim($ftpRoot, '/') . '/' . ltrim($remoteFilePath, '/');
         $userPwd = "{$config['ftp_user']}:{$config['ftp_pass']}";
-        
-        $tempFile = tempnam(sys_get_temp_dir(), 'env_');
-        
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'rem_');
         $fp = fopen($tempFile, 'w');
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $ftpUrl);
@@ -790,12 +798,12 @@ class DeploymentService
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        
+
         $res = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         fclose($fp);
-        
+
         if ($res && $httpCode === 200) {
             $content = file_get_contents($tempFile);
             @unlink($tempFile);
@@ -803,6 +811,11 @@ class DeploymentService
         }
         @unlink($tempFile);
         return false;
+    }
+
+    public function downloadRemoteEnv($config, $remoteProjectFolder)
+    {
+        return $this->downloadRemoteFile($config, ltrim($remoteProjectFolder, '/') . '/.env');
     }
 
     public function getDbPassFromEnvContent($content)
@@ -820,6 +833,15 @@ class DeploymentService
             if (in_array($key, ['DB_PASSWORD', 'DB_PASS', 'DATABASE_PASS', 'DATABASE_PASSWORD'])) {
                 return $val;
             }
+        }
+        return null;
+    }
+
+    public function getDbPassFromConfigContent($content)
+    {
+        if (empty($content)) return null;
+        if (preg_match("/['\"]password['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) {
+            return $m[1];
         }
         return null;
     }

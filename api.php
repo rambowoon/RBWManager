@@ -2030,26 +2030,37 @@ switch ($action) {
             break;
         }
 
+        $isDemo = true;
         // Database đã tồn tại!
-        // 2. Kiểm tra xem có file env trên demo không
-        $envExists = false;
+        // 2. Kiểm tra xem dự án đã tồn tại trên demo chưa (check file index.php)
         $relPath = $project['relPath'];
+        $indexExists = false;
         try {
-            $envExists = $deployService->remoteFileExists($config, $relPath . '/.env');
+            $indexExists = $deployService->remoteFileExists($config, $relPath . '/index.php');
         } catch (\Exception $e) {}
 
         $dbPass = null;
-        if ($envExists) {
-            // 3. Đọc pass từ file env trên demo
-            try {
-                $remoteEnvContent = $deployService->downloadRemoteEnv($config, $relPath);
+        // 3. Đọc pass từ file .env hoặc libraries/config.php trên demo
+        try {
+            $remoteEnvContent = $deployService->downloadRemoteFile($config, $relPath . '/.env');
+            if ($remoteEnvContent) {
                 $dbPass = $deployService->getDbPassFromEnvContent($remoteEnvContent);
+            }
+        } catch (\Exception $e) {}
+
+        if (empty($dbPass)) {
+            try {
+                $remoteConfigContent = $deployService->downloadRemoteFile($config, $relPath . '/libraries/config.php');
+                if ($remoteConfigContent) {
+                    $dbPass = $deployService->getDbPassFromConfigContent($remoteConfigContent);
+                }
             } catch (\Exception $e) {}
         }
 
-        // Lấy pass dự phòng
+        // Lấy pass dự phòng từ local (.env hoặc libraries/config.php)
         $targetPass = '';
         $localEnvPath = $project['path'] . '/.env';
+        $localConfigPath = $project['path'] . '/libraries/config.php';
         if (file_exists($localEnvPath)) {
             $lines = file($localEnvPath);
             foreach ($lines as $line) {
@@ -2061,6 +2072,11 @@ switch ($action) {
                 }
             }
             $targetPass = trim($targetPass, " \t\n\r\0\x0B\"'");
+        } elseif (file_exists($localConfigPath)) {
+            $cfgDb = $projectDeployer->extractConfigPhpDb($localConfigPath);
+            if (!empty($cfgDb['password'])) {
+                $targetPass = $cfgDb['password'];
+            }
         }
 
         if (empty($targetPass)) {
@@ -2076,8 +2092,8 @@ switch ($action) {
         }
 
         // Kiểm tra xem dự án có tồn tại trên Demo trước khi upload bridge để kiểm tra Database
-        if ($isDemo && !$deployService->remoteDirExists($config, $relPath)) {
-            echo json_encode(['status' => 'error', 'message' => "Dự án chưa tồn tại trên Demo Server (thư mục '{$relPath}' chưa được triển khai). Vui lòng Deploy Demo trước!"]);
+        if ($isDemo && !$indexExists && !$deployService->remoteDirExists($config, $relPath)) {
+            echo json_encode(['status' => 'error', 'message' => "Dự án chưa tồn tại trên Demo Server (chưa có '{$relPath}/index.php'). Vui lòng Deploy Demo trước!"]);
             break;
         }
 
@@ -2139,7 +2155,7 @@ switch ($action) {
                 'message' => 'Database đã tồn tại và đang chứa dữ liệu.',
                 'debug' => [
                     'db_exists' => $dbExists,
-                    'env_exists' => $envExists,
+                    'index_exists' => $indexExists,
                     'db_name' => $dbName,
                     'connected' => $connected,
                     'has_data' => $hasData,
@@ -2155,7 +2171,7 @@ switch ($action) {
                 'message' => 'Database đã kết nối thành công và chưa có dữ liệu.',
                 'debug' => [
                     'db_exists' => $dbExists,
-                    'env_exists' => $envExists,
+                    'index_exists' => $indexExists,
                     'db_name' => $dbName,
                     'connected' => $connected,
                     'has_data' => $hasData,
@@ -2241,9 +2257,10 @@ switch ($action) {
         if ($isDemo) {
             $dbSuffix = $deployService->generateDemoDbName($project['category'], $projectName, $data['manual_db_suffix'] ?? null);
             
-            // Read local .env DB_PASSWORD if exists
+            // Read local .env or libraries/config.php DB_PASSWORD if exists
             $localEnvPass = '';
             $localEnvPath = $project['path'] . '/.env';
+            $localConfigPath = $project['path'] . '/libraries/config.php';
             if (file_exists($localEnvPath)) {
                 $lines = file($localEnvPath);
                 foreach ($lines as $line) {
@@ -2255,6 +2272,11 @@ switch ($action) {
                     }
                 }
                 $localEnvPass = trim($localEnvPass, " \t\n\r\0\x0B\"'");
+            } elseif (file_exists($localConfigPath)) {
+                $cfgDb = $projectDeployer->extractConfigPhpDb($localConfigPath);
+                if (isset($cfgDb['password'])) {
+                    $localEnvPass = $cfgDb['password'];
+                }
             }
 
             if (!empty($data['db_pass'])) {
@@ -3222,34 +3244,49 @@ switch ($action) {
                 } catch (Exception $e) {}
             }
 
-            // 6. Cấu hình file .env
+            // 6. Cấu hình file .env (Laravel) hoặc libraries/config.php (Source tự viết)
+            $configPhpPath = $projectPath . DIRECTORY_SEPARATOR . 'libraries' . DIRECTORY_SEPARATOR . 'config.php';
             $envPath = $projectPath . DIRECTORY_SEPARATOR . '.env';
             $envExamplePath = $projectPath . DIRECTORY_SEPARATOR . '.env.example';
-
-            if (!file_exists($envPath) && file_exists($envExamplePath)) {
-                @copy($envExamplePath, $envPath);
-            }
-
             $sitePath = '/' . str_replace('\\', '/', trim($project['relPath'], '/\\')) . '/';
 
-            $envUpdates = [
-                'SITE_PATH' => $sitePath,
-                'APP_URL' => '"http://localhost${SITE_PATH}"',
-                'DB_HOST' => '127.0.0.1',
-                'DB_PORT' => '3306',
-                'DB_DATABASE' => $dbName,
-                'DB_USERNAME' => 'root',
-                'DB_PASSWORD' => ''
-            ];
-
-            if (file_exists($envPath)) {
-                $projectDeployer->updateEnv($envPath, $envUpdates);
+            if (file_exists($configPhpPath) && !file_exists($envPath) && !file_exists($envExamplePath)) {
+                // Source tự viết: Cấu hình thông qua libraries/config.php
+                $configUpdates = [
+                    'host' => 'localhost',
+                    'username' => 'root',
+                    'password' => '',
+                    'dbname' => $dbName,
+                    'url' => $sitePath,
+                    'port' => 3306,
+                    'debug-developer' => true
+                ];
+                $projectDeployer->updateConfigFile($configPhpPath, $configUpdates);
             } else {
-                $newEnvContent = "";
-                foreach ($envUpdates as $k => $val) {
-                    $newEnvContent .= "$k=$val\n";
+                // Laravel: Cấu hình thông qua .env
+                if (!file_exists($envPath) && file_exists($envExamplePath)) {
+                    @copy($envExamplePath, $envPath);
                 }
-                file_put_contents($envPath, $newEnvContent);
+
+                $envUpdates = [
+                    'SITE_PATH' => $sitePath,
+                    'APP_URL' => '"http://localhost${SITE_PATH}"',
+                    'DB_HOST' => '127.0.0.1',
+                    'DB_PORT' => '3306',
+                    'DB_DATABASE' => $dbName,
+                    'DB_USERNAME' => 'root',
+                    'DB_PASSWORD' => ''
+                ];
+
+                if (file_exists($envPath)) {
+                    $projectDeployer->updateEnv($envPath, $envUpdates);
+                } else {
+                    $newEnvContent = "";
+                    foreach ($envUpdates as $k => $val) {
+                        $newEnvContent .= "$k=$val\n";
+                    }
+                    file_put_contents($envPath, $newEnvContent);
+                }
             }
 
             // 7. Lưu trạng thái đã cấu hình & khóa nút

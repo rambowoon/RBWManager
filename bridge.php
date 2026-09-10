@@ -133,8 +133,8 @@ class RamboWoonBridge
         }
 
         if (empty($dbConfig) || empty($dbConfig['name'])) {
-            $dbConfig = $this->getDbConfigFromEnv();
-            $results[] = "Loaded database config from server .env (Host=" . ($dbConfig['host'] ?? 'localhost') . ", DB=" . ($dbConfig['name'] ?? 'none') . ")";
+            $dbConfig = $this->getDbConfig();
+            $results[] = "Loaded database config from server (Host=" . ($dbConfig['host'] ?? 'localhost') . ", DB=" . ($dbConfig['name'] ?? 'none') . ")";
         }
 
         $results = array_merge($results, $previousResults);
@@ -152,6 +152,13 @@ class RamboWoonBridge
         if (file_exists('.env')) {
             $envBackup = file_get_contents('.env');
             $results[] = "Backed up existing .env configuration";
+        }
+
+        // Backup existing libraries/config.php to preserve server-side settings
+        $configPhpBackup = null;
+        if (file_exists('libraries/config.php')) {
+            $configPhpBackup = file_get_contents('libraries/config.php');
+            $results[] = "Backed up existing libraries/config.php configuration";
         }
 
         // Clean up any old files with backslashes in their names from previous buggy deploys
@@ -244,6 +251,12 @@ class RamboWoonBridge
             $results[] = "Restored existing .env configuration";
         }
 
+        // Restore libraries/config.php after unzip
+        if ($configPhpBackup !== null) {
+            file_put_contents('libraries/config.php', $configPhpBackup);
+            $results[] = "Restored existing libraries/config.php configuration";
+        }
+
         // Restore existing .htaccess
         if ($htaccessBackup !== null) {
             file_put_contents('.htaccess', $htaccessBackup);
@@ -255,10 +268,16 @@ class RamboWoonBridge
             file_put_contents('.htaccess', trim($content) . "\n");
         }
 
-        // 2. Configure .env and .htaccess
+        // 2. Configure .env and/or libraries/config.php and .htaccess
         if (!empty($dbConfig)) {
-            $this->updateEnv($dbConfig, $appConfig);
-            $results[] = "Env configured";
+            if (file_exists('.env') || !file_exists('libraries/config.php')) {
+                $this->updateEnv($dbConfig, $appConfig);
+                $results[] = "Env configured";
+            }
+            if (file_exists('libraries/config.php')) {
+                $this->updateConfigPhp($dbConfig, $appConfig);
+                $results[] = "libraries/config.php configured (debug-developer => false)";
+            }
         }
 
         $this->updateHtaccess($appConfig);
@@ -415,6 +434,34 @@ class RamboWoonBridge
 
         // 7. DONE
         echo json_encode(['status' => 'success', 'logs' => $results]);
+    }
+
+    private function getDbConfig()
+    {
+        $db = $this->getDbConfigFromEnv();
+        if (!empty($db['name'])) return $db;
+        return $this->getDbConfigFromConfigPhp();
+    }
+
+    private function getDbConfigFromConfigPhp()
+    {
+        $db = ['host' => 'localhost', 'name' => '', 'user' => '', 'pass' => ''];
+        $cfgPath = 'libraries/config.php';
+        if (!file_exists($cfgPath)) return $db;
+
+        $content = file_get_contents($cfgPath);
+        $keys = [
+            'host' => 'host',
+            'dbname' => 'name',
+            'username' => 'user',
+            'password' => 'pass',
+        ];
+        foreach ($keys as $k => $dest) {
+            if (preg_match("/['\"]" . preg_quote($k, '/') . "['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) {
+                $db[$dest] = $m[1];
+            }
+        }
+        return $db;
     }
 
     private function getDbConfigFromEnv()
@@ -586,6 +633,55 @@ class RamboWoonBridge
         file_put_contents($env, implode(PHP_EOL, $newLines));
     }
 
+    private function updateConfigPhp($dbConfig, $appConfig)
+    {
+        $cfgPath = 'libraries/config.php';
+        if (!file_exists($cfgPath)) return false;
+        $content = file_get_contents($cfgPath);
+
+        $fullUrl = $appConfig['app_url'] ?? '';
+        $sitePath = "/";
+        if (!empty($fullUrl)) {
+            $parsed = parse_url($fullUrl);
+            $sitePath = '/' . trim($parsed['path'] ?? '', '/') . '/';
+            if ($sitePath === '//') $sitePath = '/';
+        }
+
+        $updates = [
+            'host' => $dbConfig['host'] ?? 'localhost',
+            'dbname' => $dbConfig['name'] ?? '',
+            'username' => $dbConfig['user'] ?? '',
+            'password' => $dbConfig['pass'] ?? '',
+            'url' => $sitePath,
+            'debug-developer' => false
+        ];
+
+        foreach ($updates as $key => $value) {
+            if ($key === 'debug-developer') {
+                $boolVal = ($value === false || $value === 'false' || $value === 0 || $value === '0') ? 'false' : 'true';
+                $pattern = "/(['\"]debug-developer['\"]\s*=>\s*)(true|false|[01])/i";
+                if (preg_match($pattern, $content)) {
+                    $content = preg_replace($pattern, '${1}' . $boolVal, $content);
+                } else {
+                    $content = preg_replace("/(['\"]website['\"]\s*=>\s*array\s*\()/", "$1\n\t\t'debug-developer' => " . $boolVal . ",", $content);
+                }
+                continue;
+            }
+
+            if ($value === '' && $key !== 'password') continue;
+            $safeVal = str_replace(['\\', '$'], ['\\\\', '\$'], (string)$value);
+            $pattern = "/(['\"]" . preg_quote($key, '/') . "['\"]\s*=>\s*)(['\"][^'\"]*['\"]|[0-9]+)/";
+            if (preg_match($pattern, $content)) {
+                $replacement = is_numeric($value) && !in_array($key, ['password', 'username', 'dbname', 'host']) 
+                    ? '${1}' . $value 
+                    : '${1}\'' . $safeVal . '\'';
+                $content = preg_replace($pattern, $replacement, $content);
+            }
+        }
+
+        return file_put_contents($cfgPath, $content) !== false;
+    }
+
     private function updateSettingTable($pdo, $appConfig)
     {
         try {
@@ -678,12 +774,12 @@ class RamboWoonBridge
             die(json_encode(['status' => 'error', 'message' => 'Lỗi: Không tìm thấy tệp dist.sql trên server.', 'logs' => $results]));
         }
 
-        $dbConfig = $this->getDbConfigFromEnv();
+        $dbConfig = $this->getDbConfig();
         if (empty($dbConfig['name'])) {
-            die(json_encode(['status' => 'error', 'message' => 'Lỗi: Không tìm thấy thông tin cấu hình database trong file .env trên server.', 'logs' => $results]));
+            die(json_encode(['status' => 'error', 'message' => 'Lỗi: Không tìm thấy thông tin cấu hình database trên server.', 'logs' => $results]));
         }
 
-        $results[] = "Loaded DB config from server .env (Host=" . ($dbConfig['host'] ?? 'localhost') . ", DB=" . ($dbConfig['name'] ?? 'none') . ")";
+        $results[] = "Loaded DB config from server (Host=" . ($dbConfig['host'] ?? 'localhost') . ", DB=" . ($dbConfig['name'] ?? 'none') . ")";
         $isSqlSuccess = false;
 
         $clearDb = isset($_POST['clear_db']) ? (int)$_POST['clear_db'] : 0;
@@ -764,7 +860,7 @@ class RamboWoonBridge
 
         $dbConfig = json_decode($dbRaw ?? '', true);
         if (empty($dbConfig) || empty($dbConfig['name'])) {
-            $dbConfig = $this->getDbConfigFromEnv();
+            $dbConfig = $this->getDbConfig();
         }
 
         if (empty($dbConfig) || empty($dbConfig['name'])) {

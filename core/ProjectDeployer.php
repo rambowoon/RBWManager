@@ -195,4 +195,56 @@ class ProjectDeployer
 
         return file_put_contents($envPath, $content) !== false;
     }
+
+    /**
+     * Extract database settings from libraries/config.php
+     */
+    public function extractConfigPhpDb($configPath)
+    {
+        if (!file_exists($configPath)) return [];
+        $content = file_get_contents($configPath);
+        $db = [];
+        $keys = ['host', 'dbname', 'username', 'password', 'url', 'port'];
+        foreach ($keys as $k) {
+            if (preg_match("/['\"]" . preg_quote($k, '/') . "['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) {
+                $db[$k] = $m[1];
+            } elseif (preg_match("/['\"]" . preg_quote($k, '/') . "['\"]\s*=>\s*([0-9]+)/", $content, $m)) {
+                $db[$k] = (int)$m[1];
+            }
+        }
+        return $db;
+    }
+
+    /**
+     * Update libraries/config.php file (database array and debug-developer toggle)
+     */
+    public function updateConfigFile($configPath, $updates)
+    {
+        if (!file_exists($configPath)) return false;
+        $content = file_get_contents($configPath);
+
+        foreach ($updates as $key => $value) {
+            if ($key === 'debug-developer') {
+                $boolVal = ($value === false || $value === 'false' || $value === 0 || $value === '0') ? 'false' : 'true';
+                $pattern = "/(['\"]debug-developer['\"]\s*=>\s*)(true|false|[01])/i";
+                if (preg_match($pattern, $content)) {
+                    $content = preg_replace($pattern, '${1}' . $boolVal, $content);
+                } else {
+                    $content = preg_replace("/(['\"]website['\"]\s*=>\s*array\s*\()/", "$1\n\t\t'debug-developer' => " . $boolVal . ",", $content);
+                }
+                continue;
+            }
+
+            $safeVal = str_replace(['\\', '$'], ['\\\\', '\$'], (string)$value);
+            $pattern = "/(['\"]" . preg_quote($key, '/') . "['\"]\s*=>\s*)(['\"][^'\"]*['\"]|[0-9]+)/";
+            if (preg_match($pattern, $content)) {
+                $replacement = is_numeric($value) && !in_array($key, ['password', 'username', 'dbname', 'host']) 
+                    ? '${1}' . $value 
+                    : '${1}\'' . $safeVal . '\'';
+                $content = preg_replace($pattern, $replacement, $content);
+            }
+        }
+
+        return file_put_contents($configPath, $content) !== false;
+    }
 }
