@@ -1681,10 +1681,10 @@ switch ($action) {
             $allowUploadBridge = !empty($data['allow_upload_bridge']);
             $customExcludes = $data['excludes'] ?? [];
             $defaultExcludes = [
-                'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks',
+                'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', 'watermark', 'logs',
                 '.agents', '.git', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
                 'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
-                'assets/admin/json'
+                'assets/admin/json', 'libraries/config.php'
             ];
             if (!empty($customExcludes) && is_array($customExcludes)) {
                 $defaultExcludes = array_unique(array_merge($defaultExcludes, $customExcludes));
@@ -2018,10 +2018,10 @@ switch ($action) {
             $actions = $data['actions'] ?? []; // ['upload' => [...paths], 'download' => [...paths]]
             $includeClearData = !empty($data['include_cleardata']);
             $defaultExcludes = [
-                'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks',
+                'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', 'watermark', 'logs',
                 '.agents', '.git', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
                 'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
-                'assets/admin/json'
+                'assets/admin/json', 'libraries/config.php'
             ];
             $isPathExcluded = function($relPath) use ($defaultExcludes) {
                 $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));

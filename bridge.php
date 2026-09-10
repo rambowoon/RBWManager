@@ -1371,10 +1371,10 @@ class RamboWoonBridge
         $includeClearData = !empty($input['include_cleardata']);
         
         $defaultExcludes = [
-            'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks',
+            'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', 'watermark', 'logs',
             '.agents', '.git', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
             'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
-            'assets/admin/json'
+            'assets/admin/json', 'libraries/config.php'
         ];
         if (!empty($customExcludes) && is_array($customExcludes)) {
             $defaultExcludes = array_unique(array_merge($defaultExcludes, $customExcludes));
