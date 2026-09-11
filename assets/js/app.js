@@ -97,6 +97,12 @@ const App = {
 		const dashBreadcrumb = document.getElementById('dashboard-breadcrumb');
 		if (dashBreadcrumb) dashBreadcrumb.style.display = 'none';
 
+		// Mặc định hiện PHP hệ thống và ẩn nút check deploy của category
+		const sysPhpBadge = document.getElementById('system-php-header-badge');
+		if (sysPhpBadge) sysPhpBadge.style.display = 'inline-flex';
+		const btnCheckDeploy = document.getElementById('btn-check-deploy-status');
+		if (btnCheckDeploy) btnCheckDeploy.style.display = 'none';
+
 		// Reset left sidebar to global navigation
 		const sideGlobal = document.getElementById('sidebar-nav-global');
 		const sideProject = document.getElementById('sidebar-nav-project');
@@ -115,6 +121,11 @@ const App = {
 			const dashBreadcrumb = document.getElementById('dashboard-breadcrumb');
 			if (dashBreadcrumb) dashBreadcrumb.style.display = 'block';
 		}
+		// Nút kiểm tra trạng thái Deploy chỉ hiển thị khi ở Dashboard / Danh sách theo tháng
+		const btnCheckDeploy = document.getElementById('btn-check-deploy-status');
+		if (btnCheckDeploy) btnCheckDeploy.style.display = 'inline-flex';
+		const sysPhpBadge = document.getElementById('system-php-header-badge');
+		if (sysPhpBadge) sysPhpBadge.style.display = 'inline-flex';
 	},
 
 	async showProjectDetail(name, category) {
@@ -129,8 +140,21 @@ const App = {
 
 		const projHeader = document.getElementById('project-detail-header');
 		if (projHeader) projHeader.style.display = 'flex';
+
+		// Tinh gọn header trong chi tiết dự án:
+		// 1. Ẩn nút Check Demo / Prod (vì đây là thao tác quét cả danh mục)
+		const btnCheckDeploy = document.getElementById('btn-check-deploy-status');
+		if (btnCheckDeploy) btnCheckDeploy.style.display = 'none';
+
+		// 2. Ẩn PHP hệ thống (tránh hiện trùng lặp 2 badge PHP bên cạnh nhau)
+		const sysPhpBadge = document.getElementById('system-php-header-badge');
+		if (sysPhpBadge) sysPhpBadge.style.display = 'none';
 		
-		document.getElementById('detail-project-name').innerText = name;
+		const nameEl = document.getElementById('detail-project-name');
+		if (nameEl) {
+			nameEl.innerText = name;
+			nameEl.title = name;
+		}
 		const pathEl = document.getElementById('detail-project-path');
 		if (pathEl) pathEl.innerText = `${category || 'Dự án'} / Cấu hình & Deploy`;
 		this.currentCategory = category;
@@ -145,16 +169,19 @@ const App = {
 			if (statusEl) {
 				statusEl.style.display = 'inline-flex';
 				if (hasProd) {
-					statusEl.innerText = '● PRODUCTION ĐANG CHẠY';
-					statusEl.className = 'badge-env';
+					statusEl.innerText = '● PRODUCTION';
+					statusEl.className = 'badge-env badge-env-prod';
+					statusEl.title = 'Trạng thái: Production đang chạy';
 				} else if (hasDemo) {
-					statusEl.innerText = '● DEMO ĐANG CHẠY';
-					statusEl.className = 'badge-env';
+					statusEl.innerText = '● DEMO';
+					statusEl.className = 'badge-env badge-env-demo';
+					statusEl.title = 'Trạng thái: Demo đang chạy';
 				} else {
 					statusEl.innerText = '○ CHƯA DEPLOY';
 					statusEl.className = 'badge-env';
 					statusEl.style.background = 'var(--surface-2)';
 					statusEl.style.color = 'var(--text-muted)';
+					statusEl.title = 'Trạng thái: Chưa deploy';
 				}
 			}
 
@@ -810,16 +837,19 @@ const App = {
 			if (statusEl) {
 				statusEl.style.display = 'inline-flex';
 				if (hasProd) {
-					statusEl.innerText = '● PRODUCTION ĐANG CHẠY';
-					statusEl.className = 'badge-env';
+					statusEl.innerText = '● PRODUCTION';
+					statusEl.className = 'badge-env badge-env-prod';
+					statusEl.title = 'Trạng thái: Production đang chạy';
 				} else if (hasDemo) {
-					statusEl.innerText = '● DEMO ĐANG CHẠY';
-					statusEl.className = 'badge-env';
+					statusEl.innerText = '● DEMO';
+					statusEl.className = 'badge-env badge-env-demo';
+					statusEl.title = 'Trạng thái: Demo đang chạy';
 				} else {
 					statusEl.innerText = '○ CHƯA DEPLOY';
 					statusEl.className = 'badge-env';
 					statusEl.style.background = 'var(--surface-2)';
 					statusEl.style.color = 'var(--text-muted)';
+					statusEl.title = 'Trạng thái: Chưa deploy';
 				}
 			}
 

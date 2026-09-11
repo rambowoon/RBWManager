@@ -24,38 +24,57 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="logo-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
                 </div>
-                <div class="logo-text">RBWManager</div>
+                <div class="logo-text">Anti Sky</div>
             </div>
 
             <nav class="sidebar-nav">
                 <!-- GLOBAL SIDEBAR NAV -->
                 <div id="sidebar-nav-global">
                     <div class="nav-item active" onclick="App.showDashboard(); App.loadProjects('')">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
                         Bảng điều khiển
                     </div>
                     <div class="nav-item" onclick="App.showDashboard(); App.showCategories()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                        </svg>
                         Dự án theo tháng
                     </div>
                     <div class="menu-divider"></div>
                     <div class="nav-item" onclick="ConverterUI.show()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                            <circle cx="12" cy="13" r="4" />
+                        </svg>
                         Công cụ ảnh
                     </div>
                     <div class="nav-item" onclick="App.showCacheClearer()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16" />
+                        </svg>
                         Xóa cache trình duyệt
                     </div>
                     <div class="menu-divider"></div>
                     <div class="nav-item" onclick="App.showDemoServers()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
                         Server Demo
                     </div>
                     <div class="nav-item" onclick="App.showGlobalConfig()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
                         Setting
                     </div>
                 </div>
@@ -63,7 +82,9 @@
                 <!-- PROJECT-SPECIFIC SIDEBAR NAV (ACTIVE IN PROJECT DETAIL) -->
                 <div id="sidebar-nav-project" style="display:none;">
                     <div class="nav-item" onclick="App.showDashboard()" style="color:var(--primary); font-weight:700; margin-bottom:12px; background:rgba(0,210,211,0.06); border:1px solid rgba(0,210,211,0.2);">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M19 12H5M12 19l-7-7 7-7" />
+                        </svg>
                         Quay lại danh sách
                     </div>
                     <div style="font-size: 10px; font-weight: 750; text-transform: uppercase; color: #64748b; padding: 4px 10px 8px; letter-spacing: 0.8px;">
@@ -129,16 +150,20 @@
                 <div class="header-left">
                     <div id="nav-header" class="nav-header-flex">
                         <button class="btn btn-ghost" onclick="App.showCategories()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7" />
+                            </svg>
                         </button>
                         <div class="category-breadcrumb">Dự án / <span id="current-category" class="category-current">Toàn bộ</span></div>
                     </div>
                     <div id="dashboard-breadcrumb" class="dashboard-breadcrumb-text">Bảng điều khiển</div>
-                    
+
                     <!-- Integrated Project Header (Moved up to top navbar) -->
                     <div id="project-detail-header" class="flex-align-center-gap15" style="display:none;">
                         <button class="btn btn-ghost btn-back back-btn" onclick="App.showDashboard()" style="padding: 6px 14px; font-size: 13px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Quay lại
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M19 12H5M12 19l-7-7 7-7" />
+                            </svg> Quay lại
                         </button>
                         <h2 class="section-title detail-title" id="detail-project-name" style="margin:0; font-size:1.15rem; font-weight:800; color:#fff; letter-spacing: 0.3px;">Tên dự án</h2>
                     </div>
@@ -146,10 +171,10 @@
 
                 <div class="header-right flex-center-gap">
                     <?php
-                        $sysPhpVer = PHP_VERSION;
-                        $sysPhpShort = 'PHP ' . PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
-                        $sysPhpNum = (float) PHP_VERSION;
-                        $sysPhpClass = ($sysPhpNum >= 8.4) ? 'php-v84' : (($sysPhpNum >= 8.3) ? 'php-v83' : (($sysPhpNum < 8.0) ? 'php-v74' : 'php-v8x'));
+                    $sysPhpVer = PHP_VERSION;
+                    $sysPhpShort = 'PHP ' . PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+                    $sysPhpNum = (float) PHP_VERSION;
+                    $sysPhpClass = ($sysPhpNum >= 8.4) ? 'php-v84' : (($sysPhpNum >= 8.3) ? 'php-v83' : (($sysPhpNum < 8.0) ? 'php-v74' : 'php-v8x'));
                     ?>
                     <!-- SYSTEM PHP BADGE (Always visible on header) -->
                     <div class="system-php-header-badge <?= $sysPhpClass ?>" id="system-php-header-badge" title="Phiên bản PHP máy chủ hệ thống RBWStack: php-<?= $sysPhpVer ?>">
@@ -163,8 +188,10 @@
                     <div class="theme-dropdown-wrapper">
                         <button class="theme-toggle-btn" id="theme-menu-btn" onclick="UI.toggleThemeMenu(event)" title="Đổi màu giao diện (Theme)">
                             <span class="theme-current-dot" id="theme-current-dot"></span>
-                            <span id="theme-current-label">Xanh Mint</span>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                            <span id="theme-current-label" class="theme-label-text">Xanh Mint</span>
+                            <svg class="theme-toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 9l6 6 6-6" />
+                            </svg>
                         </button>
                         <div class="theme-menu" id="theme-menu-dropdown">
                             <div class="theme-menu-item" data-theme-val="mint" onclick="UI.setTheme('mint')">
@@ -220,17 +247,25 @@
                         </div>
                     </div>
 
-                    <button class="btn btn-ghost" id="btn-check-deploy-status" onclick="App.checkCategoryDeployStatus()" title="Kiểm tra trạng thái dự án trên các phân vùng Demo / Production" style="border-color: rgba(95, 240, 190, 0.3); color: #5FF0BE;">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>
-                        Check Demo / Prod
+                    <button class="btn btn-ghost btn-header-check-deploy" id="btn-check-deploy-status" onclick="App.checkCategoryDeployStatus()" title="Kiểm tra trạng thái dự án trên các phân vùng Demo / Production" style="border-color: rgba(95, 240, 190, 0.3); color: #5FF0BE;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.3-4.3" />
+                            <path d="M11 8v6M8 11h6" />
+                        </svg>
+                        <span class="btn-text">Check Demo / Prod</span>
                     </button>
-                    <button class="btn btn-primary" onclick="App.showDeployProjectModal()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-                        Triển khai dự án
+                    <button class="btn btn-primary btn-header-deploy" onclick="App.showDeployProjectModal()" title="Triển khai dự án lên Server Demo">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg>
+                        <span class="btn-text">Triển khai dự án</span>
                     </button>
-                    <button class="btn btn-ghost" onclick="App.refreshSystemCache()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.8 1.04 6.44 2.73L21 8M21 3v5h-5"/></svg>
-                        Làm mới
+                    <button class="btn btn-ghost btn-header-refresh" onclick="App.refreshSystemCache()" title="Làm mới bộ nhớ đệm và dữ liệu hệ thống">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M21 12a9 9 0 11-9-9c2.52 0 4.8 1.04 6.44 2.73L21 8M21 3v5h-5" />
+                        </svg>
+                        <span class="btn-text">Làm mới</span>
                     </button>
                 </div>
             </header>
@@ -241,7 +276,12 @@
                     <div class="stats-grid" id="stats-summary">
                         <div class="stat-card stat-card-total">
                             <div class="stat-icon-box">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                                    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                                    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                                    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                                </svg>
                             </div>
                             <div class="stat-info">
                                 <div class="stat-label">Tổng dự án</div>
@@ -250,7 +290,9 @@
                         </div>
                         <div class="stat-card stat-card-configured">
                             <div class="stat-icon-box">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                </svg>
                             </div>
                             <div class="stat-info">
                                 <div class="stat-label">Đã cấu hình</div>
@@ -259,7 +301,9 @@
                         </div>
                         <div class="stat-card stat-card-demo">
                             <div class="stat-icon-box">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
+                                </svg>
                             </div>
                             <div class="stat-info">
                                 <div class="stat-label">Dự án Demo</div>
@@ -284,32 +328,53 @@
                                 <div class="project-toolbar-actions">
                                     <!-- Search Box -->
                                     <div class="project-search-wrap">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <circle cx="11" cy="11" r="8" />
+                                            <path d="M21 21l-4.35-4.35" />
+                                        </svg>
                                         <input type="text" id="project-search-input" placeholder="Tìm dự án..." oninput="App.onProjectSearch(this.value)">
                                     </div>
 
                                     <!-- Sort Custom Dropdown -->
                                     <div class="project-sort-wrap" id="sort-dropdown-wrap">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path d="M3 6h18M6 12h12M10 18h4" />
+                                        </svg>
                                         <button class="sort-dropdown-btn" id="sort-dropdown-btn" onclick="App.toggleSortDropdown(event)">
                                             <span id="sort-label-text">Mới nhất trước</span>
-                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <polyline points="6 9 12 15 18 9" />
+                                            </svg>
                                         </button>
                                         <div class="sort-dropdown-menu" id="sort-dropdown-menu">
                                             <div class="sort-opt" data-val="date_desc" onclick="App.onProjectSortChange('date_desc')">
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                    <polyline points="12 6 12 12 16 14" />
+                                                </svg>
                                                 Mới nhất trước
                                             </div>
                                             <div class="sort-opt" data-val="date_asc" onclick="App.onProjectSortChange('date_asc')">
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 14"/></svg>
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                    <polyline points="12 6 12 12 8 14" />
+                                                </svg>
                                                 Cũ nhất trước
                                             </div>
                                             <div class="sort-opt" data-val="name_asc" onclick="App.onProjectSortChange('name_asc')">
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/></svg>
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <line x1="4" y1="6" x2="20" y2="6" />
+                                                    <line x1="4" y1="12" x2="14" y2="12" />
+                                                    <line x1="4" y1="18" x2="9" y2="18" />
+                                                </svg>
                                                 Tên: A → Z
                                             </div>
                                             <div class="sort-opt" data-val="name_desc" onclick="App.onProjectSortChange('name_desc')">
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="9" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <line x1="4" y1="6" x2="9" y2="6" />
+                                                    <line x1="4" y1="12" x2="14" y2="12" />
+                                                    <line x1="4" y1="18" x2="20" y2="18" />
+                                                </svg>
                                                 Tên: Z → A
                                             </div>
                                         </div>
@@ -318,17 +383,32 @@
                                     <!-- View Toggle -->
                                     <div class="view-toggle-wrap">
                                         <button id="view-btn-card" class="view-toggle-btn active" onclick="App.onViewModeChange('card')" title="Dạng Card">
-                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                                                <rect x="3" y="3" width="8" height="8" rx="1.5" />
+                                                <rect x="13" y="3" width="8" height="8" rx="1.5" />
+                                                <rect x="3" y="13" width="8" height="8" rx="1.5" />
+                                                <rect x="13" y="13" width="8" height="8" rx="1.5" />
+                                            </svg>
                                         </button>
                                         <button id="view-btn-list" class="view-toggle-btn" onclick="App.onViewModeChange('list')" title="Dạng List">
-                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <line x1="8" y1="6" x2="21" y2="6" />
+                                                <line x1="8" y1="12" x2="21" y2="12" />
+                                                <line x1="8" y1="18" x2="21" y2="18" />
+                                                <circle cx="3" cy="6" r="1.5" fill="currentColor" stroke="none" />
+                                                <circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                                                <circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none" />
+                                            </svg>
                                         </button>
                                     </div>
 
                                     <div class="toolbar-sep"></div>
 
                                     <button class="btn btn-ghost" id="btn-batch-screenshot" onclick="App.batchCaptureScreenshots()" title="Tự động chụp ảnh tất cả website trong danh mục này" style="font-size:0.8rem; padding:6px 12px; height:34px; display:inline-flex; align-items:center; gap:6px;">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                                            <circle cx="12" cy="13" r="4" />
+                                        </svg>
                                         Chụp ảnh danh mục
                                     </button>
 
@@ -453,7 +533,9 @@
                                         <h3 class="card-title-sm">PREVIEW FONTS.CSS</h3>
                                     </div>
                                     <button class="btn btn-ghost btn-sm" onclick="FontManager.loadCssPreview()" title="Làm mới">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                                        </svg>
                                     </button>
                                 </div>
                                 <div id="fonts-css-preview" class="fonts-preview-box">
@@ -490,7 +572,7 @@
 
                             <div class="grid-1-gap15">
                                 <div id="project-webp-status" class="d-none" style="padding:15px; border-radius:10px; font-size:0.85rem;"></div>
-                                
+
                                 <div style="overflow-x:auto;">
                                     <table class="table table-webp">
                                         <thead>
@@ -520,7 +602,13 @@
                             <div class="trim-header">
                                 <div class="trim-title-wrap">
                                     <div class="trim-title-icon">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88"/><path d="M14.47 14.48 20 20"/><path d="M8.12 8.12 12 12"/></svg>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="6" cy="6" r="3" />
+                                            <circle cx="6" cy="18" r="3" />
+                                            <path d="M20 4 8.12 15.88" />
+                                            <path d="M14.47 14.48 20 20" />
+                                            <path d="M8.12 8.12 12 12" />
+                                        </svg>
                                     </div>
                                     <div>
                                         <h3 class="trim-title">Trim ảnh trong thư mục assets/images/images</h3>
@@ -536,11 +624,15 @@
                             <div class="trim-toolbar">
                                 <div class="trim-toolbar-left">
                                     <button type="button" class="am-toolbar-btn" id="btn-trim-toggle-all" data-mode="select">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <polyline points="20 6 9 17 4 12" />
+                                        </svg>
                                         <span>Chọn tất cả</span>
                                     </button>
                                     <button type="button" class="am-toolbar-btn" onclick="ImageTrimManager.loadImages()">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                                        </svg>
                                         Quét lại
                                     </button>
                                 </div>
@@ -567,7 +659,9 @@
                             <div class="am-header">
                                 <div class="am-title-wrap">
                                     <div class="am-title-icon">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                                        </svg>
                                     </div>
                                     <div>
                                         <h3 class="am-title">Tự động Map Ảnh</h3>
@@ -588,19 +682,35 @@
                             <!-- Type Tabs -->
                             <div id="auto-media-main-tabs" class="am-main-tabs">
                                 <button type="button" class="am-tab-btn active" data-main-key="type-photo">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <polyline points="21 15 16 10 5 21" />
+                                    </svg>
                                     Photo
                                 </button>
                                 <button type="button" class="am-tab-btn" data-main-key="type-static">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                        <line x1="9" y1="3" x2="9" y2="21" />
+                                    </svg>
                                     Static
                                 </button>
                                 <button type="button" class="am-tab-btn" data-main-key="type-news">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
+                                        <path d="M18 14h-8" />
+                                        <path d="M15 18h-5" />
+                                        <path d="M10 6h8v4h-8V6Z" />
+                                    </svg>
                                     News
                                 </button>
                                 <button type="button" class="am-tab-btn" data-main-key="type-products">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                                        <line x1="3" y1="6" x2="21" y2="6" />
+                                        <path d="M16 10a4 4 0 0 1-8 0" />
+                                    </svg>
                                     Products
                                 </button>
                             </div>
@@ -609,16 +719,24 @@
                             <div class="am-toolbar">
                                 <div class="am-toolbar-left">
                                     <button type="button" class="am-toolbar-btn" id="btn-am-toggle-all" data-mode="select">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <polyline points="20 6 9 17 4 12" />
+                                        </svg>
                                         <span>Chọn tất cả</span>
                                     </button>
                                     <button type="button" class="am-toolbar-btn" id="btn-am-rescan">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                                        </svg>
                                         <span>Quét lại</span>
                                     </button>
                                 </div>
                                 <div class="am-warning-inline">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                        <line x1="12" y1="9" x2="12" y2="13" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
                                     File cũ sẽ bị xóa vật lý khi cập nhật
                                 </div>
                             </div>
@@ -626,7 +744,11 @@
                             <!-- Groups Content -->
                             <div id="auto-media-groups" class="am-groups">
                                 <div class="am-empty">
-                                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <polyline points="21 15 16 10 5 21" />
+                                    </svg>
                                     <p>Chọn tab loại ảnh để bắt đầu quét</p>
                                 </div>
                             </div>
@@ -634,11 +756,15 @@
                             <!-- Footer -->
                             <div class="am-footer">
                                 <div class="am-footer-info" id="am-run-summary" style="display:none;">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
                                     <span id="am-run-summary-text"></span>
                                 </div>
                                 <button id="btn-auto-media-run" class="am-run-btn">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                                    </svg>
                                     Cập nhật &amp; Dọn rác
                                 </button>
                             </div>
@@ -672,17 +798,23 @@
                                         <span style="text-transform: none; letter-spacing: normal;">Đồng bộ ClearData</span>
                                     </label>
                                     <button class="btn btn-ghost btn-sm" onclick="SyncCenter.openBackupHistory()" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); color: #cbd5e1; margin: 0; text-transform: none;">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 📦 Lịch sử Backup
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                        </svg> 📦 Lịch sử Backup
                                     </button>
                                     <button class="btn btn-outline btn-sm" id="sc-btn-scan" onclick="SyncCenter.scan()" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); margin: 0; text-transform: none;">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Quét &amp; So sánh
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                            <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" />
+                                        </svg> Quét &amp; So sánh
                                     </button>
                                 </div>
                             </div>
                             <div id="sync-center-content">
                                 <div style="padding: 50px 20px; text-align: center; color: var(--text-muted, #888); background: rgba(255,255,255,0.01); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.06);">
                                     <div style="display: inline-flex; width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.03); align-items: center; justify-content: center; margin-bottom: 14px;">
-                                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="opacity: 0.5;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="opacity: 0.5;">
+                                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                                        </svg>
                                     </div>
                                     <h4 style="color: #cbd5e1; font-size: 15px; margin-bottom: 4px; font-weight: 600;">Sẵn sàng đối soát mã nguồn</h4>
                                     <p style="font-size: 13px; max-width: 440px; margin: 0 auto; color: #64748b;">Nhấn <b>"Quét & So sánh"</b> để kiểm tra các file đã được AI hoặc thành viên khác chỉnh sửa.</p>
@@ -741,14 +873,16 @@
                                     <button class="btn btn-ghost" onclick="FileManager.loadCurrentPath(); FileManager.loadTree();">🔄 Làm mới</button>
                                 </div>
                             </div>
-                            
+
                             <!-- 2-Column Split: Tree View & File List -->
                             <div class="fm-layout-split" style="display: flex; gap: 16px; min-height: 520px;">
                                 <!-- Left Sidebar: Directory Tree -->
                                 <div class="fm-tree-sidebar" style="width: 250px; min-width: 210px; max-width: 300px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden;">
                                     <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
                                         <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #94a3b8); display: flex; align-items: center; gap: 6px;">
-                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> CÂY THƯ MỤC
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                                            </svg> CÂY THƯ MỤC
                                         </span>
                                         <button class="btn btn-ghost btn-sm" onclick="FileManager.loadTree(true); FileManager.loadCurrentPath();" style="padding: 2px 6px; font-size: 11px;" title="Tải lại cây thư mục">🔄</button>
                                     </div>
@@ -768,7 +902,7 @@
                                             <input type="text" id="fm-search-input" placeholder="🔍 Tìm kiếm file..." style="width: 100%; height: 100%; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,0.25); color: #fff; font-size: 0.85rem; outline: none; box-sizing: border-box;" oninput="FileManager.filterList(this.value)">
                                         </div>
                                     </div>
-                                    
+
                                     <div class="fm-list-container" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; flex: 1;">
                                         <table class="table table-webp" style="width: 100%; border-collapse: collapse;">
                                             <thead>
@@ -799,7 +933,10 @@
                             <div class="seed-header">
                                 <div class="seed-title-wrap">
                                     <div class="seed-title-icon">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V12M12 12C12 12 9 9 6 9s-6 3-6 3M12 12c0 0 3-3 6-3s6 3 6 3M6 15c0 0-3-3-6-3M18 15c0 0 3-3 6-3"/><circle cx="12" cy="5" r="3"/></svg>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 22V12M12 12C12 12 9 9 6 9s-6 3-6 3M12 12c0 0 3-3 6-3s6 3 6 3M6 15c0 0-3-3-6-3M18 15c0 0 3-3 6-3" />
+                                            <circle cx="12" cy="5" r="3" />
+                                        </svg>
                                     </div>
                                     <div>
                                         <h3 class="seed-title">Tạo Dữ Liệu Mẫu</h3>
@@ -829,16 +966,32 @@
                             <!-- Type Tabs -->
                             <div id="seed-main-tabs" class="am-main-tabs" style="margin-bottom:16px;">
                                 <button type="button" class="am-tab-btn active" data-main-key="type-photo">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Photo
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <polyline points="21 15 16 10 5 21" />
+                                    </svg>Photo
                                 </button>
                                 <button type="button" class="am-tab-btn" data-main-key="type-static">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>Static
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                        <line x1="9" y1="3" x2="9" y2="21" />
+                                    </svg>Static
                                 </button>
                                 <button type="button" class="am-tab-btn" data-main-key="type-news">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>News
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
+                                        <path d="M18 14h-8" />
+                                        <path d="M15 18h-5" />
+                                        <path d="M10 6h8v4h-8V6Z" />
+                                    </svg>News
                                 </button>
                                 <button type="button" class="am-tab-btn" data-main-key="type-products">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Products
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                                        <line x1="3" y1="6" x2="21" y2="6" />
+                                        <path d="M16 10a4 4 0 0 1-8 0" />
+                                    </svg>Products
                                 </button>
                             </div>
 
@@ -847,7 +1000,9 @@
                                 <!-- LEFT: sub-types -->
                                 <div class="seed-left">
                                     <div class="seed-panel-header">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M4 6h16M4 12h16M4 18h7" />
+                                        </svg>
                                         Chọn sub-type cần tạo
                                     </div>
                                     <div id="seed-sub-types" class="seed-sub-types">
@@ -858,11 +1013,17 @@
                                 <!-- RIGHT: image grid -->
                                 <div class="seed-right">
                                     <div class="seed-panel-header">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                                            <circle cx="8.5" cy="8.5" r="1.5" />
+                                            <polyline points="21 15 16 10 5 21" />
+                                        </svg>
                                         Chọn ảnh (cho sub-type đang active)
                                         <span class="seed-img-total-chip">Tổng: <strong id="seed-img-total">0</strong> ảnh</span>
                                         <button type="button" class="am-toolbar-btn" id="btn-seed-scan" style="margin-left:auto;" onclick="SeedManager.scanFolder()">
-                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
                                             Quét
                                         </button>
                                     </div>
@@ -871,7 +1032,11 @@
                                     <!-- Image grid -->
                                     <div id="seed-images-grid" class="seed-images-grid">
                                         <div class="seed-img-empty">
-                                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                                <polyline points="21 15 16 10 5 21" />
+                                            </svg>
                                             <p>Nhấn Quét để tải danh sách ảnh</p>
                                         </div>
                                     </div>
@@ -881,15 +1046,22 @@
                             <!-- Footer -->
                             <div class="seed-footer">
                                 <div class="seed-footer-hint">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M12 16v-4M12 8h.01" />
+                                    </svg>
                                     Ảnh được copy vào thư mục public của dự án, DB được ghi bản ghi ngẫu nhiên
                                 </div>
                                 <button id="btn-seed-run-ai" class="seed-run-btn" style="background: var(--primary); margin-right: 10px;" onclick="UI.showModal('seed-ai-modal')">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polygon points="5 3 19 12 5 21 5 3" />
+                                    </svg>
                                     <span>Tạo bằng AI (Gemini)</span>
                                 </button>
                                 <button id="btn-seed-run" class="seed-run-btn">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polygon points="5 3 19 12 5 21 5 3" />
+                                    </svg>
                                     <span>Tạo dữ liệu mẫu</span>
                                 </button>
                             </div>
@@ -905,7 +1077,9 @@
 
                     <div class="item-card converter-dropzone" id="drop-zone">
                         <div class="item-card-icon converter-icon-box">
-                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                            </svg>
                         </div>
                         <h3 class="mb-8">Kéo thả ảnh vào đây</h3>
                         <p class="converter-dropzone-text">Hoặc nhấn để chọn file (Hỗ trợ PNG, JPG, WebP)</p>
@@ -952,12 +1126,12 @@
                     <div class="section-header">
                         <h2 class="section-title">🧹 Xóa cache trình duyệt cho URL</h2>
                     </div>
-                    
+
                     <div class="card-container" style="background:var(--card); padding:24px; border-radius:20px; border:1px solid var(--border); margin-top:20px;">
                         <p style="color:var(--muted); font-size:0.9rem; margin-bottom:20px;">
                             Công cụ này gửi các yêu cầu ép tải lại từ mạng (<code>cache: 'reload'</code>) trực tiếp tới đường dẫn URL chỉ định (trên cả HTTP và HTTPS) nhằm xóa bỏ và cập nhật cache của riêng đường link đó (bao gồm cache chuyển hướng 301) mà không ảnh hưởng tới các dự án khác trên localhost.
                         </p>
-                        
+
                         <div class="form-group" style="margin-bottom: 20px;">
                             <label style="font-weight:600; margin-bottom:8px; display:block;">Nhập đường dẫn URL cần xóa cache:</label>
                             <input type="text" id="cache-clear-url" placeholder="Ví dụ: http://localhost/2026_05/oneled_0056226w/ hoặc https://localhost/2026_05/oneled_0056226w/" style="width:100%; padding:12px; background:rgba(0,0,0,0.2); border:1px solid var(--border); border-radius:8px; color:#fff;">
@@ -966,7 +1140,7 @@
                         <div style="display:flex; gap:12px; align-items:center;">
                             <button class="btn btn-primary" onclick="CacheClearer.run()" id="btn-cache-clear">🚀 Tiến hành xóa cache</button>
                         </div>
-                        
+
                         <div id="cache-clear-status" style="margin-top:20px; display:none; padding:15px; border-radius:10px; font-size:0.85rem;"></div>
                     </div>
                 </div>
@@ -987,7 +1161,7 @@
                     <div class="section-header">
                         <h2 class="section-title">⚙️ Cấu hình chung (Setting)</h2>
                     </div>
-                    
+
                     <div class="card-container card-padded" style="margin-top:20px;">
                         <form id="global-config-form">
 
@@ -1022,7 +1196,10 @@
                                         <div class="password-wrapper">
                                             <input type="password" id="g_cf_api_token">
                                             <span class="toggle-password" onclick="UI.togglePassword('g_cf_api_token', this)">
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
                                             </span>
                                         </div>
                                     </div>
@@ -1041,7 +1218,10 @@
                                         <div class="password-wrapper">
                                             <input type="password" id="g_gemini_key" placeholder="AIzaSy...">
                                             <span class="toggle-password" onclick="UI.togglePassword('g_gemini_key', this)">
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
                                             </span>
                                         </div>
                                     </div>
@@ -1050,7 +1230,10 @@
                                         <div class="password-wrapper">
                                             <input type="password" id="g_claude_key" placeholder="sk-ant-api03...">
                                             <span class="toggle-password" onclick="UI.togglePassword('g_claude_key', this)">
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
                                             </span>
                                         </div>
                                     </div>
@@ -1110,7 +1293,9 @@
         <div class="modal" style="max-width: 850px; width: 95%;">
             <div class="modal-header-flex">
                 <h2 id="modal-title">Bảng điều khiển dự án</h2>
-                <button class="btn btn-close-circle" onclick="UI.hideModal('config-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+                <button class="btn btn-close-circle" onclick="UI.hideModal('config-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg></button>
             </div>
 
             <div class="project-master-layout">
@@ -1137,17 +1322,20 @@
                             <div class="password-wrapper">
                                 <input type="password" id="ftp_pass">
                                 <span class="toggle-password" onclick="UI.togglePassword('ftp_pass', this)">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
                                 </span>
                             </div>
                         </div>
                         <div class="form-group"><label>FTP Root Path</label><input type="text" id="ftp_root" placeholder="/public_html"></div>
-                        
+
                         <div class="modal-footer-actions">
                             <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
                         </div>
                     </form>
-                    
+
                     <!-- Lịch sử thao tác -->
                     <div id="master-history-info"></div>
                 </div>
@@ -1243,7 +1431,9 @@
                     <span>📸</span> Tiến trình chụp ảnh website
                 </h2>
                 <button id="batch-screenshot-close-x" class="btn-close-circle" style="display:none;" onclick="UI.hideModal('batch-screenshot-modal')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
             <div style="margin: 15px 0 20px 0;">
@@ -1263,7 +1453,7 @@
                     <span id="batch-screenshot-status-msg">Đang nạp danh sách dự án...</span>
                 </div>
             </div>
-            
+
             <div id="batch-screenshot-log" style="max-height:220px; overflow-y:auto; background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:12px; font-size:0.8rem; font-family:var(--mono); display:flex; flex-direction:column; gap:6px;">
                 <!-- Live items logged here -->
             </div>
@@ -1283,7 +1473,9 @@
                     <span>📸</span> <span id="single-shot-title-text">Chụp ảnh website</span>
                 </h2>
                 <button id="single-screenshot-close-x" class="btn-close-circle" onclick="UI.hideModal('single-screenshot-modal')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
 
@@ -1391,11 +1583,16 @@
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
                 <button id="btn-single-shot-close" class="btn btn-ghost" onclick="UI.hideModal('single-screenshot-modal')">Đóng</button>
                 <button id="btn-single-shot-retry" class="btn btn-primary" style="display:none;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
                     Thử lại
                 </button>
                 <a id="btn-single-shot-view-full" href="#" target="_blank" class="btn btn-primary" style="display:none; text-decoration:none;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
+                    </svg>
                     Mở ảnh gốc
                 </a>
             </div>
@@ -1422,7 +1619,9 @@
             <div class="modal-header-flex">
                 <h2>⚙️ Cấu hình Hosting</h2>
                 <button class="btn btn-close-circle" onclick="UI.hideModal('detail-config-modal')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
 
@@ -1449,12 +1648,15 @@
                     <div class="password-wrapper">
                         <input type="password" id="d_ftp_pass">
                         <span class="toggle-password" onclick="UI.togglePassword('d_ftp_pass', this)">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
                         </span>
                     </div>
                 </div>
                 <div class="form-group"><label>FTP Root Path</label><input type="text" id="d_ftp_root" placeholder="/public_html"></div>
-                
+
                 <div class="modal-footer-actions">
                     <button type="button" class="btn btn-ghost" onclick="UI.hideModal('detail-config-modal')">Hủy</button>
                     <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
@@ -1468,7 +1670,9 @@
         <div class="modal" style="max-width: 500px;">
             <div class="modal-header-flex">
                 <h2>⚡ Nhập nhanh cấu hình</h2>
-                <button class="btn btn-close-circle" onclick="UI.hideModal('quick-paste-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+                <button class="btn btn-close-circle" onclick="UI.hideModal('quick-paste-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg></button>
             </div>
             <div class="quick-paste-box" style="margin:0; border:none; background:transparent; padding:0;">
                 <p style="font-size:0.75rem; color:var(--muted); margin-bottom:15px;">Dán toàn bộ thông tin Hosting/FTP bạn nhận được vào đây. Hệ thống sẽ tự động bóc tách các trường dữ liệu.</p>
@@ -1486,7 +1690,9 @@ Pass: password123..." style="height:200px;"></textarea>
         <div class="modal" style="max-width: 500px;">
             <div class="modal-header-flex">
                 <h2>⚡ Dán nhanh cấu hình Demo</h2>
-                <button class="btn btn-close-circle" onclick="UI.hideModal('demo-quick-paste-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+                <button class="btn btn-close-circle" onclick="UI.hideModal('demo-quick-paste-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg></button>
             </div>
             <div class="quick-paste-box" style="margin:0; border:none; background:transparent; padding:0;">
                 <textarea id="demo_quick_paste_text" placeholder="Dán văn bản cấu hình vào đây..." style="height:200px;"></textarea>
@@ -1502,7 +1708,9 @@ Pass: password123..." style="height:200px;"></textarea>
             <div class="modal-header-flex">
                 <h2>⚠️ Database Đã Tồn Tại</h2>
                 <button class="btn btn-close-circle" onclick="UI.hideModal('local-db-confirm-modal')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
             <div style="margin: 15px 0;">
@@ -1531,8 +1739,14 @@ Pass: password123..." style="height:200px;"></textarea>
     <script src="assets/js/schema_components.js?v=<?= time(); ?>"></script>
     <script src="assets/js/schema_builder.js?v=<?= time(); ?>"></script>
     <script type="module">
-        import { Font, woff2 } from 'https://cdn.jsdelivr.net/npm/fonteditor-core/+esm';
-        window.fonteditor = { Font, woff2 };
+        import {
+            Font,
+            woff2
+        } from 'https://cdn.jsdelivr.net/npm/fonteditor-core/+esm';
+        window.fonteditor = {
+            Font,
+            woff2
+        };
         woff2.init('https://cdn.jsdelivr.net/npm/fonteditor-core/woff2/woff2.wasm').then(() => {
             console.log('WOFF2 initialized');
         }).catch(err => {
@@ -1551,7 +1765,9 @@ Pass: password123..." style="height:200px;"></textarea>
         <div class="modal" style="max-width: 500px;">
             <div class="modal-header-flex">
                 <h2>Thay đổi Type Database</h2>
-                <button class="btn btn-close-circle" onclick="UI.hideModal('change-type-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+                <button class="btn btn-close-circle" onclick="UI.hideModal('change-type-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg></button>
             </div>
             <form id="change-type-form" onsubmit="event.preventDefault(); App.executeChangeType();">
                 <input type="hidden" id="ct-project-name">
@@ -1591,7 +1807,9 @@ Pass: password123..." style="height:200px;"></textarea>
         <div class="modal" style="max-width: 450px;">
             <div class="modal-header-flex">
                 <h2>Đổi phiên bản PHP (Production)</h2>
-                <button class="btn btn-close-circle" onclick="UI.hideModal('change-php-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+                <button class="btn btn-close-circle" onclick="UI.hideModal('change-php-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg></button>
             </div>
             <form id="change-php-form" onsubmit="event.preventDefault(); App.executeChangePhpVersion();">
                 <input type="hidden" id="cpp-project-name">
@@ -1682,25 +1900,27 @@ Pass: password123..." style="height:200px;"></textarea>
             <div class="modal-header-flex">
                 <h2>Cài đặt SSL Let's Encrypt</h2>
                 <button class="btn-close-circle" onclick="UI.hideModal('ssl-modal')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
             <div class="modal-body" style="padding: 20px 0;">
                 <div id="ssl-project-name" style="font-weight: 700; color: var(--primary); margin-bottom: 10px; font-size: 1.1rem;"></div>
                 <div id="ssl-status-text" style="font-size: 0.9rem; color: var(--muted); margin-bottom: 20px; line-height: 1.5;"></div>
-                
+
                 <div id="ssl-status-icon" style="display:none; text-align:center; margin-bottom: 20px;">
                     <div class="spinner" style="margin: 0 auto;"></div>
                 </div>
 
                 <div id="ssl-log-output" style="max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-family: monospace; font-size: 0.75rem; margin-bottom: 10px;"></div>
             </div>
-            
+
             <div id="ssl-confirm-footer" class="modal-footer-actions">
                 <button class="btn btn-ghost" onclick="UI.hideModal('ssl-modal')">Hủy</button>
                 <button id="ssl-start-btn" class="btn btn-primary">🛡️ Xác nhận cài đặt</button>
             </div>
-            
+
             <div id="ssl-footer" class="modal-footer-actions" style="display:none;">
                 <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="UI.hideModal('ssl-modal')">Đóng</button>
             </div>
@@ -1714,7 +1934,9 @@ Pass: password123..." style="height:200px;"></textarea>
             <div class="modal-header-flex">
                 <h3 class="modal-title">Triển khai dự án mới</h3>
                 <button class="btn-close-circle" onclick="UI.hideModal('deploy-project-modal')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
             <div class="modal-body">
@@ -1749,7 +1971,9 @@ Pass: password123..." style="height:200px;"></textarea>
                     <h2>Tạo Dữ Liệu bằng AI (Gemini Vision)</h2>
                 </div>
                 <button class="btn-close-circle" onclick="UI.hideModal('seed-ai-modal')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
             <div class="modal-body" style="padding: 15px 0;">
@@ -1761,9 +1985,13 @@ Pass: password123..." style="height:200px;"></textarea>
                     </label>
                     <div id="seed-design-dropzone" class="seed-design-dropzone" onclick="document.getElementById('seed-design-file-input').click()">
                         <input type="file" id="seed-design-file-input" accept="image/*" style="display:none;" onchange="SeedManager.handleDesignFileSelect(this)">
-                        
+
                         <div id="seed-design-empty" class="seed-design-placeholder">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--primary); opacity:0.8;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--primary); opacity:0.8;">
+                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
                             <p style="font-size:0.85rem; font-weight:600; color:#fff; margin:6px 0 2px;">Kéo thả ảnh hoặc bấm để tải lên</p>
                             <span style="font-size:0.75rem; color:var(--muted);">Hoặc nhấn <strong>Ctrl + V</strong> để dán ảnh chụp màn hình Figma</span>
                         </div>
@@ -1773,7 +2001,9 @@ Pass: password123..." style="height:200px;"></textarea>
                             <div class="seed-design-preview-info">
                                 <span id="seed-design-filename" class="seed-design-name">design_screenshot.png</span>
                                 <button type="button" class="btn btn-ghost btn-sm btn-danger-text" onclick="event.stopPropagation(); SeedManager.removeDesignImage()" title="Xóa ảnh này">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Xóa
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M18 6L6 18M6 6l12 12" />
+                                    </svg> Xóa
                                 </button>
                             </div>
                         </div>
@@ -1812,7 +2042,9 @@ Pass: password123..." style="height:200px;"></textarea>
             <div class="modal-header-flex">
                 <h2>⚠️ Database đã có dữ liệu</h2>
                 <button class="btn-close-circle" onclick="UI.hideModal('deploy-db-confirm-modal')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
             <div class="modal-body" style="padding: 20px 0;">
@@ -1827,26 +2059,33 @@ Pass: password123..." style="height:200px;"></textarea>
                 <button class="btn btn-ghost" onclick="UI.hideModal('deploy-db-confirm-modal')" style="width:100%; justify-content:center;">Hủy</button>
             </div>
         </div>
-    <!-- MODAL: CHECK DEPLOY STATUS -->
-    <div id="check-deploy-status-modal" class="modal-overlay" style="z-index: 10006;">
-        <div class="modal" style="max-width: 720px; width: 90%;">
-            <div class="modal-header-flex">
-                <h2 id="check-deploy-modal-title" style="display: flex; align-items: center; gap: 8px; font-size: 1.1rem;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5FF0BE" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>
-                    <span>Kiểm tra trạng thái Demo / Production</span>
-                </h2>
-                <button class="btn-close-circle" onclick="UI.hideModal('check-deploy-status-modal')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-            </div>
-            <div class="modal-body" id="check-deploy-modal-body" style="padding: 15px 0; max-height: 65vh; overflow-y: auto;">
-                <!-- Content injected via JS -->
-            </div>
-            <div class="modal-footer-actions" style="justify-content: flex-end;">
-                <button class="btn btn-primary" onclick="UI.hideModal('check-deploy-status-modal')">Đóng</button>
+        <!-- MODAL: CHECK DEPLOY STATUS -->
+        <div id="check-deploy-status-modal" class="modal-overlay" style="z-index: 10006;">
+            <div class="modal" style="max-width: 720px; width: 90%;">
+                <div class="modal-header-flex">
+                    <h2 id="check-deploy-modal-title" style="display: flex; align-items: center; gap: 8px; font-size: 1.1rem;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5FF0BE" stroke-width="2.2">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.3-4.3" />
+                            <path d="M11 8v6M8 11h6" />
+                        </svg>
+                        <span>Kiểm tra trạng thái Demo / Production</span>
+                    </h2>
+                    <button class="btn-close-circle" onclick="UI.hideModal('check-deploy-status-modal')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body" id="check-deploy-modal-body" style="padding: 15px 0; max-height: 65vh; overflow-y: auto;">
+                    <!-- Content injected via JS -->
+                </div>
+                <div class="modal-footer-actions" style="justify-content: flex-end;">
+                    <button class="btn btn-primary" onclick="UI.hideModal('check-deploy-status-modal')">Đóng</button>
+                </div>
             </div>
         </div>
-    </div>
 
 </body>
+
 </html>

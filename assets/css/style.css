@@ -902,9 +902,9 @@ padding-left: 15px; border-left: 2px solid rgba(99, 102, 241, 0.2); margin-top: 
 .hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(400px 200px at 92% 0%, var(--primary-glow), transparent 70%); pointer-events: none; }
 .hero-row { position: relative; display: flex; align-items: center; justify-content: space-between; z-index: 1; }
 .hero h1 { font-size: 21px; margin: 0 0 4px; font-family: var(--mono); letter-spacing: -0.3px; color: #fff; }
-.hero .path { font-size: 12.5px; color: var(--text-secondary); }
-.badge-env { font-size: 11px; font-weight: 750; padding: 5px 12px; border-radius: 20px; background: var(--accent-gradient); color: #fff; letter-spacing: 0.3px; }
-.tabs { display: flex; gap: 2px; margin-bottom: 26px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; width: fit-content; }
+.badge-env { font-size: 0.72rem; font-weight: 750; padding: 5px 11px; border-radius: 20px; background: var(--surface-2); color: var(--text-muted); letter-spacing: 0.4px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; user-select: none; transition: all 0.2s ease; border: 1px solid rgba(255, 255, 255, 0.08); }
+.badge-env.badge-env-prod { background: linear-gradient(135deg, rgba(251, 0, 211, 0.16), rgba(224, 85, 0, 0.16)); color: #ff85ea; border: 1px solid rgba(251, 0, 211, 0.4); box-shadow: 0 0 10px rgba(251, 0, 211, 0.12); }
+.badge-env.badge-env-demo { background: rgba(16, 185, 129, 0.14); color: #5FF0BE; border: 1px solid rgba(16, 185, 129, 0.35); box-shadow: 0 0 10px rgba(16, 185, 129, 0.12); }
 .tab, .project-tab-btn { padding: 9px 15px; font-size: 13px; color: var(--text-secondary); font-weight: 550; cursor: pointer; border-radius: 9px; transition: all 0.2s ease; border: 1px solid transparent; }
 .tab:hover, .project-tab-btn:hover { color: var(--text-primary); }
 .tab.active, .project-tab-btn.active { background: var(--accent-gradient) !important; color: #fff !important; border-color: transparent !important; }
@@ -1363,4 +1363,78 @@ padding-left: 15px; border-left: 2px solid rgba(99, 102, 241, 0.2); margin-top: 
 @keyframes pulseDot {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.55; transform: scale(0.8); }
+}
+
+/* ===== RESPONSIVE & COMPACT TOP NAVBAR HEADER ===== */
+.detail-title {
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.theme-toggle-btn {
+    white-space: nowrap;
+    user-select: none;
+}
+
+/* Khi màn hình vừa/nhỏ (laptop 1366px, v.v.), tự động thu gọn chữ các nút phụ để tối ưu không gian */
+@media (max-width: 1440px) {
+    header {
+        padding: 0 20px;
+    }
+    .header-left, .header-right {
+        gap: 10px;
+    }
+    .theme-label-text {
+        display: none;
+    }
+    .theme-toggle-btn {
+        padding: 0 10px;
+        gap: 6px;
+    }
+    .btn-header-refresh .btn-text {
+        display: none;
+    }
+    .btn-header-refresh {
+        padding: 0 11px;
+    }
+    .detail-title {
+        max-width: 260px;
+    }
+}
+
+@media (max-width: 1250px) {
+    .btn-header-check-deploy .btn-text {
+        display: none;
+    }
+    .btn-header-check-deploy {
+        padding: 0 11px;
+    }
+    .btn-header-deploy .btn-text {
+        display: none;
+    }
+    .btn-header-deploy {
+        padding: 0 11px;
+    }
+    .detail-title {
+        max-width: 200px;
+    }
+    .header-right {
+        gap: 7px;
+    }
+}
+
+@media (max-width: 992px) {
+    header {
+        padding: 0 14px;
+    }
+    .detail-title {
+        max-width: 150px;
+        font-size: 1rem !important;
+    }
+    .btn-back {
+        padding: 5px 9px !important;
+        font-size: 12px !important;
+    }
 }

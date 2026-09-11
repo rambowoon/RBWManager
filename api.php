@@ -1,4 +1,5 @@
 <?php
+
 /**
  * RamboWoon Manager API - Full Version
  */
@@ -11,7 +12,8 @@ ini_set('display_errors', 0);
 @ini_set('memory_limit', '512M');
 ignore_user_abort(true);
 
-function getDemoConfigForProject($projectConfig = []) {
+function getDemoConfigForProject($projectConfig = [])
+{
     $globalPath = __DIR__ . '/data/demo_config.json';
     $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
     $demoId = $projectConfig['deployed']['demo']['demo_server_id'] ?? (!empty($projectConfig['deployed']['demo']['url']) ? 'legacy' : ($gConfig['default_demo_id'] ?? 'legacy'));
@@ -27,7 +29,8 @@ function getDemoConfigForProject($projectConfig = []) {
     return $config;
 }
 
-function getProjectTargetHostConfig($projectConfig, $env = 'demo') {
+function getProjectTargetHostConfig($projectConfig, $env = 'demo')
+{
     $env = strtolower($env ?: 'demo');
     if ($env === 'prod' || $env === 'production') {
         $prod = $projectConfig['prod'] ?? [];
@@ -43,19 +46,20 @@ function getProjectTargetHostConfig($projectConfig, $env = 'demo') {
     return ['env' => 'demo', 'config' => $demo];
 }
 
-function autoCleanOldCacheFiles($days = 7) {
+function autoCleanOldCacheFiles($days = 7)
+{
     $cacheBase = __DIR__ . '/cache/remote_edit';
     if (!is_dir($cacheBase)) return;
-    
+
     $lockFile = __DIR__ . '/cache/.last_cleanup';
     if (file_exists($lockFile) && (time() - filemtime($lockFile) < 86400)) {
         return; // Only run once every 24 hours to keep requests ultra fast
     }
     @file_put_contents($lockFile, (string)time());
-    
+
     $cutoff = time() - ($days * 86400);
-    
-    $cleanDir = function($dir) use (&$cleanDir, $cutoff) {
+
+    $cleanDir = function ($dir) use (&$cleanDir, $cutoff) {
         $items = @scandir($dir);
         if ($items === false) return true;
         $isEmpty = true;
@@ -78,20 +82,21 @@ function autoCleanOldCacheFiles($days = 7) {
         }
         return $isEmpty;
     };
-    
+
     $cleanDir($cacheBase);
 }
 
 // Auto clean cache files older than 7 days
 autoCleanOldCacheFiles(7);
 
-function saveSyncAutoBackup($projectName, $category, $subFolder, $cleanPath, $content, $env = 'demo') {
+function saveSyncAutoBackup($projectName, $category, $subFolder, $cleanPath, $content, $env = 'demo')
+{
     if ($content === null || $content === false) return;
     $dateFolder = date('Y-m-d');
     $timePrefix = date('His');
     $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
     $envKey = (strtolower($env) === 'prod' || strtolower($env) === 'production') ? 'prod' : 'demo';
-    
+
     // Tách riêng biệt theo môi trường để không bao giờ bị trùng lặp file backup giữa demo và production
     $backupDir = __DIR__ . "/backups/sync_snapshots/{$safeProj}/{$envKey}/{$dateFolder}/{$subFolder}/" . dirname($cleanPath);
     if (!is_dir($backupDir)) {
@@ -148,18 +153,18 @@ if (PHP_SAPI === 'cli') {
     $debugLogFile = __DIR__ . '/logs/debug_bg_job.log';
     $timestamp = date('Y-m-d H:i:s');
     @file_put_contents($debugLogFile, "[$timestamp] 🌐 HTTP BACKGROUND ENTRY POINT: Đã nhận luồng chạy nền HTTP!\n", FILE_APPEND);
-    
+
     if (is_file($_POST['payloadFile'])) {
         $payloadRaw = file_get_contents($_POST['payloadFile']);
         $cliInputData = json_decode($payloadRaw, true) ?: [];
         $cliInputData['_background'] = true; // Ensure it skips re-queueing
-        
+
         @file_put_contents($debugLogFile, "[$timestamp] HTTP Payload JSON decoded successfully (Keys: " . implode(', ', array_keys($cliInputData)) . ")\n", FILE_APPEND);
         if (!empty($cliInputData['jobId'])) {
             $jobId = $cliInputData['jobId'];
         }
         @unlink($_POST['payloadFile']);
-        
+
         // TRICK TO CLOSE CONNECTION IN HTTP BACKGROUND
         while (ob_get_level()) ob_end_clean();
         header("Connection: close\r\n");
@@ -169,8 +174,8 @@ if (PHP_SAPI === 'cli') {
         echo "Background job started.";
         $size = ob_get_length();
         header("Content-Length: $size");
-        ob_end_flush();     
-        flush();            
+        ob_end_flush();
+        flush();
         if (session_id()) session_write_close();
     } else {
         @file_put_contents($debugLogFile, "[$timestamp] ❌ LỖI HTTP BACKGROUND: Payload file không tồn tại: " . $_POST['payloadFile'] . "\n", FILE_APPEND);
@@ -198,7 +203,8 @@ register_shutdown_function(function () use (&$jobId) {
     }
 });
 
-function writeJobLog($jobId, $data) {
+function writeJobLog($jobId, $data)
+{
     if (!$jobId) return;
     $logDir = __DIR__ . '/logs';
     if (!is_dir($logDir)) @mkdir($logDir, 0777, true);
@@ -206,7 +212,8 @@ function writeJobLog($jobId, $data) {
     file_put_contents($logFile, json_encode($data) . "\n", FILE_APPEND);
 }
 
-function readJsonInput() {
+function readJsonInput()
+{
     global $cliInputData;
     if (is_array($cliInputData)) return $cliInputData;
 
@@ -215,7 +222,8 @@ function readJsonInput() {
     return is_array($data) ? $data : [];
 }
 
-function getPhpCliBinary() {
+function getPhpCliBinary()
+{
     $php = PHP_BINARY;
     $base = strtolower(basename($php));
     if ($base === 'php.exe') {
@@ -245,7 +253,8 @@ function getPhpCliBinary() {
     return 'php';
 }
 
-function startApiBackgroundJob($action, array $data, $jobId) {
+function startApiBackgroundJob($action, array $data, $jobId)
+{
     $safeJobId = preg_replace('/[^a-zA-Z0-9_-]/', '', $jobId ?: ('job_' . time()));
     $logDir = __DIR__ . '/logs';
     if (substr($logDir, 0, 4) === '\\\\.\\' || substr($logDir, 0, 4) === '\\\\?\\') {
@@ -267,7 +276,7 @@ function startApiBackgroundJob($action, array $data, $jobId) {
 
     $php = getPhpCliBinary();
     @file_put_contents($debugLogFile, "[$timestamp] PHP Binary detected: $php (Exists: " . (file_exists($php) ? 'YES' : 'NO') . ")\n", FILE_APPEND);
-    
+
     // Remove Windows Device Namespace prefix (\\.\) which breaks CMD and PHP CLI path resolution
     $scriptFile = __FILE__;
     if (substr($scriptFile, 0, 4) === '\\\\.\\') $scriptFile = substr($scriptFile, 4);
@@ -282,22 +291,22 @@ function startApiBackgroundJob($action, array $data, $jobId) {
     if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
         $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}";
         @file_put_contents($debugLogFile, "[$timestamp] Gọi curl nội bộ tới: $url\n", FILE_APPEND);
-        
+
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_TIMEOUT, 1);
         curl_setopt($ch, CURLOPT_NOSIGNAL, 1);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, [
-            'action' => $action, 
-            'payloadFile' => $payloadFile, 
+            'action' => $action,
+            'payloadFile' => $payloadFile,
             '_background' => 1
         ]);
-        
+
         curl_exec($ch);
         $err = curl_error($ch);
         curl_close($ch);
-        
+
         @file_put_contents($debugLogFile, "[$timestamp] ✅ Đã đẩy luồng qua HTTP cURL (Err: $err)\n", FILE_APPEND);
     } else {
         $cmd = escapeshellarg($php)
@@ -312,7 +321,8 @@ function startApiBackgroundJob($action, array $data, $jobId) {
     return $safeJobId;
 }
 
-function directAdminResponseHasError($response) {
+function directAdminResponseHasError($response)
+{
     $decoded = urldecode((string)$response);
     if (stripos($decoded, 'error=1') !== false) return true;
 
@@ -320,7 +330,8 @@ function directAdminResponseHasError($response) {
     return is_array($json) && (($json['status'] ?? '') === 'error');
 }
 
-function parseFontFilename($filename) {
+function parseFontFilename($filename)
+{
     $f = $filename;
     $weight = '400';
     if (preg_match('/(thin|100)/i', $f)) $weight = '100';
@@ -331,15 +342,15 @@ function parseFontFilename($filename) {
     elseif (preg_match('/(extrabold|800|heavy)/i', $f)) $weight = '800';
     elseif (preg_match('/(bold|700)/i', $f)) $weight = '700';
     elseif (preg_match('/(black|900)/i', $f)) $weight = '900';
-    
+
     $style = preg_match('/italic/i', $f) ? 'italic' : 'normal';
-    
+
     $cleanFamily = preg_replace('/[-_]?\b(extrabold|800|semibold|demibold|600|bold|700|extralight|200|light|300|thin|100|medium|500|black|heavy|900|regular|italic|normal|it|rg)\b/i', '', $f);
     $cleanFamily = trim($cleanFamily, '-_ ');
     if (empty($cleanFamily)) {
         $cleanFamily = $f;
     }
-    
+
     return [
         'family' => $cleanFamily,
         'weight' => $weight,
@@ -347,7 +358,8 @@ function parseFontFilename($filename) {
     ];
 }
 
-function removeVietnameseDiacritics($str) {
+function removeVietnameseDiacritics($str)
+{
     $unicode = array(
         'a' => 'á|à|ả|ã|ạ|ă|ắ|ằ|ẳ|ẵ|ặ|â|ấ|ầ|ẩ|ẫ|ậ',
         'A' => 'Á|À|Ả|Ã|Ạ|Ă|Ắ|Ằ|Ẳ|Ẵ|Ặ|Â|Ấ|Ầ|Ẩ|Ẫ|Ậ',
@@ -364,7 +376,7 @@ function removeVietnameseDiacritics($str) {
         'y' => 'ý|ỳ|ỷ|ỹ|ỵ',
         'Y' => 'Ý|Ỳ|Ỷ|Ỹ|Ỵ',
     );
-    foreach($unicode as $nonUnicode => $uni){
+    foreach ($unicode as $nonUnicode => $uni) {
         $str = preg_replace("/($uni)/", $nonUnicode, $str);
     }
     // Remove all whitespace and special characters, keep a-z, A-Z, 0-9
@@ -372,7 +384,8 @@ function removeVietnameseDiacritics($str) {
     return $str;
 }
 
-function buildLocalFontCacheFromTree($fontSource) {
+function buildLocalFontCacheFromTree($fontSource)
+{
     $fontSource = rtrim(str_replace('\\', '/', $fontSource), '/');
     $treeFile = $fontSource . '/tree.md';
     $cacheDir = __DIR__ . '/data';
@@ -502,7 +515,8 @@ function buildLocalFontCacheFromTree($fontSource) {
                     }
                 }
             }
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+        }
     }
 
     $finalFonts = [];
@@ -527,7 +541,7 @@ function buildLocalFontCacheFromTree($fontSource) {
             }
         }
         sort($variants);
-        usort($convert_variants, function($a, $b) {
+        usort($convert_variants, function ($a, $b) {
             return strcmp($a['variant'], $b['variant']);
         });
 
@@ -542,7 +556,8 @@ function buildLocalFontCacheFromTree($fontSource) {
     return $finalFonts;
 }
 
-function getLocalFontData($fontSource, $forceReindex = false) {
+function getLocalFontData($fontSource, $forceReindex = false)
+{
     $cacheFile = __DIR__ . '/data/local_fonts_cache.json';
     $treeFile = rtrim(str_replace('\\', '/', $fontSource), '/') . '/tree.md';
 
@@ -566,7 +581,8 @@ function getLocalFontData($fontSource, $forceReindex = false) {
     return $data;
 }
 
-function cleanAllOldBackups($dir, $ttl = 86400) {
+function cleanAllOldBackups($dir, $ttl = 86400)
+{
     if (!is_dir($dir)) return;
     try {
         $files = new RecursiveIteratorIterator(
@@ -647,7 +663,9 @@ switch ($action) {
         $logs = [];
         if (file_exists($logFile)) {
             $lines = explode("\n", trim(file_get_contents($logFile)));
-            foreach ($lines as $line) { if ($line) $logs[] = json_decode($line, true); }
+            foreach ($lines as $line) {
+                if ($line) $logs[] = json_decode($line, true);
+            }
         }
         echo json_encode(['status' => 'success', 'logs' => $logs]);
         break;
@@ -673,8 +691,8 @@ switch ($action) {
         $sitesConfig = $scanner->getPhpSitesConfig();
         $systemPhp = $scanner->getSystemPhpVersion();
 
-        foreach ($projects as &$p) { 
-            $p['config'] = $configManager->getForProject($p['name'], $p['category'] ?? null); 
+        foreach ($projects as &$p) {
+            $p['config'] = $configManager->getForProject($p['name'], $p['category'] ?? null);
             $p['screenshot'] = $screenshotService->getScreenshotUrl($p['category'] ?? '', $p['name']);
 
             // Đọc phiên bản PHP từ sites.json (nếu có) hoặc mặc định hệ thống
@@ -684,7 +702,7 @@ switch ($action) {
             $p['is_custom_php'] = $phpInfo['is_custom_php'];
         }
         echo json_encode([
-            'status' => 'success', 
+            'status' => 'success',
             'data' => $projects,
             'system_php' => $systemPhp
         ]);
@@ -700,14 +718,14 @@ switch ($action) {
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { 
-            if ($p['name'] === $projectName) { 
-                $project = $p; 
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
                 if (empty($category) && !empty($p['category'])) {
                     $category = $p['category'];
                 }
-                break; 
-            } 
+                break;
+            }
         }
 
         if (!$project) {
@@ -804,7 +822,7 @@ switch ($action) {
             $userPwd = "{$demo['ftp_user']}:{$demo['ftp_pass']}";
 
             $items = RemoteClient::listFtpDirectory($parentUrl, $userPwd);
-            $items = array_filter($items, function($it) {
+            $items = array_filter($items, function ($it) {
                 return $it !== '.' && $it !== '..' && !empty($it);
             });
             $serverFolders[$demo['id']] = [
@@ -870,9 +888,9 @@ switch ($action) {
                     $itemLower = strtolower($item);
 
                     $isProd = (
-                        strpos($itemLower, $pNameLower . '_') === 0 || 
-                        strpos($itemLower, $pNameLower . '-') === 0 || 
-                        strpos($itemLower, '_old_' . $pNameLower) === 0 || 
+                        strpos($itemLower, $pNameLower . '_') === 0 ||
+                        strpos($itemLower, $pNameLower . '-') === 0 ||
+                        strpos($itemLower, '_old_' . $pNameLower) === 0 ||
                         strpos($itemLower, '_old' . $pNameLower) === 0 ||
                         strpos($itemLower, 'old_' . $pNameLower) === 0
                     );
@@ -1034,17 +1052,17 @@ switch ($action) {
         // Load settings
         $globalPath = __DIR__ . '/data/demo_config.json';
         $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
-        
+
         $sourcePath = $gConfig['source_path'] ?? '';
         if (empty($sourcePath) || !is_dir($sourcePath)) {
             $sourcePath = $baseDir . DIRECTORY_SEPARATOR . 'source_laravel';
         }
         $sourceDbName = $gConfig['source_db_name'] ?? 'source_nasani_2026';
-        
+
         // Normalize category path for filesystem
         $categoryPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $category);
         $targetDir = $baseDir . DIRECTORY_SEPARATOR . $categoryPath . DIRECTORY_SEPARATOR . $projectName;
-        
+
         // Final DB Name: category + project name (e.g. 2026_05_ranzilla_0765526w)
         $cleanProjectName = preg_replace('/[^a-z0-9_]/', '', strtolower($projectName));
         $dbName = str_replace(['/', '\\'], '_', $category) . '_' . $cleanProjectName;
@@ -1052,7 +1070,7 @@ switch ($action) {
         try {
             writeJobLog($jobId, ['status' => 'info', 'log' => "Bắt đầu triển khai dự án: $projectName"]);
             writeJobLog($jobId, ['status' => 'info', 'log' => "Đường dẫn đích: $targetDir"]);
-            
+
             // 1. Determine Source & Target Paths
             $parentDir = $baseDir . DIRECTORY_SEPARATOR . $categoryPath;
             if (!is_dir($parentDir)) @mkdir($parentDir, 0777, true);
@@ -1080,7 +1098,7 @@ switch ($action) {
                 writeJobLog($jobId, ['status' => 'info', 'log' => "Tìm thấy file ZIP mẫu. Đang giải nén và đổi tên..."]);
                 // Extract into parent category folder
                 $projectDeployer->extractZip($finalSourceZip, $parentDir);
-                
+
                 // The extracted folder will have the name of the zip (usually)
                 $extractedPath = $parentDir . DIRECTORY_SEPARATOR . $sourceBaseName;
                 if (is_dir($extractedPath)) {
@@ -1189,11 +1207,11 @@ switch ($action) {
     case 'fmSyncCenterExecute':
         $data = readJsonInput();
         if (!$data) $data = $_POST;
-        
+
         $projectName = $data['name'] ?? $_GET['name'] ?? '';
         $category = $data['category'] ?? $_GET['category'] ?? '';
         $path = $data['path'] ?? $_GET['path'] ?? '/';
-        
+
         $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
         $requestEnv = $data['env'] ?? $_GET['env'] ?? 'demo';
         $hostConfigInfo = getProjectTargetHostConfig($projectConfig, $requestEnv);
@@ -1205,7 +1223,7 @@ switch ($action) {
             echo json_encode(['status' => 'error', 'message' => "Môi trường {$envLabel} chưa được cấu hình FTP trong Cấu hình dự án."]);
             break;
         }
-        
+
         $host = $config['ftp_host'];
         $user = $config['ftp_user'];
         $pass = $config['ftp_pass'];
@@ -1213,8 +1231,13 @@ switch ($action) {
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
-        
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
+
         if ($currentEnv === 'prod') {
             $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
             $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/');
@@ -1237,12 +1260,12 @@ switch ($action) {
                 $remoteBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$customDomain";
             }
         }
-        
+
         $cleanPath = ltrim($path, '/');
         // Ensure path starts from the project's root on the target server
         $remotePath = rtrim($ftpRoot, '/') . '/' . $cleanPath;
         $url = "ftp://$host$remotePath";
-        
+
         if ($action === 'fmList') {
             $files = RemoteClient::listFtpDirectoryDetailed($url, $userPwd);
             if (empty($files) && $currentEnv === 'demo' && $cleanPath === '') {
@@ -1279,12 +1302,10 @@ switch ($action) {
                 unset($f);
             }
             echo json_encode(['status' => 'success', 'data' => $files, 'baseUrl' => rtrim($remoteBaseUrl, '/'), 'env' => $currentEnv, 'env_label' => $envLabel]);
-        } 
-        elseif ($action === 'fmGet') {
+        } elseif ($action === 'fmGet') {
             $res = RemoteClient::getFtpFileContent($url, $userPwd);
             echo json_encode($res);
-        }
-        elseif ($action === 'fmSave') {
+        } elseif ($action === 'fmSave') {
             $content = $data['content'] ?? '';
             // Auto Backup before saving remote file
             $existingRemote = RemoteClient::getFtpFileContent($url, $userPwd);
@@ -1297,24 +1318,23 @@ switch ($action) {
             } else {
                 echo json_encode(['status' => 'error', 'message' => $res]);
             }
-        }
-        elseif ($action === 'fmGetDiff') {
+        } elseif ($action === 'fmGetDiff') {
             if (!$project) {
                 echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
                 break;
             }
             $localFile = rtrim(str_replace('\\', '/', $project['path']), '/') . '/' . $cleanPath;
-            
+
             $localExists = file_exists($localFile);
             $localContent = $localExists ? @file_get_contents($localFile) : null;
             $localMtime = $localExists ? @filemtime($localFile) : null;
             $localSize = $localExists ? @filesize($localFile) : 0;
-            
+
             $remoteRes = RemoteClient::getFtpFileContent($url, $userPwd);
             $remoteExists = ($remoteRes['status'] ?? '') === 'success';
             $remoteContent = $remoteExists ? $remoteRes['content'] : null;
             $remoteSize = $remoteExists ? strlen($remoteContent) : 0;
-            
+
             echo json_encode([
                 'status' => 'success',
                 'path' => $cleanPath,
@@ -1330,15 +1350,14 @@ switch ($action) {
                     'size' => $remoteSize
                 ]
             ]);
-        }
-        elseif ($action === 'fmListBackups') {
+        } elseif ($action === 'fmListBackups') {
             $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
             $backupBase = __DIR__ . "/backups/sync_snapshots/{$safeProj}";
             $backups = [];
             $filterEnv = $data['env'] ?? $_GET['env'] ?? 'all';
-            
+
             if (is_dir($backupBase)) {
-                $scanMeta = function($dir) use (&$scanMeta, &$backups, $backupBase, $filterEnv) {
+                $scanMeta = function ($dir) use (&$scanMeta, &$backups, $backupBase, $filterEnv) {
                     $items = @scandir($dir);
                     if ($items === false) return;
                     foreach ($items as $item) {
@@ -1371,33 +1390,31 @@ switch ($action) {
                     }
                 };
                 $scanMeta($backupBase);
-                
+
                 // Sort newest first
-                usort($backups, function($a, $b) {
+                usort($backups, function ($a, $b) {
                     return ($b['timestamp'] ?? 0) - ($a['timestamp'] ?? 0);
                 });
             }
-            
+
             echo json_encode(['status' => 'success', 'backups' => $backups]);
-        }
-        elseif ($action === 'fmGetBackupContent') {
+        } elseif ($action === 'fmGetBackupContent') {
             $backupFile = $data['backup_file'] ?? $_GET['backup_file'] ?? '';
             $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
             $fullBackupPath = __DIR__ . "/backups/sync_snapshots/{$safeProj}/" . ltrim(str_replace(['..', '\\'], ['', '/'], $backupFile), '/');
-            
+
             if (file_exists($fullBackupPath)) {
                 $content = file_get_contents($fullBackupPath);
                 echo json_encode(['status' => 'success', 'content' => $content]);
             } else {
                 echo json_encode(['status' => 'error', 'message' => 'File backup không tồn tại hoặc đã bị xóa']);
             }
-        }
-        elseif ($action === 'fmRestoreBackup') {
+        } elseif ($action === 'fmRestoreBackup') {
             $backupFile = $data['backup_file'] ?? '';
             $target = $data['target'] ?? 'local'; // 'local' or 'remote'
             $relPath = $data['path'] ?? '';
             $restoreEnv = $data['env'] ?? 'demo';
-            
+
             if (!$project) {
                 echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
                 break;
@@ -1406,7 +1423,7 @@ switch ($action) {
                 echo json_encode(['status' => 'error', 'message' => 'Thiếu thông tin file khôi phục']);
                 break;
             }
-            
+
             $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
             $fullBackupPath = __DIR__ . "/backups/sync_snapshots/{$safeProj}/" . ltrim(str_replace(['..', '\\'], ['', '/'], $backupFile), '/');
             $metaPath = $fullBackupPath . '.meta.json';
@@ -1422,10 +1439,10 @@ switch ($action) {
                 echo json_encode(['status' => 'error', 'message' => 'File backup không tồn tại']);
                 break;
             }
-            
+
             $backupContent = file_get_contents($fullBackupPath);
             $cleanRelPath = ltrim(str_replace('\\', '/', $relPath), '/');
-            
+
             if ($target === 'local') {
                 $localFile = rtrim(str_replace('\\', '/', $project['path']), '/') . '/' . $cleanRelPath;
                 // Safety backup current local file
@@ -1447,7 +1464,7 @@ switch ($action) {
                     echo json_encode(['status' => 'error', 'message' => "Chưa cấu hình FTP cho {$targetLabel} để khôi phục"]);
                     break;
                 }
-                
+
                 $rHost = $tConfig['ftp_host'];
                 $rUser = $tConfig['ftp_user'];
                 $rPass = $tConfig['ftp_pass'];
@@ -1469,13 +1486,13 @@ switch ($action) {
 
                 $restoreRemotePath = rtrim($rFtpRoot, '/') . '/' . $cleanRelPath;
                 $restoreUrl = "ftp://$rHost$restoreRemotePath";
-                
+
                 // Safety backup current remote file with target environment
                 $existingRemote = RemoteClient::getFtpFileContent($restoreUrl, $rUserPwd);
                 if (($existingRemote['status'] ?? '') === 'success' && isset($existingRemote['content'])) {
                     saveSyncAutoBackup($projectName, $category, 'remote_before_restore', $cleanRelPath, $existingRemote['content'], $tEnv);
                 }
-                
+
                 $res = RemoteClient::saveFtpFileContent($restoreUrl, $rUserPwd, $backupContent);
                 if ($res === true) {
                     echo json_encode(['status' => 'success', 'message' => "Đã khôi phục file {$cleanRelPath} lên {$targetLabel} thành công!"]);
@@ -1483,27 +1500,26 @@ switch ($action) {
                     echo json_encode(['status' => 'error', 'message' => "Lỗi FTP khi khôi phục lên {$targetLabel}: " . $res]);
                 }
             }
-        }
-        elseif ($action === 'fmDeleteBackups') {
+        } elseif ($action === 'fmDeleteBackups') {
             $safeProj = preg_replace('/[^a-zA-Z0-9_\-]/', '_', "{$category}_{$projectName}");
             $backupBase = __DIR__ . "/backups/sync_snapshots/{$safeProj}";
-            
+
             if (!is_dir($backupBase)) {
                 echo json_encode(['status' => 'success', 'deleted' => 0, 'message' => 'Không có bản sao lưu nào để xóa']);
                 break;
             }
-            
+
             $deleteAll = !empty($data['all']);
             $backupFiles = $data['backup_files'] ?? [];
             if (!is_array($backupFiles) && !empty($backupFiles)) {
                 $backupFiles = [$backupFiles];
             }
-            
+
             $deletedCount = 0;
-            
+
             if ($deleteAll) {
                 // Delete all files in project's sync_snapshots folder recursively
-                $rrmdir = function($dir) use (&$rrmdir, &$deletedCount) {
+                $rrmdir = function ($dir) use (&$rrmdir, &$deletedCount) {
                     $items = @scandir($dir);
                     if ($items === false) return;
                     foreach ($items as $item) {
@@ -1527,7 +1543,7 @@ switch ($action) {
                     $cleanBf = ltrim(str_replace(['..', '\\'], ['', '/'], $bf), '/');
                     $fullPath = $backupBase . '/' . $cleanBf;
                     $metaPath = $fullPath . '.meta.json';
-                    
+
                     if (file_exists($fullPath)) {
                         @unlink($fullPath);
                         $deletedCount++;
@@ -1535,7 +1551,7 @@ switch ($action) {
                     if (file_exists($metaPath)) {
                         @unlink($metaPath);
                     }
-                    
+
                     // Clean parent dirs if empty
                     $parentDir = dirname($fullPath);
                     while ($parentDir !== $backupBase && is_dir($parentDir)) {
@@ -1549,14 +1565,13 @@ switch ($action) {
                     }
                 }
             }
-            
+
             echo json_encode([
                 'status' => 'success',
                 'deleted' => $deletedCount,
                 'message' => "Đã xóa {$deletedCount} bản sao lưu thành công!"
             ]);
-        }
-        elseif ($action === 'fmDelete') {
+        } elseif ($action === 'fmDelete') {
             $isDir = !empty($data['isDir']);
             $res = RemoteClient::deleteViaFTP($url, $userPwd, $isDir);
             if ($res === true) {
@@ -1564,13 +1579,11 @@ switch ($action) {
             } else {
                 echo json_encode(['status' => 'error', 'message' => $res]);
             }
-        }
-        elseif ($action === 'fmCreateDir') {
+        } elseif ($action === 'fmCreateDir') {
             $config['ftp_pass'] = $pass; // pass to makeDirViaDA / makeDirViaFTP
             $res = RemoteClient::makeDirViaFTP($config, $remotePath);
             echo $res;
-        }
-        elseif ($action === 'fmUpload') {
+        } elseif ($action === 'fmUpload') {
             if (!empty($_FILES['file'])) {
                 $tmpFile = $_FILES['file']['tmp_name'];
                 $res = RemoteClient::uploadFtp($url, $userPwd, $tmpFile);
@@ -1582,14 +1595,13 @@ switch ($action) {
             } else {
                 echo json_encode(['status' => 'error', 'message' => 'No file uploaded']);
             }
-        }
-        elseif ($action === 'fmOpenInEditor') {
+        } elseif ($action === 'fmOpenInEditor') {
             $res = RemoteClient::getFtpFileContent($url, $userPwd);
             if ($res['status'] !== 'success') {
                 echo json_encode($res);
                 break;
             }
-            
+
             $cacheDir = __DIR__ . '/cache/remote_edit/' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $category) . '/' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $projectName);
             $localFile = $cacheDir . '/' . str_replace('/', DIRECTORY_SEPARATOR, $cleanPath);
             $localParent = dirname($localFile);
@@ -1597,7 +1609,7 @@ switch ($action) {
                 @mkdir($localParent, 0777, true);
             }
             file_put_contents($localFile, $res['content']);
-            
+
             try {
                 $jobData = [
                     'name' => $projectName,
@@ -1609,14 +1621,14 @@ switch ($action) {
                     '_background' => true
                 ];
                 startApiBackgroundJob('fmWatchFile', $jobData, null);
-            } catch (Throwable $e) {}
-            
+            } catch (Throwable $e) {
+            }
+
             $urlSafePath = str_replace('\\', '/', $localFile);
             $ideUrl = 'antigravity://file/' . ltrim($urlSafePath, '/');
-            
+
             echo json_encode(['status' => 'success', 'localPath' => $localFile, 'ideUrl' => $ideUrl]);
-        }
-        elseif ($action === 'fmSyncLocalFile') {
+        } elseif ($action === 'fmSyncLocalFile') {
             $cacheDir = __DIR__ . '/cache/remote_edit/' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $category) . '/' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $projectName);
             $localFile = $cacheDir . '/' . str_replace('/', DIRECTORY_SEPARATOR, $cleanPath);
             if (!file_exists($localFile)) {
@@ -1630,23 +1642,22 @@ switch ($action) {
             } else {
                 echo json_encode(['status' => 'error', 'message' => $res]);
             }
-        }
-        elseif ($action === 'fmWatchFile') {
+        } elseif ($action === 'fmWatchFile') {
             $data = readJsonInput();
             $path = $data['path'] ?? '';
             $url = $data['url'] ?? '';
             $userPwd = $data['userPwd'] ?? '';
             $localFile = $data['localFile'] ?? '';
-            
+
             if (empty($localFile) || !file_exists($localFile)) exit;
-            
+
             $timeout = time() + (2 * 3600); // 2 hours
             $mtime = filemtime($localFile);
-            
-            while(time() < $timeout) {
+
+            while (time() < $timeout) {
                 clearstatcache();
                 if (!file_exists($localFile)) break;
-                
+
                 $new = filemtime($localFile);
                 if ($new > $mtime) {
                     $mtime = $new;
@@ -1657,8 +1668,7 @@ switch ($action) {
                 sleep(2);
             }
             exit;
-        }
-        elseif ($action === 'fmCheckSyncStatus') {
+        } elseif ($action === 'fmCheckSyncStatus') {
             $data = readJsonInput();
             if (!$data) $data = $_POST;
             $path = $data['path'] ?? $_GET['path'] ?? '/';
@@ -1671,30 +1681,49 @@ switch ($action) {
             } else {
                 echo json_encode(['status' => 'success', 'time' => 0]);
             }
-        }
-        elseif ($action === 'fmSyncCenterCompare') {
+        } elseif ($action === 'fmSyncCenterCompare') {
             $data = readJsonInput();
             if (!$data) $data = $_POST;
-            
+
             $projectName = $data['name'] ?? '';
             $category = $data['category'] ?? '';
             $allowUploadBridge = !empty($data['allow_upload_bridge']);
             $customExcludes = $data['excludes'] ?? [];
             $defaultExcludes = [
-                'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', 'watermark', 'logs',
-                '.agents', '.git', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
-                'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
-                'assets/admin/json', 'libraries/config.php'
+                'bootstrap',
+                'caches',
+                'compiled',
+                'config_contents',
+                'thumbs',
+                'upload',
+                'vendor',
+                'watermarks',
+                'watermark',
+                'logs',
+                '.agents',
+                '.git',
+                '.idea',
+                '.vscode',
+                'tools',
+                'tools.php',
+                'docs',
+                'graphify-out',
+                'assets/caches',
+                'assets/images/images',
+                'src/views/templates/layout/backup',
+                'assets/css/backup',
+                'assets/admin/json',
+                'libraries/config.php'
             ];
             if (!empty($customExcludes) && is_array($customExcludes)) {
                 $defaultExcludes = array_unique(array_merge($defaultExcludes, $customExcludes));
             }
 
-            $isPathExcluded = function($relPath) use ($defaultExcludes) {
+            $isPathExcluded = function ($relPath) use ($defaultExcludes) {
                 $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
                 if ($clean === '') return false;
                 $firstPart = explode('/', $clean)[0];
-                
+
                 foreach ($defaultExcludes as $ex) {
                     $exNorm = strtolower(trim(str_replace('\\', '/', $ex), '/'));
                     if ($exNorm === '') continue;
@@ -1710,7 +1739,7 @@ switch ($action) {
             };
 
             $includeClearData = !empty($data['include_cleardata']);
-            $isClearDataFile = function($path, $localDir = '') {
+            $isClearDataFile = function ($path, $localDir = '') {
                 $clean = str_replace('\\', '/', $path);
                 if (stripos($clean, 'cleardata') !== false) {
                     return true;
@@ -1730,7 +1759,7 @@ switch ($action) {
                 }
                 return false;
             };
-            
+
             $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
             $syncEnv = $data['env'] ?? 'demo';
             $hostConfigInfo = getProjectTargetHostConfig($projectConfig, $syncEnv);
@@ -1742,23 +1771,38 @@ switch ($action) {
                 echo json_encode(['status' => 'error', 'message' => "Chưa cấu hình FTP cho {$envLabel}. Vui lòng kiểm tra lại trong Cấu hình dự án."]);
                 break;
             }
-            
+
             $projects = $scanner->getProjects($category);
             $project = null;
-            foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+            foreach ($projects as $p) {
+                if ($p['name'] === $projectName) {
+                    $project = $p;
+                    break;
+                }
+            }
             if (!$project) {
                 $allProjects = $scanner->getProjects('all');
-                foreach ($allProjects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+                foreach ($allProjects as $p) {
+                    if ($p['name'] === $projectName) {
+                        $project = $p;
+                        break;
+                    }
+                }
             }
             if (!$project) {
                 $rawProjects = $scanner->scanProjectsRaw($category);
-                foreach ($rawProjects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+                foreach ($rawProjects as $p) {
+                    if ($p['name'] === $projectName) {
+                        $project = $p;
+                        break;
+                    }
+                }
             }
             if (!$project) {
                 echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
                 break;
             }
-            
+
             // 1. Kiểm tra Bridge trên Remote Host trước tiên (Fast ping: < 0.2s)
             $cleanHost = !empty($config['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $config['web_domain']) : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
             if ($currentEnv === 'prod') {
@@ -1786,7 +1830,7 @@ switch ($action) {
             }
 
             // Ping nhanh bridge để kiểm tra sự tồn tại (timeout 2.5s)
-            $pingBridge = function() use (&$bridgePingUrls) {
+            $pingBridge = function () use (&$bridgePingUrls) {
                 foreach ($bridgePingUrls as $url) {
                     $ch = curl_init();
                     curl_setopt($ch, CURLOPT_URL, $url);
@@ -1799,7 +1843,7 @@ switch ($action) {
                     $res = curl_exec($ch);
                     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
-                    
+
                     if ($httpCode === 200) {
                         $data = json_decode($res, true);
                         if (is_array($data) && ($data['status'] ?? '') === 'success') {
@@ -1851,7 +1895,7 @@ switch ($action) {
             // 2. Khi Bridge đã sẵn sàng -> Bắt đầu Scan Local
             $localFiles = [];
             $localRoot = rtrim($project['path'], '/\\');
-            $scanLocal = function($dir, $relPrefix = '') use (&$scanLocal, &$localFiles, $isPathExcluded, $localRoot, $includeClearData, $isClearDataFile) {
+            $scanLocal = function ($dir, $relPrefix = '') use (&$scanLocal, &$localFiles, $isPathExcluded, $localRoot, $includeClearData, $isClearDataFile) {
                 $items = @scandir($dir);
                 if ($items === false) return;
                 foreach ($items as $item) {
@@ -1878,7 +1922,7 @@ switch ($action) {
             $scanLocal($localRoot);
 
             // 3. Gọi Bridge scan Remote Files
-            $callBridge = function($targetUrl = null) use (&$bridgeUrls, $defaultExcludes, $includeClearData) {
+            $callBridge = function ($targetUrl = null) use (&$bridgeUrls, $defaultExcludes, $includeClearData) {
                 $urls = $targetUrl ? [$targetUrl] : $bridgeUrls;
                 $lastRes = null;
                 foreach ($urls as $url) {
@@ -1896,15 +1940,15 @@ switch ($action) {
                     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     $curlErr = curl_error($ch);
                     curl_close($ch);
-                    
+
                     $data = json_decode($res, true);
                     if (is_array($data) && ($data['status'] ?? '') === 'success') {
                         return $data;
                     }
                     $lastRes = is_array($data) ? $data : [
-                        'status' => 'error', 
-                        'http_code' => $httpCode, 
-                        'curl_err' => $curlErr, 
+                        'status' => 'error',
+                        'http_code' => $httpCode,
+                        'curl_err' => $curlErr,
                         'url' => $url,
                         'raw' => substr((string)$res, 0, 200)
                     ];
@@ -1920,7 +1964,8 @@ switch ($action) {
                     try {
                         $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
                         $remoteData = $callBridge();
-                    } catch (\Exception $e) {}
+                    } catch (\Exception $e) {
+                    }
                 }
             }
 
@@ -1929,7 +1974,7 @@ switch ($action) {
                 echo json_encode(['status' => 'error', 'message' => "Bridge {$envLabel} không phản hồi ($detail). Vui lòng kiểm tra lại cấu hình Hosting."]);
                 break;
             }
-            
+
             $remoteFiles = $remoteData['files'] ?? [];
             foreach ($remoteFiles as $rPath => $rVal) {
                 if ($isPathExcluded($rPath)) {
@@ -1940,7 +1985,7 @@ switch ($action) {
                     unset($remoteFiles[$rPath]);
                 }
             }
-            
+
             // 3. Compare with MD5 Hash
             $comparison = [
                 'local_newer' => [],
@@ -1949,16 +1994,16 @@ switch ($action) {
                 'remote_only' => [],
                 'conflict' => []
             ];
-            
+
             foreach ($localFiles as $path => $lData) {
                 if (isset($remoteFiles[$path])) {
                     $rData = $remoteFiles[$path];
-                    
+
                     // 1. If MD5 matches, content is 100% identical -> Skip!
                     if (isset($lData['md5']) && isset($rData['md5']) && $lData['md5'] === $rData['md5']) {
                         continue;
                     }
-                    
+
                     // 2. MD5 differs -> Content changed, compare mtime
                     $diff = $lData['mtime'] - $rData['mtime'];
                     if ($diff > 0) {
@@ -1990,7 +2035,7 @@ switch ($action) {
                     ];
                 }
             }
-            
+
             foreach ($remoteFiles as $path => $rData) {
                 if (!isset($localFiles[$path])) {
                     $comparison['remote_only'][] = [
@@ -2000,34 +2045,53 @@ switch ($action) {
                     ];
                 }
             }
-            
+
             echo json_encode([
-                'status' => 'success', 
-                'env' => $currentEnv, 
+                'status' => 'success',
+                'env' => $currentEnv,
                 'env_label' => $envLabel,
                 'comparison' => $comparison
             ]);
-        }
-        elseif ($action === 'fmSyncCenterExecute') {
+        } elseif ($action === 'fmSyncCenterExecute') {
             @set_time_limit(300);
             $data = readJsonInput();
             if (!$data) $data = $_POST;
-            
+
             $projectName = $data['name'] ?? '';
             $category = $data['category'] ?? '';
             $actions = $data['actions'] ?? []; // ['upload' => [...paths], 'download' => [...paths]]
             $includeClearData = !empty($data['include_cleardata']);
             $defaultExcludes = [
-                'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', 'watermark', 'logs',
-                '.agents', '.git', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
-                'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
-                'assets/admin/json', 'libraries/config.php'
+                'bootstrap',
+                'caches',
+                'compiled',
+                'config_contents',
+                'thumbs',
+                'upload',
+                'vendor',
+                'watermarks',
+                'watermark',
+                'logs',
+                '.agents',
+                '.git',
+                '.idea',
+                '.vscode',
+                'tools',
+                'tools.php',
+                'docs',
+                'graphify-out',
+                'assets/caches',
+                'assets/images/images',
+                'src/views/templates/layout/backup',
+                'assets/css/backup',
+                'assets/admin/json',
+                'libraries/config.php'
             ];
-            $isPathExcluded = function($relPath) use ($defaultExcludes) {
+            $isPathExcluded = function ($relPath) use ($defaultExcludes) {
                 $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
                 if ($clean === '') return false;
                 $firstPart = explode('/', $clean)[0];
-                
+
                 foreach ($defaultExcludes as $ex) {
                     $exNorm = strtolower(trim(str_replace('\\', '/', $ex), '/'));
                     if ($exNorm === '') continue;
@@ -2042,7 +2106,7 @@ switch ($action) {
                 return false;
             };
 
-            $isClearDataFile = function($path, $localDir = '') {
+            $isClearDataFile = function ($path, $localDir = '') {
                 $clean = str_replace('\\', '/', $path);
                 if (stripos($clean, 'cleardata') !== false) {
                     return true;
@@ -2062,7 +2126,7 @@ switch ($action) {
                 }
                 return false;
             };
-            
+
             $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
             $syncEnv = $data['env'] ?? 'demo';
             $hostConfigInfo = getProjectTargetHostConfig($projectConfig, $syncEnv);
@@ -2074,28 +2138,43 @@ switch ($action) {
                 echo json_encode(['status' => 'error', 'message' => "Chưa cấu hình FTP cho {$envLabel}"]);
                 break;
             }
-            
+
             $projects = $scanner->getProjects($category);
             $project = null;
-            foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+            foreach ($projects as $p) {
+                if ($p['name'] === $projectName) {
+                    $project = $p;
+                    break;
+                }
+            }
             if (!$project) {
                 $allProjects = $scanner->getProjects('all');
-                foreach ($allProjects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+                foreach ($allProjects as $p) {
+                    if ($p['name'] === $projectName) {
+                        $project = $p;
+                        break;
+                    }
+                }
             }
             if (!$project) {
                 $rawProjects = $scanner->scanProjectsRaw($category);
-                foreach ($rawProjects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+                foreach ($rawProjects as $p) {
+                    if ($p['name'] === $projectName) {
+                        $project = $p;
+                        break;
+                    }
+                }
             }
             if (!$project) {
                 echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
                 break;
             }
-            
+
             $host = $config['ftp_host'];
             $user = $config['ftp_user'];
             $pass = $config['ftp_pass'];
             $userPwd = "$user:$pass";
-            
+
             if ($currentEnv === 'prod') {
                 $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
                 $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/');
@@ -2109,10 +2188,10 @@ switch ($action) {
                     $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/') . '/' . trim($subPath, '/');
                 }
             }
-            
+
             $localRoot = rtrim(str_replace('\\', '/', $project['path']), '/');
             $results = [];
-            
+
             // Handle Uploads
             if (!empty($actions['upload'])) {
                 foreach ($actions['upload'] as $path) {
@@ -2138,7 +2217,7 @@ switch ($action) {
                     }
                 }
             }
-            
+
             // Handle Downloads
             if (!empty($actions['download'])) {
                 foreach ($actions['download'] as $path) {
@@ -2152,7 +2231,7 @@ switch ($action) {
                     $localFile = $localRoot . '/' . $cleanPath;
                     $remotePath = rtrim($ftpRoot, '/') . '/' . $cleanPath;
                     $url = "ftp://$host$remotePath";
-                    
+
                     $res = RemoteClient::getFtpFileContent($url, $userPwd);
                     if ($res['status'] === 'success') {
                         // Auto Backup: backup current local file before overwriting
@@ -2169,7 +2248,7 @@ switch ($action) {
                     }
                 }
             }
-            
+
             echo json_encode(['status' => 'success', 'results' => $results]);
         }
         break;
@@ -2195,7 +2274,12 @@ switch ($action) {
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại']);
             break;
@@ -2235,7 +2319,8 @@ switch ($action) {
         $indexExists = false;
         try {
             $indexExists = $deployService->remoteFileExists($config, $relPath . '/index.php');
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
 
         $dbPass = null;
         // 3. Đọc pass từ file .env hoặc libraries/config.php trên demo
@@ -2244,7 +2329,8 @@ switch ($action) {
             if ($remoteEnvContent) {
                 $dbPass = $deployService->getDbPassFromEnvContent($remoteEnvContent);
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
 
         if (empty($dbPass)) {
             try {
@@ -2252,7 +2338,8 @@ switch ($action) {
                 if ($remoteConfigContent) {
                     $dbPass = $deployService->getDbPassFromConfigContent($remoteConfigContent);
                 }
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+            }
         }
 
         // Lấy pass dự phòng từ local (.env hoặc libraries/config.php)
@@ -2399,8 +2486,11 @@ switch ($action) {
         }
 
         $projectConfig = $configManager->getForProject($projectName, $category);
-        
-        if ($isDemo && !empty($projectConfig['lock_demo'])) { writeJobLog($jobId, ['status' => 'error', 'message' => 'Deploy Demo bị khóa']); exit; }
+
+        if ($isDemo && !empty($projectConfig['lock_demo'])) {
+            writeJobLog($jobId, ['status' => 'error', 'message' => 'Deploy Demo bị khóa']);
+            exit;
+        }
 
         if ($isDemo && !empty($data['demo_server_id'])) {
             $demoId = $data['demo_server_id'];
@@ -2418,7 +2508,10 @@ switch ($action) {
         } else {
             $config = $isDemo ? getDemoConfigForProject($projectConfig) : ($projectConfig['prod'] ?? null);
         }
-        if (!$config) { writeJobLog($jobId, ['status' => 'error', 'message' => 'Host chưa cấu hình']); exit; }
+        if (!$config) {
+            writeJobLog($jobId, ['status' => 'error', 'message' => 'Host chưa cấu hình']);
+            exit;
+        }
 
         if ($isDemo && !empty($data['custom_domain'])) {
             $customDomain = trim($data['custom_domain']);
@@ -2432,7 +2525,7 @@ switch ($action) {
         $useSSL = isset($data['use_ssl']) ? (bool)$data['use_ssl'] : (!empty($projectConfig['demo']['ssl']) || !empty($projectConfig['prod']['ssl']));
         $config['ssl'] = $useSSL;
         $config['clear_db'] = !empty($data['clear_db']) ? 1 : 0;
-        
+
         // Đồng bộ SSL vào cấu hình dự án
         if (!isset($projectConfig['demo'])) $projectConfig['demo'] = [];
         if (!isset($projectConfig['prod'])) $projectConfig['prod'] = [];
@@ -2441,9 +2534,17 @@ switch ($action) {
 
         $projects = $scanner->getProjects($data['category'] ?? null);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
-        if (!$project) { writeJobLog($jobId, ['status' => 'error', 'message' => 'Dự án không tồn tại']); exit; }
-        
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
+        if (!$project) {
+            writeJobLog($jobId, ['status' => 'error', 'message' => 'Dự án không tồn tại']);
+            exit;
+        }
+
         $daLogString = "";
         $packUpload = isset($data['pack_upload']) ? (bool)$data['pack_upload'] : true;
         $exportUpload = isset($data['export_upload']) ? (bool)$data['export_upload'] : true;
@@ -2454,7 +2555,7 @@ switch ($action) {
 
         if ($isDemo) {
             $dbSuffix = $deployService->generateDemoDbName($project['category'], $projectName, $data['manual_db_suffix'] ?? null);
-            
+
             // Read local .env or libraries/config.php DB_PASSWORD if exists
             $localEnvPass = '';
             $localEnvPath = $project['path'] . '/.env';
@@ -2492,7 +2593,11 @@ switch ($action) {
 
             if ($createDb) {
                 writeJobLog($jobId, ['status' => 'info', 'log' => '🛠️ Khởi tạo Database trên DirectAdmin...']);
-                try { $daRes = $deployService->createDirectAdminDb($config, $dbSuffix, $dbPass); $daLogString = "DA API: " . $daRes; } catch (Exception $e) {}
+                try {
+                    $daRes = $deployService->createDirectAdminDb($config, $dbSuffix, $dbPass);
+                    $daLogString = "DA API: " . $daRes;
+                } catch (Exception $e) {
+                }
                 if (empty($daRes)) {
                     writeJobLog($jobId, ['status' => 'error', 'message' => 'DirectAdmin khong phan hoi khi tao database.']);
                     exit;
@@ -2506,7 +2611,7 @@ switch ($action) {
             }
         }
 
-        $zipFile = __DIR__ . DIRECTORY_SEPARATOR . 'dist.zip'; 
+        $zipFile = __DIR__ . DIRECTORY_SEPARATOR . 'dist.zip';
         $sqlFile = __DIR__ . DIRECTORY_SEPARATOR . 'dist.sql';
         if (substr($zipFile, 0, 4) === '\\\\.\\') $zipFile = substr($zipFile, 4);
         if (substr($sqlFile, 0, 4) === '\\\\.\\') $sqlFile = substr($sqlFile, 4);
@@ -2514,14 +2619,20 @@ switch ($action) {
             $use7zip = !empty($data['use_7zip']);
             $msg = $use7zip ? '📦 Đang nén mã nguồn bằng 7-Zip...' : '📦 Đang nén mã nguồn...';
             writeJobLog($jobId, ['status' => 'info', 'log' => $msg]);
-            if (!$deployService->pack($project['path'], $zipFile, $use7zip, $jobId)) { writeJobLog($jobId, ['status' => 'error', 'message' => 'Nén thất bại']); exit; }
+            if (!$deployService->pack($project['path'], $zipFile, $use7zip, $jobId)) {
+                writeJobLog($jobId, ['status' => 'error', 'message' => 'Nén thất bại']);
+                exit;
+            }
         } else {
             writeJobLog($jobId, ['status' => 'info', 'log' => 'ℹ️ Bỏ qua bước nén mã nguồn theo yêu cầu.']);
         }
 
         if ($exportUpload) {
             writeJobLog($jobId, ['status' => 'info', 'log' => '🗄️ Đang xuất SQL...']);
-            if ($deployService->exportDb($project['path'], $sqlFile) !== true) { writeJobLog($jobId, ['status' => 'error', 'message' => 'Export SQL lỗi']); exit; }
+            if ($deployService->exportDb($project['path'], $sqlFile) !== true) {
+                writeJobLog($jobId, ['status' => 'error', 'message' => 'Export SQL lỗi']);
+                exit;
+            }
         } else {
             writeJobLog($jobId, ['status' => 'info', 'log' => 'ℹ️ Bỏ qua bước xuất SQL theo yêu cầu.']);
         }
@@ -2541,7 +2652,10 @@ switch ($action) {
             writeJobLog($jobId, ['status' => 'info', 'log' => '🚀 Đang tải dữ liệu lên server...']);
             try {
                 $deployService->upload($config, $files, $project['relPath']);
-            } catch (Exception $e) { writeJobLog($jobId, ['status' => 'error', 'message' => $e->getMessage()]); exit; }
+            } catch (Exception $e) {
+                writeJobLog($jobId, ['status' => 'error', 'message' => $e->getMessage()]);
+                exit;
+            }
         } else {
             writeJobLog($jobId, ['status' => 'info', 'log' => 'ℹ️ Không có file nào cần tải lên.']);
         }
@@ -2551,7 +2665,7 @@ switch ($action) {
             writeJobLog($jobId, ['status' => 'info', 'log' => '⚡ Đang kích hoạt Bridge xử lý...']);
             $res = $deployService->triggerBridge($config, $isDemo ? $dbSuffix : null, $project['relPath'], $isDemo, 'bridge.php');
             $decoded = json_decode($res, true);
-            
+
             // Auto-heal DB password mismatch
             if ($isDemo && (!$decoded || $decoded['status'] !== 'success')) {
                 $errMsg = $decoded['message'] ?? $res;
@@ -2562,10 +2676,10 @@ switch ($action) {
                         $daRes = $deployService->changeDirectAdminDbPassword($config, $dbSuffix, $dbPass);
                         writeJobLog($jobId, ['status' => 'info', 'log' => '🔄 DirectAdmin API phản hồi: ' . strip_tags(urldecode((string)$daRes))]);
                         writeJobLog($jobId, ['status' => 'info', 'log' => '🔄 Đang thử kết nối lại...']);
-                        
+
                         // Sleep to allow DirectAdmin propagation
                         sleep(2);
-                        
+
                         $res = $deployService->triggerBridge($config, $isDemo ? $dbSuffix : null, $project['relPath'], $isDemo, 'bridge.php');
                         $decoded = json_decode($res, true);
                     } catch (Exception $e) {
@@ -2577,7 +2691,7 @@ switch ($action) {
             writeJobLog($jobId, ['status' => 'info', 'log' => 'ℹ️ Bỏ qua kích hoạt Bridge xử lý.']);
             $decoded = ['status' => 'success', 'message' => 'Đã hoàn tất tiến trình (Bỏ qua kích hoạt Bridge).', 'logs' => ['Skip Bridge activation.']];
         }
-        
+
         if ($decoded && $decoded['status'] === 'success') {
             if (!empty($decoded['logs']) && is_array($decoded['logs'])) {
                 foreach ($decoded['logs'] as $logLine) {
@@ -2586,16 +2700,16 @@ switch ($action) {
             }
             $mainUser = $config['da_user'] ?? $config['ftp_user'];
             $dbName = $isDemo ? ($mainUser . '_' . (isset($dbSuffix) ? $dbSuffix : '')) : ($config['db_name'] ?? '');
-            
+
             if (!isset($projectConfig['deployed'])) $projectConfig['deployed'] = [];
             $projectConfig['deployed'][$isDemo ? 'demo' : 'production'] = [
-                'db_name' => $dbName, 
-                'db_user' => $dbName, 
-                'db_pass' => $config['db_pass'] ?? '', 
+                'db_name' => $dbName,
+                'db_user' => $dbName,
+                'db_pass' => $config['db_pass'] ?? '',
                 'deploy_time' => date('Y-m-d H:i:s'),
                 'demo_server_id' => $config['id'] ?? ($config['default_demo_id'] ?? 'legacy')
             ];
-            
+
             if ($isDemo) $projectConfig['lock_demo'] = true;
             if (!empty($data['password_updated'])) {
                 $configManager->addHistory($projectName, 'Đồng bộ mật khẩu DB', 'Tự động cập nhật mật khẩu mới thành công', $category);
@@ -2606,7 +2720,8 @@ switch ($action) {
             // Tự động chụp ảnh màn hình website sau khi Deploy thành công
             try {
                 $screenshotService->capture($category, $projectName, null, $project, $projectConfig);
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
 
             writeJobLog($jobId, ['status' => 'success', 'message' => 'Deployment thành công!', 'logs' => [$daLogString]]);
             echo json_encode(['status' => 'success']);
@@ -2632,7 +2747,8 @@ switch ($action) {
             writeJobLog($jobId, ['status' => 'error', 'message' => $errMsg]);
             echo json_encode(['status' => 'error', 'message' => $errMsg]);
         }
-        @unlink($zipFile); @unlink($sqlFile);
+        @unlink($zipFile);
+        @unlink($sqlFile);
         break;
 
     case 'pushTools':
@@ -2643,14 +2759,22 @@ switch ($action) {
         $config = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : null;
         $projects = $scanner->getProjects($data['category'] ?? null);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $data['name']) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $data['name']) {
+                $project = $p;
+                break;
+            }
+        }
         writeJobLog($jobId, ['status' => 'info', 'log' => '🚀 Đang đồng bộ Bridge.php...']);
         try {
             $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $project['relPath']);
             writeJobLog($jobId, ['status' => 'success', 'message' => 'Tools synced successfully.']);
             $configManager->addHistory($data['name'], 'Sync Tools', 'Đã tải lên Bridge', $category);
             echo json_encode(['status' => 'success']);
-        } catch (Exception $e) { writeJobLog($jobId, ['status' => 'error', 'message' => $e->getMessage()]); echo json_encode(['status' => 'error']); }
+        } catch (Exception $e) {
+            writeJobLog($jobId, ['status' => 'error', 'message' => $e->getMessage()]);
+            echo json_encode(['status' => 'error']);
+        }
         break;
 
     case 'publishToProduction':
@@ -2659,21 +2783,29 @@ switch ($action) {
         $jobId = $data['jobId'] ?? null;
         $projectName = $data['name'] ?? '';
         $projectConfig = $configManager->getForProject($projectName, $category);
-        
+
         // Load Global Config for Cloudflare Credentials
         $globalPath = __DIR__ . '/data/demo_config.json';
         $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
-        
+
         $prodConfig = array_merge($projectConfig['prod'] ?? [], $projectConfig['deployed']['production'] ?? []);
         $demoConfig = array_merge(getDemoConfigForProject($projectConfig), $projectConfig['deployed']['demo'] ?? []);
-        
+
         $projects = $scanner->getProjects($data['category'] ?? null);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
-        if (!$project) { writeJobLog($jobId, ['status' => 'error', 'message' => 'Dự án không tồn tại']); exit; }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
+        if (!$project) {
+            writeJobLog($jobId, ['status' => 'error', 'message' => 'Dự án không tồn tại']);
+            exit;
+        }
 
         writeJobLog($jobId, ['status' => 'info', 'log' => '🛠️ Khởi tạo cấu hình bảo mật...']);
-        
+
         // 1. Generate RANDOMKEY based on formula: md5($salt1 . $db_name . $salt2)
         if (empty($prodConfig['random_key'])) {
             $mainUser = $prodConfig['da_user'] ?? $prodConfig['ftp_user'] ?? 'user';
@@ -2706,11 +2838,11 @@ switch ($action) {
         }
 
         writeJobLog($jobId, ['status' => 'info', 'log' => '🛠️ Cấu hình DB/Email trên DirectAdmin...']);
-        
-        $generatePass = function() {
-            $p = substr(str_shuffle('ABCDEFGHJKMNPQRSTUVWXYZ'), 0, 2) . 
-                 substr(str_shuffle('abcdefghjkmnpqrstuvwxyz'), 0, 4) . 
-                 substr(str_shuffle('23456789'), 0, 4);
+
+        $generatePass = function () {
+            $p = substr(str_shuffle('ABCDEFGHJKMNPQRSTUVWXYZ'), 0, 2) .
+                substr(str_shuffle('abcdefghjkmnpqrstuvwxyz'), 0, 4) .
+                substr(str_shuffle('23456789'), 0, 4);
             return str_shuffle($p);
         };
 
@@ -2735,24 +2867,24 @@ switch ($action) {
         }
         $prodConfig['email_user'] = 'noreply@' . $domain;
         $prodConfig['email_pass'] = $emailPass;
-        
+
         // Cung cấp mapping Domain để Bridge thay thế link trong Database
         $prodConfig['demo_domain'] = $demoConfig['web_domain'] ?? '';
         $prodConfig['prod_domain'] = $prodConfig['web_domain'] ?? '';
         $prodConfig['is_production'] = true;
 
-        
+
         try {
             $dbRes = $deployService->createDirectAdminDb($prodConfig, 'nasani', $dbPass);
             writeJobLog($jobId, ['status' => 'info', 'log' => '> Database: ' . (strpos($dbRes, 'error=0') !== false || $dbRes === 'ok_already_exists' ? 'OK' : $dbRes)]);
-            
+
             $mailRes = $deployService->createDirectAdminEmail($prodConfig, 'noreply', $emailPass);
             writeJobLog($jobId, ['status' => 'info', 'log' => '> Email noreply: ' . (strpos($mailRes, 'error=0') !== false || $mailRes === 'ok_already_exists' ? 'OK' : $mailRes)]);
-        } catch (Exception $e) { 
-            writeJobLog($jobId, ['status' => 'error', 'message' => 'Lỗi kết nối DirectAdmin: ' . $e->getMessage()]); 
-            exit; 
+        } catch (Exception $e) {
+            writeJobLog($jobId, ['status' => 'error', 'message' => 'Lỗi kết nối DirectAdmin: ' . $e->getMessage()]);
+            exit;
         }
-        
+
         writeJobLog($jobId, ['status' => 'info', 'log' => '🚀 Đồng bộ Bridge và Cloud Transfer...']);
         try {
             // Đồng bộ bridge.php lên cả Demo và Production trước khi chuyển giao
@@ -2760,7 +2892,7 @@ switch ($action) {
             $deployService->upload($prodConfig, ['bridge.php' => __DIR__ . '/bridge.php']);
             $res = $deployService->triggerCloudDeploy($demoConfig, $prodConfig, $project['relPath']);
             $decoded = json_decode($res, true);
-            
+
             if ($decoded && $decoded['status'] === 'success') {
                 if (!empty($decoded['logs']) && is_array($decoded['logs'])) {
                     foreach ($decoded['logs'] as $logLine) {
@@ -2774,11 +2906,11 @@ switch ($action) {
                 }
                 $mainUser = $prodConfig['da_user'] ?? $prodConfig['ftp_user'];
                 $finalDb = $mainUser . '_nasani';
-                
+
                 if (!isset($projectConfig['deployed'])) $projectConfig['deployed'] = [];
                 $projectConfig['deployed']['production'] = [
-                    'db_name' => $finalDb, 
-                    'db_user' => $finalDb, 
+                    'db_name' => $finalDb,
+                    'db_user' => $finalDb,
                     'db_pass' => $dbPass,
                     'email_user' => 'noreply@' . $domain,
                     'email_pass' => $emailPass,
@@ -2787,8 +2919,8 @@ switch ($action) {
                     'turnstile_secretkey' => $prodConfig['turnstile_secretkey'] ?? '',
                     'deploy_time' => date('Y-m-d H:i:s')
                 ];
-                
-                $projectConfig['lock_production'] = true; 
+
+                $projectConfig['lock_production'] = true;
                 $configManager->save($projectName, $projectConfig, $category);
                 $configManager->addHistory($projectName, 'Publish Production', 'Full Setup hoàn tất', $category);
 
@@ -2796,8 +2928,9 @@ switch ($action) {
                 try {
                     $prodUrl = (!empty($prodConfig['ssl']) ? 'https://' : 'http://') . $domain;
                     $screenshotService->capture($category, $projectName, $prodUrl, null, $projectConfig);
-                } catch (\Throwable $e) {}
-                
+                } catch (\Throwable $e) {
+                }
+
                 writeJobLog($jobId, ['status' => 'success', 'message' => 'Cloud transfer & Full Setup hoàn tất!']);
                 echo json_encode(['status' => 'success']);
             } else {
@@ -2832,7 +2965,9 @@ switch ($action) {
                 writeJobLog($jobId, ['status' => 'error', 'message' => 'Transfer thất bại: ' . $errMsg]);
                 echo json_encode(['status' => 'error', 'message' => 'Transfer thất bại: ' . $errMsg]);
             }
-        } catch (Exception $e) { writeJobLog($jobId, ['status' => 'error', 'message' => $e->getMessage()]); }
+        } catch (Exception $e) {
+            writeJobLog($jobId, ['status' => 'error', 'message' => $e->getMessage()]);
+        }
         break;
 
     case 'downloadPackage':
@@ -2840,7 +2975,7 @@ switch ($action) {
         $category = $data['category'] ?? '';
         $projectName = $data['name'] ?? '';
         $jobId = $data['jobId'] ?? null;
-        
+
         if (PHP_SAPI !== 'cli' && empty($data['_background'])) {
             try {
                 $queuedJobId = startApiBackgroundJob($action, array_merge($data, ['_background' => true]), $jobId);
@@ -2873,7 +3008,12 @@ switch ($action) {
         $config = ($data['type'] === 'demo') ? getDemoConfigForProject($projectConfig) : ($projectConfig['prod'] ?? []);
         $projects = $scanner->getProjects($data['category'] ?? null);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $data['name']) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $data['name']) {
+                $project = $p;
+                break;
+            }
+        }
         $res = $deployService->cleanupBridge($config, ($data['type'] === 'demo' ? $project['relPath'] : ''), ($data['type'] === 'demo'));
         $decoded = json_decode($res, true);
         if ($decoded && $decoded['status'] === 'success') {
@@ -2903,7 +3043,7 @@ switch ($action) {
         }
 
         // Run the integrate script (returns ['status' => ..., 'logs' => [...]])
-        $integrateResult = (function() use ($projectPath, $ampSourceDir) {
+        $integrateResult = (function () use ($projectPath, $ampSourceDir) {
             return require __DIR__ . '/core/AmpIntegrator.php';
         })();
 
@@ -2924,17 +3064,17 @@ switch ($action) {
         $data = json_decode(file_get_contents('php://input'), true);
         $projectName = $data['name'] ?? '';
         $category = $data['category'] ?? '';
-        
+
         $project = $projectManager->getProject($projectName, $category);
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy dự án!']);
             break;
         }
-        
+
         $projectPath = rtrim(str_replace('\\', '/', $project['path']), '/');
         $clearedDirs = [];
         $filesDeleted = 0;
-        
+
         // Potential cache directories in Nasanic / Laravel / PHP projects
         $cacheDirs = [
             $projectPath . '/storage/framework/views',
@@ -2944,7 +3084,7 @@ switch ($action) {
             $projectPath . '/cache',
             $projectPath . '/var/cache'
         ];
-        
+
         foreach ($cacheDirs as $dir) {
             if (is_dir($dir)) {
                 $items = @scandir($dir);
@@ -2961,9 +3101,9 @@ switch ($action) {
                 $clearedDirs[] = str_replace($projectPath . '/', '', $dir);
             }
         }
-        
+
         $configManager->addHistory($projectName, 'Xóa cache dự án & trình duyệt', 'Hoàn tất', $category);
-        
+
         echo json_encode([
             'status' => 'success',
             'message' => 'Đã dọn dẹp cache của dự án thành công!',
@@ -2977,12 +3117,12 @@ switch ($action) {
         $category = $data['category'] ?? '';
         $projectConfig = $configManager->getForProject($data['name'], $category);
         $res = RemoteClient::requestSSLViaDA($projectConfig['prod']);
-        
+
         // Cải tiến kiểm tra: Chấp nhận error=0 (text) HOẶC có chứa từ khóa thành công trong JSON
-        $isSuccess = (strpos($res, 'error=0') !== false) || 
-                     (strpos($res, '"success":') !== false) || 
-                     (strpos($res, '"error":"0"') !== false);
-                     
+        $isSuccess = (strpos($res, 'error=0') !== false) ||
+            (strpos($res, '"success":') !== false) ||
+            (strpos($res, '"error":"0"') !== false);
+
         $status = $isSuccess ? 'success' : 'error';
         if ($status === 'success') {
             $configManager->addHistory($data['name'], 'Cài đặt SSL', 'Gửi yêu cầu thành công', $category);
@@ -2993,15 +3133,15 @@ switch ($action) {
     case 'getAvailablePhpVersions':
         $data = json_decode(file_get_contents('php://input'), true);
         $projectName = $data['name'] ?? '';
-        
+
         $projectConfig = $configManager->getForProject($projectName, $category);
         $config = $projectConfig['prod'] ?? [];
-        
+
         if (empty($config)) {
             echo json_encode(['status' => 'error', 'message' => 'Dự án chưa cấu hình Production.']);
             break;
         }
-        
+
         $res = RemoteClient::getAvailablePhpVersionsViaDA($config);
         echo json_encode($res);
         break;
@@ -3011,23 +3151,23 @@ switch ($action) {
         $category = $data['category'] ?? '';
         $projectName = $data['name'] ?? '';
         $phpVersionIndex = $data['php_version_index'] ?? '1'; // 1, 2, 3, etc.
-        
+
         $projectConfig = $configManager->getForProject($projectName, $category);
         $config = $projectConfig['prod'] ?? [];
-        
+
         if (empty($config)) {
             echo json_encode(['status' => 'error', 'message' => 'Dự án chưa cấu hình Production.']);
             break;
         }
-        
+
         $res = RemoteClient::changePhpVersionViaDA($config, $phpVersionIndex);
-        
-        $isSuccess = (strpos($res, 'error=0') !== false) || 
-                     (strpos($res, '"success":') !== false) || 
-                     (strpos($res, '"error":"0"') !== false) ||
-                     (stripos($res, 'PHP version') !== false) ||
-                     (stripos($res, 'success') !== false);
-                     
+
+        $isSuccess = (strpos($res, 'error=0') !== false) ||
+            (strpos($res, '"success":') !== false) ||
+            (strpos($res, '"error":"0"') !== false) ||
+            (stripos($res, 'PHP version') !== false) ||
+            (stripos($res, 'success') !== false);
+
         $status = $isSuccess ? 'success' : 'error';
         if ($status === 'success') {
             $configManager->addHistory($projectName, 'Thay đổi PHP Version', "Thành công (Index: $phpVersionIndex)", $category);
@@ -3123,7 +3263,6 @@ switch ($action) {
 
             $configManager->addHistory($projectName, 'Đổi Type DB (Local)', "Từ $old -> $new ($module)", $category);
             echo json_encode(['status' => 'success', 'message' => "Đã cập nhật $totalAffected dòng tại Local Database.", 'details' => $details]);
-
         } catch (PDOException $e) {
             echo json_encode(['status' => 'error', 'message' => 'Lỗi kết nối DB local: ' . $e->getMessage()]);
         }
@@ -3276,13 +3415,13 @@ switch ($action) {
             $globalPath = __DIR__ . '/data/demo_config.json';
             $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
             $codeCmd = $gConfig['editor_path'] ?? 'code';
-            
+
             // If configured editor path does not exist on disk, reset to 'code' to trigger auto-detection
             $cleanCodeCmd = trim($codeCmd, '"\' ');
             if ($codeCmd !== 'code' && !empty($cleanCodeCmd) && !file_exists($cleanCodeCmd)) {
                 $codeCmd = 'code';
             }
-            
+
             // If editor_path is default 'code', try to find standard paths
             if ($codeCmd === 'code') {
                 $localAppData = getenv('LOCALAPPDATA');
@@ -3362,7 +3501,8 @@ switch ($action) {
                     $sqlFiles[] = $fileInfo->getRealPath();
                 }
             }
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+        }
 
         $targetSqlFile = null;
         if (!empty($sqlFiles)) {
@@ -3376,7 +3516,9 @@ switch ($action) {
                 }
             }
             if (!$targetSqlFile) {
-                usort($sqlFiles, function($a, $b) { return strlen($a) <=> strlen($b); });
+                usort($sqlFiles, function ($a, $b) {
+                    return strlen($a) <=> strlen($b);
+                });
                 $targetSqlFile = $sqlFiles[0];
             }
         }
@@ -3439,7 +3581,8 @@ switch ($action) {
             if (is_dir($agentsDir)) {
                 try {
                     $projectDeployer->copyRecursive($agentsDir, $projectPath . DIRECTORY_SEPARATOR . '.agents');
-                } catch (Exception $e) {}
+                } catch (Exception $e) {
+                }
             }
 
             // 6. Cấu hình file .env (Laravel) hoặc libraries/config.php (Source tự viết)
@@ -3500,7 +3643,6 @@ switch ($action) {
                 'status' => 'success',
                 'message' => '✅ Cấu hình Source Local thành công! DB: ' . $dbName . ' (' . $importLog . ')'
             ]);
-
         } catch (Exception $e) {
             echo json_encode(['status' => 'error', 'message' => 'Lỗi cấu hình Source Local: ' . $e->getMessage()]);
         }
@@ -3592,8 +3734,13 @@ switch ($action) {
                                         ];
                                     }
                                     $diskGrouped[$fontId]['files'][] = [
-                                        'file' => $f, 'filename' => $filename, 'ext' => $ext,
-                                        'weight' => $weight, 'style' => $style, 'vKey' => $vKey, 'isWoff' => $isWoff
+                                        'file' => $f,
+                                        'filename' => $filename,
+                                        'ext' => $ext,
+                                        'weight' => $weight,
+                                        'style' => $style,
+                                        'vKey' => $vKey,
+                                        'isWoff' => $isWoff
                                     ];
                                 }
                             }
@@ -3602,7 +3749,8 @@ switch ($action) {
 
                     if (!empty($diskGrouped)) {
                         foreach ($diskGrouped as $fontId => $font) {
-                            $variants = []; $convert_variants = [];
+                            $variants = [];
+                            $convert_variants = [];
                             foreach ($font['files'] as $file) {
                                 $vKey = $file['vKey'];
                                 if ($file['isWoff']) {
@@ -3610,7 +3758,10 @@ switch ($action) {
                                 } else {
                                     $exists = false;
                                     foreach ($convert_variants as $cv) {
-                                        if ($cv['variant'] === $vKey) { $exists = true; break; }
+                                        if ($cv['variant'] === $vKey) {
+                                            $exists = true;
+                                            break;
+                                        }
                                     }
                                     if (!$exists) $convert_variants[] = ['variant' => $vKey, 'ext' => $file['ext'], 'filename' => $file['filename']];
                                 }
@@ -3626,7 +3777,8 @@ switch ($action) {
                         }
                         @file_put_contents(__DIR__ . '/data/local_fonts_cache.json', json_encode($localFonts));
                     }
-                } catch (Exception $e) {}
+                } catch (Exception $e) {
+                }
             }
         }
 
@@ -3635,14 +3787,14 @@ switch ($action) {
             ini_set('memory_limit', '256M');
             $cacheFile = __DIR__ . '/data/google_fonts_cache.json';
             $googleFonts = [];
-            
+
             if (file_exists($cacheFile)) {
                 $cacheData = @file_get_contents($cacheFile);
                 if ($cacheData) {
                     $googleFonts = json_decode($cacheData, true) ?: [];
                 }
             }
-            
+
             if (empty($googleFonts)) {
                 $ctx = stream_context_create(['http' => ['timeout' => 5]]);
                 $data = @file_get_contents('https://fonts.google.com/metadata/fonts', false, $ctx);
@@ -3694,7 +3846,7 @@ switch ($action) {
         }
 
         // Final sorting: Balanced score sorting
-        usort($results, function($a, $b) {
+        usort($results, function ($a, $b) {
             $scoreA = $a['score'] ?? 0;
             $scoreB = $b['score'] ?? 0;
             if ($scoreA !== $scoreB) return $scoreB - $scoreA;
@@ -3702,8 +3854,8 @@ switch ($action) {
         });
 
         echo json_encode([
-            'status' => 'success', 
-            'data' => $results, 
+            'status' => 'success',
+            'data' => $results,
             'google_search' => !empty($googleFonts)
         ]);
         break;
@@ -3729,7 +3881,7 @@ switch ($action) {
         $data = json_decode(file_get_contents('php://input'), true);
         $category = $data['category'] ?? '';
         $projectName = $data['name'] ?? '';
-        $fontId = $data['fontId'] ?? ''; 
+        $fontId = $data['fontId'] ?? '';
         $selectedVariants = $data['variants'] ?? [];
 
         $project = $scanner->getProjectByName($projectName, $category ?? null);
@@ -3752,7 +3904,7 @@ switch ($action) {
         if ($parentFolder !== '.' && $parentFolder !== '') {
             $srcDir .= DIRECTORY_SEPARATOR . $parentFolder;
         }
-        
+
         $cleanFolderName = removeVietnameseDiacritics($familyPrefix);
         $destDir = $project['path'] . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'fonts' . DIRECTORY_SEPARATOR . $cleanFolderName;
 
@@ -3772,7 +3924,7 @@ switch ($action) {
         foreach ($iterator as $fileInfo) {
             if ($fileInfo->isFile()) {
                 $f = $fileInfo->getFilename();
-                
+
                 $filename = pathinfo($f, PATHINFO_FILENAME);
                 $parsed = parseFontFilename($filename);
                 if (strtolower($parsed['family']) !== strtolower($familyPrefix)) {
@@ -3812,11 +3964,11 @@ switch ($action) {
             $cssContent .= "  font-style: $style;\n";
             $cssContent .= "  font-weight: $weight;\n";
             $cssContent .= "  font-display: swap;\n"; // SEO & Speed Optimization
-            
+
             $srcs = [];
-            
+
             // Sort to ensure woff2 is prioritized
-            usort($vFiles, function($a, $b) {
+            usort($vFiles, function ($a, $b) {
                 if ($a['ext'] === 'woff2') return -1;
                 if ($b['ext'] === 'woff2') return 1;
                 return 0;
@@ -3832,7 +3984,7 @@ switch ($action) {
         $existing = file_exists($globalCssPath) ? file_get_contents($globalCssPath) : '';
         $prefix = (empty($existing) || substr($existing, -1) === "\n") ? "" : "\n";
         file_put_contents($globalCssPath, $prefix . $cssContent, FILE_APPEND);
-        
+
         echo json_encode(['status' => 'success', 'message' => "Đã cài đặt font $fontName và cập nhật vào assets/css/fonts.css"]);
         break;
 
@@ -3875,8 +4027,10 @@ switch ($action) {
             $lines = explode("\n", $cssContent);
             $newLines = [];
             foreach ($lines as $line) {
-                if (stripos($line, "family=" . $cleanFamily) !== false || 
-                    stripos($line, "family=" . urlencode($fontName)) !== false) {
+                if (
+                    stripos($line, "family=" . $cleanFamily) !== false ||
+                    stripos($line, "family=" . urlencode($fontName)) !== false
+                ) {
                     continue;
                 }
                 $newLines[] = $line;
@@ -3932,15 +4086,17 @@ switch ($action) {
 
         // Duplicate check
         $existingContent = file_exists($globalCssPath) ? file_get_contents($globalCssPath) : '';
-        
+
         // Extract family name from URL to check
         preg_match('/family=([^&:]+)/', $importUrl, $matches);
         if (isset($matches[1])) {
             $familyName = str_replace('+', ' ', urldecode($matches[1]));
             // Check if this family is already imported or defined
-            if (stripos($existingContent, "family=" . $matches[1]) !== false || 
+            if (
+                stripos($existingContent, "family=" . $matches[1]) !== false ||
                 stripos($existingContent, "font-family: '" . $familyName . "'") !== false ||
-                stripos($existingContent, "font-family: \"" . $familyName . "\"") !== false) {
+                stripos($existingContent, "font-family: \"" . $familyName . "\"") !== false
+            ) {
                 echo json_encode(['status' => 'error', 'message' => "Font '$familyName' đã tồn tại trong file fonts.css"]);
                 break;
             }
@@ -3957,18 +4113,18 @@ switch ($action) {
         $fontId = $_GET['fontId'] ?? '';
         $variant = $_GET['variant'] ?? '';
         $ext = $_GET['ext'] ?? ''; // 'otf' or 'ttf'
-        
+
         $globalPath = __DIR__ . '/data/demo_config.json';
         $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
         $fontSource = $gConfig['font_source_path'] ?? '';
         if (empty($fontSource) || !is_dir($fontSource)) {
             $fontSource = $baseDir . DIRECTORY_SEPARATOR . 'fonts';
         }
-        
+
         if (!$fontSource || !is_dir($fontSource) || !$fontId || !$variant || !$ext) {
             die("Invalid parameters");
         }
-        
+
         $parentFolder = dirname($fontId);
         $familyPrefix = basename($fontId);
 
@@ -3976,20 +4132,20 @@ switch ($action) {
         if ($parentFolder !== '.' && $parentFolder !== '') {
             $srcDir .= DIRECTORY_SEPARATOR . $parentFolder;
         }
-        
+
         if (!is_dir($srcDir)) {
             die("Font directory not found");
         }
-        
+
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($srcDir, RecursiveDirectoryIterator::SKIP_DOTS)
         );
-        
+
         $targetFile = null;
         foreach ($iterator as $fileInfo) {
             if ($fileInfo->isFile()) {
                 $f = $fileInfo->getFilename();
-                
+
                 $filename = pathinfo($f, PATHINFO_FILENAME);
                 $parsed = parseFontFilename($filename);
                 if (strtolower($parsed['family']) !== strtolower($familyPrefix)) {
@@ -4001,7 +4157,7 @@ switch ($action) {
                     $weight = $parsed['weight'];
                     $style = $parsed['style'];
                     $vKey = $weight . ($style === 'italic' ? 'i' : '');
-                    
+
                     if ($vKey === $variant) {
                         $targetFile = $fileInfo->getRealPath();
                         break;
@@ -4009,7 +4165,7 @@ switch ($action) {
                 }
             }
         }
-        
+
         if ($targetFile && file_exists($targetFile)) {
             header('Content-Type: application/octet-stream');
             header('Content-Disposition: attachment; filename="' . basename($targetFile) . '"');
@@ -4017,7 +4173,7 @@ switch ($action) {
             readfile($targetFile);
             exit;
         }
-        
+
         die("Font file not found");
         break;
 
@@ -4077,9 +4233,9 @@ switch ($action) {
             $cssContent .= "  font-style: $style;\n";
             $cssContent .= "  font-weight: $weight;\n";
             $cssContent .= "  font-display: swap;\n";
-            
+
             // Sort to ensure woff2 is prioritized
-            usort($vFiles, function($a, $b) {
+            usort($vFiles, function ($a, $b) {
                 if ($a['ext'] === 'woff2') return -1;
                 if ($b['ext'] === 'woff2') return 1;
                 return 0;
@@ -4105,7 +4261,12 @@ switch ($action) {
         $category = $_GET['category'] ?? '';
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại']);
             break;
@@ -4190,10 +4351,15 @@ switch ($action) {
         $category = $_POST['category'] ?? '';
         $quality = (int)($_POST['quality'] ?? 80);
         $deep = (bool)($_POST['deep'] ?? 0);
-        
+
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại']);
             break;
@@ -4289,7 +4455,7 @@ switch ($action) {
                     $dst_y = (int)floor(($target_size - $dst_h) / 2);
 
                     imagecopyresampled($squareImg, $img, $dst_x, $dst_y, 0, 0, $dst_w, $dst_h, $src_w, $src_h);
-                    
+
                     $faviconPngPath = $imagesDir . DIRECTORY_SEPARATOR . 'favicon.png';
                     @imagepng($squareImg, $faviconPngPath);
                     imagedestroy($squareImg);
@@ -4353,7 +4519,12 @@ switch ($action) {
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại']);
             break;
@@ -4447,12 +4618,12 @@ switch ($action) {
             $dst_y = (int)floor(($target_size - $dst_h) / 2);
 
             imagecopyresampled($squareImg, $img, $dst_x, $dst_y, 0, 0, $dst_w, $dst_h, $src_w, $src_h);
-            
+
             $faviconPngPath = $imagesDir . DIRECTORY_SEPARATOR . 'favicon.png';
             @imagepng($squareImg, $faviconPngPath);
             imagedestroy($squareImg);
         }
-        
+
         if ($deep) {
             @imagefilter($img, IMG_FILTER_SMOOTH, 5);
         }
@@ -4501,7 +4672,12 @@ switch ($action) {
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại']);
             break;
@@ -4511,7 +4687,7 @@ switch ($action) {
         $backupsDir = __DIR__ . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . $projectName;
 
         $nameOnly = pathinfo($fileName, PATHINFO_FILENAME);
-        
+
         $backupFile = null;
         if (is_dir($backupsDir)) {
             $backupFiles = scandir($backupsDir);
@@ -4553,7 +4729,12 @@ switch ($action) {
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại']);
             break;
@@ -4610,7 +4791,12 @@ switch ($action) {
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại']);
             break;
@@ -4650,7 +4836,7 @@ switch ($action) {
         foreach ($schemes as $scheme) {
             $pathPart = trim($fullSubPath, '/');
             $url = $scheme . $cleanHost . ($pathPart ? '/' . $pathPart : '') . "/bridge.php?action=clearImages";
-            
+
             $res = RemoteClient::get($url);
             $decoded = json_decode($res, true);
             if ($decoded && isset($decoded['status'])) {
@@ -4666,7 +4852,8 @@ switch ($action) {
             $remoteDir = rtrim($ftpRoot, '/');
             if ($project['relPath']) $remoteDir = $remoteDir . '/' . trim($project['relPath'], '/');
             RemoteClient::deleteViaDA($config, $remoteDir, 'bridge.php');
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
 
         if ($success) {
             echo $resMessage;
@@ -4680,7 +4867,12 @@ switch ($action) {
         $category = $_GET['category'] ?? '';
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Du an khong ton tai']);
             break;
@@ -4762,7 +4954,12 @@ switch ($action) {
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Du an khong ton tai']);
             break;
@@ -4850,7 +5047,12 @@ switch ($action) {
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Du an khong ton tai']);
             break;
@@ -4906,7 +5108,12 @@ switch ($action) {
 
         $projects = $scanner->getProjects($category);
         $project = null;
-        foreach ($projects as $p) { if ($p['name'] === $projectName) { $project = $p; break; } }
+        foreach ($projects as $p) {
+            if ($p['name'] === $projectName) {
+                $project = $p;
+                break;
+            }
+        }
         if (!$project) {
             echo json_encode(['status' => 'error', 'message' => 'Du an khong ton tai']);
             break;
