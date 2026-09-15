@@ -10,4 +10,5 @@ core/debug_upload.txt
 data/demo_config.json
 data/projects.json
 cache/
-
+data/sizes_cache.json
+data/screenshots/

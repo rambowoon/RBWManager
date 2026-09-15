@@ -681,7 +681,13 @@ switch ($action) {
     case 'listCategories':
         $strict = isset($_GET['strict']) && $_GET['strict'] === 'true';
         $refresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';
-        echo json_encode(['status' => 'success', 'data' => $scanner->getCategories($strict, $refresh)]);
+        $categories = $scanner->getCategories($strict, $refresh);
+        $categoryStats = $scanner->getAllCategoryStats($refresh);
+        echo json_encode([
+            'status' => 'success',
+            'data' => $categories,
+            'stats' => $categoryStats
+        ]);
         break;
 
     case 'listProjects':
@@ -691,6 +697,7 @@ switch ($action) {
         $sitesConfig = $scanner->getPhpSitesConfig();
         $systemPhp = $scanner->getSystemPhpVersion();
 
+        $categoryTotalSize = 0;
         foreach ($projects as &$p) {
             $p['config'] = $configManager->getForProject($p['name'], $p['category'] ?? null);
             $p['screenshot'] = $screenshotService->getScreenshotUrl($p['category'] ?? '', $p['name']);
@@ -700,11 +707,57 @@ switch ($action) {
             $p['php_version'] = $phpInfo['php_version'];
             $p['php_display'] = $phpInfo['php_display'];
             $p['is_custom_php'] = $phpInfo['is_custom_php'];
+
+            if (!isset($p['size']) || $p['size'] === null) {
+                $cachedSize = $scanner->getCachedDirectorySize($p['path'] ?? '');
+                $p['size'] = $cachedSize;
+                $p['size_formatted'] = $cachedSize !== null ? \RamboWoon\ProjectScanner::formatBytes($cachedSize) : null;
+            }
+            if ($p['size'] !== null) {
+                $categoryTotalSize += (float)$p['size'];
+            }
         }
+        unset($p);
+
         echo json_encode([
             'status' => 'success',
             'data' => $projects,
-            'system_php' => $systemPhp
+            'system_php' => $systemPhp,
+            'category_total_size' => $categoryTotalSize,
+            'category_total_size_formatted' => $categoryTotalSize > 0 ? \RamboWoon\ProjectScanner::formatBytes($categoryTotalSize) : null,
+            'category_project_count' => count($projects)
+        ]);
+        break;
+
+    case 'calculateCategorySizes':
+        $category = $_GET['category'] ?? ($_POST['category'] ?? '');
+        $refresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';
+        $projects = $scanner->getProjects($category, false);
+
+        $projectSizes = [];
+        $totalBytes = 0;
+        foreach ($projects as $p) {
+            $pPath = $p['path'] ?? '';
+            if ($pPath && is_dir($pPath)) {
+                $s = $scanner->getDirectorySize($pPath, $refresh);
+                $projectSizes[$p['name']] = [
+                    'size' => $s,
+                    'size_formatted' => \RamboWoon\ProjectScanner::formatBytes($s)
+                ];
+                $totalBytes += $s;
+            }
+        }
+
+        if (!empty($category)) {
+            $scanner->setCategorySize($category, $totalBytes);
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'category' => $category,
+            'category_total_size' => $totalBytes,
+            'category_total_size_formatted' => \RamboWoon\ProjectScanner::formatBytes($totalBytes),
+            'projects' => $projectSizes
         ]);
         break;
 
@@ -1033,6 +1086,11 @@ switch ($action) {
             $config['php_display'] = $phpInfo['php_display'];
             $config['is_custom_php'] = $phpInfo['is_custom_php'];
             $config['system_php'] = $phpInfo['system_php'];
+            $projectPath = $project['path'] ?? '';
+            $config['is_config_php'] = is_file($projectPath . DIRECTORY_SEPARATOR . 'libraries' . DIRECTORY_SEPARATOR . 'config.php');
+            $config['has_config_php'] = $config['is_config_php'];
+            $config['size'] = $project['size'] ?? ($projectPath ? $scanner->getDirectorySize($projectPath) : 0);
+            $config['size_formatted'] = \RamboWoon\ProjectScanner::formatBytes($config['size']);
         }
         echo json_encode(['status' => 'success', 'data' => $config]);
         break;
@@ -1722,6 +1780,7 @@ switch ($action) {
             $isPathExcluded = function ($relPath) use ($defaultExcludes) {
                 $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
                 if ($clean === '') return false;
+                if (substr($clean, -4) === '.sql') return true;
                 $firstPart = explode('/', $clean)[0];
 
                 foreach ($defaultExcludes as $ex) {
@@ -1903,7 +1962,7 @@ switch ($action) {
                     $path = $dir . '/' . $item;
                     $relPath = $relPrefix . $item;
                     if ($isPathExcluded($relPath)) continue;
-                    if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql') continue;
+                    if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql' || substr(strtolower($relPath), -4) === '.sql') continue;
                     if (!$includeClearData && $isClearDataFile($relPath, $localRoot)) continue;
                     $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat'];
                     if (in_array(strtolower($item), $excludedFiles)) continue;
@@ -1959,7 +2018,7 @@ switch ($action) {
             $remoteData = $callBridge();
 
             // Nếu bridge vừa ping được nhưng scanFiles báo phiên bản cũ -> cập nhật lại
-            if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v6_sub_excludes') {
+            if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v6_sub_excludes_nosql') {
                 if ($allowUploadBridge) {
                     try {
                         $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
@@ -1977,7 +2036,7 @@ switch ($action) {
 
             $remoteFiles = $remoteData['files'] ?? [];
             foreach ($remoteFiles as $rPath => $rVal) {
-                if ($isPathExcluded($rPath)) {
+                if ($isPathExcluded($rPath) || substr(strtolower($rPath), -4) === '.sql') {
                     unset($remoteFiles[$rPath]);
                     continue;
                 }
@@ -2090,6 +2149,7 @@ switch ($action) {
             $isPathExcluded = function ($relPath) use ($defaultExcludes) {
                 $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
                 if ($clean === '') return false;
+                if (substr($clean, -4) === '.sql') return true;
                 $firstPart = explode('/', $clean)[0];
 
                 foreach ($defaultExcludes as $ex) {
@@ -2196,7 +2256,7 @@ switch ($action) {
             if (!empty($actions['upload'])) {
                 foreach ($actions['upload'] as $path) {
                     $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
-                    if ($isPathExcluded($cleanPath)) {
+                    if ($isPathExcluded($cleanPath) || substr(strtolower($cleanPath), -4) === '.sql') {
                         continue;
                     }
                     if (!$includeClearData && $isClearDataFile($cleanPath, $localRoot)) {
@@ -2222,7 +2282,7 @@ switch ($action) {
             if (!empty($actions['download'])) {
                 foreach ($actions['download'] as $path) {
                     $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
-                    if ($isPathExcluded($cleanPath)) {
+                    if ($isPathExcluded($cleanPath) || substr(strtolower($cleanPath), -4) === '.sql') {
                         continue;
                     }
                     if (!$includeClearData && $isClearDataFile($cleanPath, $localRoot)) {
@@ -5161,6 +5221,469 @@ switch ($action) {
             'restored' => $restoredCount,
             'errors' => $errors
         ]);
+        break;
+
+    case 'autoLoginAdmin':
+        $data = json_decode(file_get_contents('php://input'), true) ?? [];
+        $projectName = $data['name'] ?? $_GET['name'] ?? '';
+        $category = $data['category'] ?? $_GET['category'] ?? '';
+        $targetEnv = strtolower($data['env'] ?? $_GET['env'] ?? 'local');
+
+        $project = $scanner->getProjectByName($projectName, $category);
+        if (!$project) {
+            $catPath = $category ? str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $category) . DIRECTORY_SEPARATOR : '';
+            $projectDir = $baseDir . DIRECTORY_SEPARATOR . $catPath . $projectName;
+            if (is_dir($projectDir)) {
+                $project = [
+                    'name' => $projectName,
+                    'path' => $projectDir,
+                    'category' => $category,
+                    'relPath' => ($category ? $category . '/' : '') . $projectName,
+                    'type' => 'project'
+                ];
+            }
+        }
+
+        // XỬ LÝ ĐĂNG NHẬP MÔI TRƯỜNG REMOTE (DEMO HOẶC PRODUCTION)
+        if ($targetEnv === 'demo' || $targetEnv === 'prod' || $targetEnv === 'production') {
+            $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
+            $hostConfigInfo = getProjectTargetHostConfig($projectConfig, $targetEnv);
+            $currentEnv = $hostConfigInfo['env'];
+            $config = $hostConfigInfo['config'];
+            $envLabel = ($currentEnv === 'prod') ? 'Production' : 'Demo';
+
+            if (!$config || empty($config['ftp_host'])) {
+                echo json_encode(['status' => 'error', 'message' => "Chưa cấu hình thông tin Hosting {$envLabel} cho dự án này!"]);
+                break;
+            }
+
+            $cleanHost = !empty($config['web_domain'])
+                ? str_replace(['https://', 'http://', '/'], '', $config['web_domain'])
+                : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
+
+            $useSSL = !empty($config['ssl']) || (isset($config['web_domain']) && (strpos($config['web_domain'], 'https://') === 0 || strpos($config['web_domain'], 'nasanivietnam.net') !== false));
+            $scheme = $useSSL ? 'https://' : 'http://';
+
+            if ($currentEnv === 'prod') {
+                $deploySubPath = '';
+                $fullWebPath = '';
+            } else {
+                // Môi trường Demo
+                $folderName = $projectConfig['deployed']['demo']['matched_folder'] ?? ($projectConfig['deployed']['production']['matched_folder'] ?? $project['name']);
+                $deploySubPath = !empty($category) ? (trim($category, '/') . '/' . $folderName) : $folderName;
+                $webSub = $deployService->getWebSubPath($config['ftp_root'] ?? '');
+                $fullWebPath = rtrim($webSub, '/') . '/' . trim($deploySubPath, '/');
+                $fullWebPath = trim($fullWebPath, '/');
+            }
+
+            $templateFile = __DIR__ . '/rbw_autologin.template.php';
+            if (!file_exists($templateFile)) {
+                echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy file mẫu rbw_autologin.template.php!']);
+                break;
+            }
+
+            // 1. Sinh auth key ngẫu nhiên và thời hạn 120s
+            $authKey = bin2hex(random_bytes(24));
+            $expireTime = time() + 120;
+
+            $loginScriptContent = file_get_contents($templateFile);
+            $loginScriptContent = str_replace(
+                ['{{AUTH_KEY}}', '{{EXPIRE_TIME}}'],
+                [$authKey, (string)$expireTime],
+                $loginScriptContent
+            );
+
+            // 2. Tạo file tạm local và upload lên remote server qua FTP
+            $tempLocalFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'rbw_login_' . bin2hex(random_bytes(8)) . '.php';
+            file_put_contents($tempLocalFile, $loginScriptContent);
+
+            $remoteHelperName = 'rbw_login_' . bin2hex(random_bytes(6)) . '.php';
+            try {
+                $deployService->upload($config, [$remoteHelperName => $tempLocalFile], $deploySubPath);
+            } catch (\Exception $e) {
+                @unlink($tempLocalFile);
+                echo json_encode(['status' => 'error', 'message' => "Không thể tải tệp đăng nhập lên {$envLabel}: " . $e->getMessage()]);
+                break;
+            }
+            @unlink($tempLocalFile);
+
+            // 3. Tạo URL đăng nhập trực tiếp cho trình duyệt
+            // Khi trình duyệt mở URL này, script sẽ tự động xóa sạch chính nó ngay lập tức (@unlink) và chuyển hướng vào Admin!
+            $fullLoginUrl = $scheme . $cleanHost . '/' . ($fullWebPath ? $fullWebPath . '/' : '') . "{$remoteHelperName}?key={$authKey}";
+
+            echo json_encode([
+                'status' => 'success',
+                'login_url' => $fullLoginUrl,
+                'username' => 'admin',
+                'env' => $currentEnv,
+                'type' => 'standalone_self_destruct'
+            ]);
+            break;
+        }
+
+        // XỬ LÝ ĐĂNG NHẬP MÔI TRƯỜNG LOCAL
+        if (!$project || !is_dir($project['path'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Thư mục dự án không tồn tại trên hệ thống local!']);
+            break;
+        }
+
+        $projectPath = $project['path'];
+        $envFile = $projectPath . DIRECTORY_SEPARATOR . '.env';
+        $configPhpFile = $projectPath . DIRECTORY_SEPARATOR . 'libraries' . DIRECTORY_SEPARATOR . 'config.php';
+        $userControllerFile = $projectPath . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Controllers' . DIRECTORY_SEPARATOR . 'Admin' . DIRECTORY_SEPARATOR . 'UserController.php';
+
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+        $relPath = str_replace('\\', '/', $project['relPath']);
+
+        // 1. LOẠI DỰ ÁN NASANIC / LARAVEL
+        if (file_exists($envFile) && is_file($userControllerFile)) {
+            $envLines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            $envData = [];
+            foreach ($envLines as $line) {
+                $line = trim($line);
+                if ($line === '' || strpos($line, '#') === 0) continue;
+                if (strpos($line, '=') !== false) {
+                    list($k, $v) = explode('=', $line, 2);
+                    $k = trim($k);
+                    $v = trim($v, " \t\n\r\0\x0B\"'");
+                    $envData[$k] = $v;
+                }
+            }
+
+            $sitePath = $envData['SITE_PATH'] ?? ('/' . trim($relPath, '/') . '/');
+            if (substr($sitePath, 0, 1) !== '/') $sitePath = '/' . $sitePath;
+            if (substr($sitePath, -1) !== '/') $sitePath .= '/';
+
+            // Đảm bảo UserController.php có hook rbw_token
+            $ucContent = file_get_contents($userControllerFile);
+            if (strpos($ucContent, "url('admin.index')") !== false) {
+                $ucContent = str_replace("url('admin.index')", "(config('app.site_path') ? rtrim(config('app.site_path'), '/') : '') . '/admin'", $ucContent);
+                @file_put_contents($userControllerFile, $ucContent);
+            }
+            if (strpos($ucContent, '\\NASANICORE\\Core\\Support\\Facades\\Auth::') !== false) {
+                $ucContent = str_replace('\\NASANICORE\\Core\\Support\\Facades\\Auth::', 'Auth::', $ucContent);
+                @file_put_contents($userControllerFile, $ucContent);
+            }
+
+            // Tự động nâng cấp hook cũ nếu còn gọi loginUsingId mà chưa hỗ trợ NINA/NASANIC
+            if (strpos($ucContent, 'loginUsingId') !== false && strpos($ucContent, 'setUserAuth') === false) {
+                $oldCallNasanic = '\NASANICORE\Core\Support\Facades\Auth::guard(\'admin\')->loginUsingId($payload[\'user_id\'], true);';
+                $oldCallStandard = 'Auth::guard(\'admin\')->loginUsingId($payload[\'user_id\'], true);';
+                $newCallBlock = "\$admin = null;\n"
+                    . "                    try {\n"
+                    . "                        \$admin = UserModel::where('id', \$payload['user_id'])->first();\n"
+                    . "                    } catch (\\Throwable \$e) {}\n"
+                    . "                    \$guard = Auth::guard('admin');\n"
+                    . "                    if (method_exists(\$guard, 'loginUsingId')) {\n"
+                    . "                        \$guard->loginUsingId(\$payload['user_id'], true);\n"
+                    . "                    } else if (\$admin && method_exists(\$guard, 'login')) {\n"
+                    . "                        \$guard->login(\$admin, true);\n"
+                    . "                    }\n"
+                    . "                    if (\$admin && method_exists(\$guard, 'setUserAuth')) {\n"
+                    . "                        try {\n"
+                    . "                            \\Closure::bind(function(\$u) {\n"
+                    . "                                \$this->setUserAuth(\$u, true);\n"
+                    . "                            }, \$guard, \$guard)(\$admin);\n"
+                    . "                        } catch (\\Throwable \$e) {}\n"
+                    . "                    }";
+
+                if (strpos($ucContent, $oldCallNasanic) !== false) {
+                    $ucContent = str_replace($oldCallNasanic, $newCallBlock, $ucContent);
+                }
+                if (strpos($ucContent, $oldCallStandard) !== false) {
+                    $ucContent = str_replace($oldCallStandard, $newCallBlock, $ucContent);
+                }
+                $ucContent = str_replace("\$admin = Auth::guard('admin')->user();", "\$admin = (method_exists(\$guard, 'user') ? \$guard->user() : null) ?: \$admin;", $ucContent);
+                @file_put_contents($userControllerFile, $ucContent);
+            }
+
+            // Tự động dọn dẹp các hook cũ hoặc còn sót lại
+            if (strpos($ucContent, '/* === RBW_AUTOLOGIN_START === */') !== false) {
+                $ucContent = preg_replace('/\n?\s*\/\*\s*=== RBW_AUTOLOGIN_START ===\s*\*\/[\s\S]*?\/\*\s*=== RBW_AUTOLOGIN_END ===\s*\*\/\n?/', "\n", $ucContent);
+            }
+            if (strpos($ucContent, 'RBWManager Quick Auto-Login Hook') !== false) {
+                $ucContent = preg_replace('/\n?\s*\/\/\s*RBWManager Quick Auto-Login Hook[\s\S]*?return response\(\)->redirect\(\$adminTarget\);\s*\}\s*\}\s*\}\s*\}\s*\n?/', "\n", $ucContent);
+            }
+
+            $hookCode = "        /* === RBW_AUTOLOGIN_START === */\n"
+                . "        if (\$request->has('rbw_token')) {\n"
+                . "            \$rbwToken = \$request->query('rbw_token');\n"
+                . "            \$tempDir = sys_get_temp_dir();\n"
+                . "            \$cacheFile = \$tempDir . DIRECTORY_SEPARATOR . 'rbw_login_' . md5(\$rbwToken) . '.json';\n"
+                . "            if (!file_exists(\$cacheFile)) {\n"
+                . "                \$cacheFile = \$tempDir . DIRECTORY_SEPARATOR . 'rbw_login_' . md5(config('app.site_path') . \$rbwToken) . '.json';\n"
+                . "            }\n"
+                . "            if (file_exists(\$cacheFile)) {\n"
+                . "                \$payload = json_decode(@file_get_contents(\$cacheFile), true);\n"
+                . "                @unlink(\$cacheFile);\n"
+                . "                if (\$payload && !empty(\$payload['user_id']) && time() <= (\$payload['expire'] ?? 0)) {\n"
+                . "                    \$admin = null;\n"
+                . "                    try {\n"
+                . "                        \$admin = UserModel::where('id', \$payload['user_id'])->first();\n"
+                . "                    } catch (\\Throwable \$e) {}\n"
+                . "                    \$guard = Auth::guard('admin');\n"
+                . "                    if (method_exists(\$guard, 'loginUsingId')) {\n"
+                . "                        \$guard->loginUsingId(\$payload['user_id'], true);\n"
+                . "                    } else if (\$admin && method_exists(\$guard, 'login')) {\n"
+                . "                        \$guard->login(\$admin, true);\n"
+                . "                    }\n"
+                . "                    if (\$admin && method_exists(\$guard, 'setUserAuth')) {\n"
+                . "                        try {\n"
+                . "                            \\Closure::bind(function(\$u) {\n"
+                . "                                \$this->setUserAuth(\$u, true);\n"
+                . "                            }, \$guard, \$guard)(\$admin);\n"
+                . "                        } catch (\\Throwable \$e) {}\n"
+                . "                    }\n"
+                . "                    if (!\$admin && method_exists(\$guard, 'user')) {\n"
+                . "                        \$admin = \$guard->user();\n"
+                . "                    }\n"
+                . "                    if (\$admin) {\n"
+                . "                        \$timenow = time();\n"
+                . "                        \$id_user = \$admin->id;\n"
+                . "                        \$ip = request()->ip();\n"
+                . "                        \$tokenVal = md5(time());\n"
+                . "                        \$user_agent = \$_SERVER['HTTP_USER_AGENT'] ?? 'RBWManager';\n"
+                . "                        \$device = strtolower(agent()->deviceType());\n"
+                . "                        \$sessionhash = md5(sha1(\$admin->password . \$admin->username));\n"
+                . "                        try {\n"
+                . "                            UserLogModel::create(['id_user' => \$id_user, 'ip' => \$ip, 'timelog' => \$timenow, 'user_agent' => \$user_agent, 'device' => \$device, 'operation' => 'autologin']);\n"
+                . "                            UserModel::where('id', \$id_user)->update(['login_session' => \$sessionhash, 'lastlogin' => \$timenow, 'user_token' => \$tokenVal]);\n"
+                . "                        } catch (\\Throwable \$e) {}\n"
+                . "                        try {\n"
+                . "                            session()->get(config('app.token'), true);\n"
+                . "                            \$secret_key = session()->get(\$sessionhash);\n"
+                . "                            \$admin->where('id', \$admin->id)->update(['secret_key' => \$secret_key]);\n"
+                . "                        } catch (\\Throwable \$e) {}\n"
+                . "                        try {\n"
+                . "                            \$selfFile = __FILE__;\n"
+                . "                            if (is_file(\$selfFile) && is_writable(\$selfFile)) {\n"
+                . "                                \$c = @file_get_contents(\$selfFile);\n"
+                . "                                if (\$c) {\n"
+                . "                                    \$c = preg_replace('/\\n?\\s*\\/\\*\\s*=== RBW_AUTOLOGIN_START ===\\s*\\*\\/[\\s\\S]*?\\/\\*\\s*=== RBW_AUTOLOGIN_END ===\\s*\\*\\/\\n?/', \"\\n\", \$c);\n"
+                . "                                    \$c = preg_replace('/\\n?\\s*\\/\\/\\s*RBWManager Quick Auto-Login Hook[\\s\\S]*?return response\\(\\)->redirect\\(\\\$adminTarget\\);\\s*\\}\\s*\\}\\s*\\}\\s*\\}\\s*\\n?/', \"\\n\", \$c);\n"
+                . "                                    @file_put_contents(\$selfFile, \$c);\n"
+                . "                                }\n"
+                . "                            }\n"
+                . "                        } catch (\\Throwable \$e) {}\n"
+                . "                        \$adminTarget = (config('app.site_path') ? rtrim(config('app.site_path'), '/') : '') . '/admin';\n"
+                . "                        return response()->redirect(\$adminTarget);\n"
+                . "                    }\n"
+                . "                }\n"
+                . "            }\n"
+                . "        }\n"
+                . "        /* === RBW_AUTOLOGIN_END === */\n";
+
+            $pattern = '/(public\s+function\s+login\s*\([^\)]*\)\s*\{)/i';
+            if (preg_match($pattern, $ucContent)) {
+                $ucContent = preg_replace($pattern, "$1\n" . $hookCode, $ucContent, 1);
+                @file_put_contents($userControllerFile, $ucContent);
+            }
+
+            // Kết nối Database lấy thông tin user admin
+            $dbHost = $envData['DB_HOST'] ?? '127.0.0.1';
+            $dbPort = $envData['DB_PORT'] ?? '3306';
+            $dbName = $envData['DB_DATABASE'] ?? '';
+            $dbUser = $envData['DB_USERNAME'] ?? 'root';
+            $dbPass = $envData['DB_PASSWORD'] ?? '';
+            $prefix = $envData['DB_PREFIX'] ?? 'table_';
+
+            $adminUser = null;
+            if ($dbName) {
+                try {
+                    $pdo = new PDO("mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4", $dbUser, $dbPass, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+                    ]);
+                    $tables = ["{$prefix}user", "table_user", "user"];
+                    foreach ($tables as $tbl) {
+                        try {
+                            $stmt = $pdo->query("SELECT id, username FROM {$tbl} WHERE status = 'hienthi' ORDER BY role DESC LIMIT 1");
+                            $adminUser = $stmt->fetch();
+                            if ($adminUser) break;
+                            $stmt2 = $pdo->query("SELECT id, username FROM {$tbl} ORDER BY id ASC LIMIT 1");
+                            $adminUser = $stmt2->fetch();
+                            if ($adminUser) break;
+                        } catch (Exception $e) {}
+                    }
+                } catch (Exception $e) {
+                    echo json_encode(['status' => 'error', 'message' => 'Không thể kết nối Database của dự án: ' . $e->getMessage()]);
+                    break;
+                }
+            }
+
+            if (!$adminUser) {
+                echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy tài khoản quản trị (admin) trong Database dự án!']);
+                break;
+            }
+
+            $rbwToken = bin2hex(random_bytes(24));
+            $tempDir = sys_get_temp_dir();
+            $payloadJson = json_encode([
+                'user_id' => $adminUser['id'],
+                'expire' => time() + 60
+            ]);
+            @file_put_contents($tempDir . DIRECTORY_SEPARATOR . 'rbw_login_' . md5($rbwToken) . '.json', $payloadJson);
+            @file_put_contents($tempDir . DIRECTORY_SEPARATOR . 'rbw_login_' . md5($sitePath . $rbwToken) . '.json', $payloadJson);
+
+            $sitePathUrl = rtrim($sitePath, '/');
+            $loginUrl = "{$scheme}://{$host}{$sitePathUrl}/admin/user/login?rbw_token={$rbwToken}";
+
+            echo json_encode([
+                'status' => 'success',
+                'login_url' => $loginUrl,
+                'username' => $adminUser['username'],
+                'type' => 'nasanic'
+            ]);
+            break;
+        }
+
+        // 2. LOẠI DỰ ÁN CUSTOM PHP CŨ (LIBRARIES/CONFIG.PHP)
+        if (file_exists($configPhpFile)) {
+            $adminIndexFile = $projectPath . DIRECTORY_SEPARATOR . 'admin' . DIRECTORY_SEPARATOR . 'index.php';
+            if (!file_exists($adminIndexFile)) {
+                echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy file admin/index.php của dự án!']);
+                break;
+            }
+
+            $aiContent = file_get_contents($adminIndexFile);
+            if (strpos($aiContent, '/* === RBW_AUTOLOGIN_START === */') !== false) {
+                $aiContent = preg_replace('/\n?\s*\/\*\s*=== RBW_AUTOLOGIN_START ===\s*\*\/[\s\S]*?\/\*\s*=== RBW_AUTOLOGIN_END ===\s*\*\/\n?/', "\n", $aiContent);
+            }
+            if (strpos($aiContent, '/* RBWManager Quick Auto-Login Hook */') !== false) {
+                $aiContent = preg_replace('/\/\* RBWManager Quick Auto-Login Hook \*\/.*?(header\(\'Location: index\.php\'\);\s*exit;\s*\}\s*\}\s*\}\s*\}\s*)/s', '', $aiContent);
+            }
+
+            $hookCode = "\n/* === RBW_AUTOLOGIN_START === */\n"
+                . "if (isset(\$_GET['rbw_token'])) {\n"
+                . "    \$rbwToken = \$_GET['rbw_token'];\n"
+                . "    \$tempDir = sys_get_temp_dir();\n"
+                . "    \$tokenCandidates = [\n"
+                . "        \$tempDir . DIRECTORY_SEPARATOR . 'rbw_login_' . md5(\$rbwToken) . '.json',\n"
+                . "        \$tempDir . DIRECTORY_SEPARATOR . 'rbw_login_' . md5(__DIR__ . \$rbwToken) . '.json'\n"
+                . "    ];\n"
+                . "    \$tokenFile = null;\n"
+                . "    foreach (\$tokenCandidates as \$tc) {\n"
+                . "        if (file_exists(\$tc)) { \$tokenFile = \$tc; break; }\n"
+                . "    }\n"
+                . "    if (\$tokenFile) {\n"
+                . "        \$payload = json_decode(@file_get_contents(\$tokenFile), true);\n"
+                . "        @unlink(\$tokenFile);\n"
+                . "        if (\$payload && !empty(\$payload['user_id']) && time() <= (\$payload['expire'] ?? 0)) {\n"
+                . "            \$id_user = (int)\$payload['user_id'];\n"
+                . "            \$row = \$d->rawQueryOne('select * from #_user WHERE id = ? limit 0,1', array(\$id_user));\n"
+                . "            if (\$row) {\n"
+                . "                \$timenow = time();\n"
+                . "                \$token = md5(time());\n"
+                . "                \$sessionhash = md5(sha1(\$row['password'].\$row['username']));\n"
+                . "                \$login_key = isset(\$login_admin) ? \$login_admin : (isset(\$config['login']['admin']) ? \$config['login']['admin'] : 'login_admin');\n"
+                . "                \$_SESSION[\$login_key] = [\n"
+                . "                    'active' => true,\n"
+                . "                    'id' => \$row['id'],\n"
+                . "                    'username' => \$row['username'],\n"
+                . "                    'role' => \$row['role'] ?? 3,\n"
+                . "                    'quyen' => \$sessionhash,\n"
+                . "                    'token' => \$sessionhash,\n"
+                . "                    'password' => \$row['password'],\n"
+                . "                    'login_session' => \$sessionhash,\n"
+                . "                    'login_token' => \$token\n"
+                . "                ];\n"
+                . "                \$d->rawQuery('update #_user set lastlogin = ?, user_token = ?, login_session = ?, quyen = ? where id = ?', array(\$timenow, \$token, \$sessionhash, \$sessionhash, \$id_user));\n"
+                . "                try {\n"
+                . "                    \$selfFile = __FILE__;\n"
+                . "                    if (is_file(\$selfFile) && is_writable(\$selfFile)) {\n"
+                . "                        \$c = @file_get_contents(\$selfFile);\n"
+                . "                        if (\$c) {\n"
+                . "                            \$c = preg_replace('/\\n?\\s*\\/\\*\\s*=== RBW_AUTOLOGIN_START ===\\s*\\*\\/[\\s\\S]*?\\/\\*\\s*=== RBW_AUTOLOGIN_END ===\\s*\\*\\/\\n?/', \"\\n\", \$c);\n"
+                . "                            \$c = preg_replace('/\\/\\* RBWManager Quick Auto-Login Hook \\*\\/.*?(header\\(\\'Location: index\\.php\\'\\);\\s*exit;\\s*\\}\\s*\\}\\s*\\}\\s*\\}\\s*)/s', '', \$c);\n"
+                . "                            @file_put_contents(\$selfFile, \$c);\n"
+                . "                        }\n"
+                . "                    }\n"
+                . "                } catch (\\Throwable \$e) {}\n"
+                . "                header('Location: index.php');\n"
+                . "                exit;\n"
+                . "            }\n"
+                . "        }\n"
+                . "    }\n"
+                . "}\n"
+                . "/* === RBW_AUTOLOGIN_END === */\n";
+            if (strpos($aiContent, 'require_once LIBRARIES."requick.php";') !== false) {
+                $aiContent = str_replace('require_once LIBRARIES."requick.php";', $hookCode . "\nrequire_once LIBRARIES.\"requick.php\";", $aiContent);
+                @file_put_contents($adminIndexFile, $aiContent);
+            } elseif (strpos($aiContent, 'new PDODb(') !== false) {
+                $aiContent = preg_replace('/(\$d\s*=\s*new\s+PDODb\([^;]+;\s*)/i', "$1\n" . $hookCode, $aiContent, 1);
+                @file_put_contents($adminIndexFile, $aiContent);
+            } elseif (strpos($aiContent, 'session_start();') !== false) {
+                $aiContent = str_replace('session_start();', 'session_start();' . $hookCode, $aiContent);
+                @file_put_contents($adminIndexFile, $aiContent);
+            }
+
+            $cfgContent = file_get_contents($configPhpFile);
+            $dbHost = '127.0.0.1'; $dbPort = '3306'; $dbName = ''; $dbUser = 'root'; $dbPass = ''; $prefix = 'table_';
+            if (preg_match("/['\"]host['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $cfgContent, $m)) $dbHost = $m[1];
+            if (preg_match("/['\"]port['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $cfgContent, $m)) $dbPort = $m[1];
+            if (preg_match("/['\"]dbname['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $cfgContent, $m)) $dbName = $m[1];
+            if (preg_match("/['\"]username['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $cfgContent, $m)) $dbUser = $m[1];
+            if (preg_match("/['\"]password['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $cfgContent, $m)) $dbPass = $m[1];
+            if (preg_match("/['\"](?:table_)?prefix['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $cfgContent, $m)) $prefix = $m[1];
+
+            $adminUser = null;
+            if ($dbName) {
+                try {
+                    $pdo = new PDO("mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4", $dbUser, $dbPass, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+                    ]);
+                    $tables = ["{$prefix}user", "table_user", "user"];
+                    foreach ($tables as $tbl) {
+                        try {
+                            $stmt = $pdo->query("SELECT id, username FROM {$tbl} WHERE hienthi > 0 ORDER BY role DESC, id ASC LIMIT 1");
+                            $adminUser = $stmt->fetch();
+                            if ($adminUser) break;
+                        } catch (Exception $e) {}
+                        try {
+                            $stmt = $pdo->query("SELECT id, username FROM {$tbl} WHERE status = 'hienthi' ORDER BY role DESC, id ASC LIMIT 1");
+                            $adminUser = $stmt->fetch();
+                            if ($adminUser) break;
+                        } catch (Exception $e) {}
+                        try {
+                            $stmt2 = $pdo->query("SELECT id, username FROM {$tbl} ORDER BY id ASC LIMIT 1");
+                            $adminUser = $stmt2->fetch();
+                            if ($adminUser) break;
+                        } catch (Exception $e) {}
+                    }
+                } catch (Exception $e) {
+                    echo json_encode(['status' => 'error', 'message' => 'Không thể kết nối Database dự án: ' . $e->getMessage()]);
+                    break;
+                }
+            }
+
+            if (!$adminUser) {
+                echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy tài khoản quản trị (admin) trong Database dự án!']);
+                break;
+            }
+
+            $adminDir = $projectPath . DIRECTORY_SEPARATOR . 'admin';
+            $rbwToken = bin2hex(random_bytes(24));
+            $tempDir = sys_get_temp_dir();
+            $tokenPayload = json_encode([
+                'user_id' => $adminUser['id'],
+                'expire' => time() + 60
+            ]);
+            @file_put_contents($tempDir . DIRECTORY_SEPARATOR . 'rbw_login_' . md5($rbwToken) . '.json', $tokenPayload);
+            @file_put_contents($tempDir . DIRECTORY_SEPARATOR . 'rbw_login_' . md5($adminDir . $rbwToken) . '.json', $tokenPayload);
+
+            $loginUrl = "{$scheme}://{$host}/{$relPath}/admin/index.php?rbw_token={$rbwToken}";
+            echo json_encode([
+                'status' => 'success',
+                'login_url' => $loginUrl,
+                'username' => $adminUser['username'],
+                'type' => 'custom_php'
+            ]);
+            break;
+        }
+
+        echo json_encode(['status' => 'error', 'message' => 'Không xác định được cấu hình nguồn (Nasanic .env hoặc Custom PHP config.php) của dự án này!']);
         break;
 
     default:

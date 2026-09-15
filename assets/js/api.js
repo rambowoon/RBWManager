@@ -13,6 +13,10 @@ const Api = {
         return this.fetch(`listProjects&category=${category}`);
     },
 
+    async calculateCategorySizes(category = '') {
+        return this.fetch(`calculateCategorySizes&category=${encodeURIComponent(category)}`);
+    },
+
     async saveConfig(name, config, category = '') {
         return this.fetch('saveConfig', {
             method: 'POST',
@@ -78,6 +82,14 @@ const Api = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ category, name })
+        });
+    },
+
+    async autoLoginAdmin(name, category = '', env = 'local') {
+        return this.fetch('autoLoginAdmin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, category, env })
         });
     }
 };

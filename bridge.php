@@ -1383,6 +1383,7 @@ class RamboWoonBridge
         $isPathExcluded = function($relPath) use ($defaultExcludes) {
             $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
             if ($clean === '') return false;
+            if (substr($clean, -4) === '.sql') return true;
             $firstPart = explode('/', $clean)[0];
             
             foreach ($defaultExcludes as $ex) {
@@ -1414,7 +1415,7 @@ class RamboWoonBridge
                 
                 if ($isPathExcluded($relPath)) continue;
                 
-                if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql') continue;
+                if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql' || substr(strtolower($relPath), -4) === '.sql') continue;
                 if (!$includeClearData) {
                     if (stripos($relPath, 'cleardata') !== false) continue;
                     if (strtolower(str_replace('\\', '/', $relPath)) === 'src/routes/web.php') {
@@ -1440,7 +1441,7 @@ class RamboWoonBridge
         
         $scanDir($root);
         
-        echo json_encode(['status' => 'success', 'version' => 'v6_sub_excludes', 'files' => $files]);
+        echo json_encode(['status' => 'success', 'version' => 'v6_sub_excludes_nosql', 'files' => $files]);
         exit;
     }
 

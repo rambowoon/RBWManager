@@ -28,7 +28,7 @@
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                     </svg>
                 </div>
-                <div class="logo-text">Anti Sky</div>
+                <div class="logo-text">RBWManager</div>
             </div>
 
             <nav class="sidebar-nav">
@@ -149,11 +149,6 @@
             <header>
                 <div class="header-left">
                     <div id="nav-header" class="nav-header-flex">
-                        <button class="btn btn-ghost" onclick="App.showCategories()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M19 12H5M12 19l-7-7 7-7" />
-                            </svg>
-                        </button>
                         <div class="category-breadcrumb">Dự án / <span id="current-category" class="category-current">Toàn bộ</span></div>
                     </div>
                     <div id="dashboard-breadcrumb" class="dashboard-breadcrumb-text">Bảng điều khiển</div>
@@ -184,6 +179,7 @@
 
                     <span class="badge-php" id="detail-project-php" style="display:none; margin-right: 6px;"></span>
                     <span class="badge-env" id="detail-project-status" style="display:none; margin-right: 6px;">● DEMO ĐANG CHẠY</span>
+                    <span class="badge-size" id="detail-project-size" style="display:none; margin-right: 6px;"></span>
                     <!-- THEME DROPDOWN -->
                     <div class="theme-dropdown-wrapper">
                         <button class="theme-toggle-btn" id="theme-menu-btn" onclick="UI.toggleThemeMenu(event)" title="Đổi màu giao diện (Theme)">
@@ -310,6 +306,19 @@
                                 <div class="stat-value" id="stat-demo">--</div>
                             </div>
                         </div>
+                        <div class="stat-card stat-card-storage">
+                            <div class="stat-icon-box">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <ellipse cx="12" cy="5" rx="9" ry="3" />
+                                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                                </svg>
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-label" id="stat-storage-label">Dung lượng tháng</div>
+                                <div class="stat-value" id="stat-total-size">--</div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Content Area (Split View) -->
@@ -322,7 +331,7 @@
                         <!-- Right Content: Projects -->
                         <div class="projects-content-area">
                             <div class="section-header project-section-header">
-                                <div class="section-header-left">
+                                <div class="section-header-left" style="display:flex; align-items:center; gap:10px;">
                                     <h2 class="section-title" id="content-title">Danh sách dự án</h2>
                                 </div>
                                 <div class="project-toolbar-actions">
@@ -360,6 +369,18 @@
                                                     <polyline points="12 6 12 12 8 14" />
                                                 </svg>
                                                 Cũ nhất trước
+                                            </div>
+                                            <div class="sort-opt" data-val="size_desc" onclick="App.onProjectSortChange('size_desc')">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                                </svg>
+                                                Dung lượng: Lớn → Nhỏ
+                                            </div>
+                                            <div class="sort-opt" data-val="size_asc" onclick="App.onProjectSortChange('size_asc')">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                                </svg>
+                                                Dung lượng: Nhỏ → Lớn
                                             </div>
                                             <div class="sort-opt" data-val="name_asc" onclick="App.onProjectSortChange('name_asc')">
                                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1158,43 +1179,103 @@
 
                 <!-- VIEW: GLOBAL CONFIG (SETTING) -->
                 <div id="view-global-config" class="view-section" style="display:none;">
-                    <div class="section-header">
-                        <h2 class="section-title">⚙️ Cấu hình chung (Setting)</h2>
+                    <div class="section-header flex-between-center" style="margin-bottom: 24px;">
+                        <div>
+                            <h2 class="section-title" style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                                <span style="display: inline-flex; width: 36px; height: 36px; align-items: center; justify-content: center; background: rgba(168, 85, 247, 0.15); border-radius: 10px; color: #c084fc;">⚙️</span>
+                                Cấu hình chung hệ thống (Settings)
+                            </h2>
+                            <p style="color: var(--muted); margin: 6px 0 0 46px; font-size: 0.88rem;">Quản lý toàn bộ thông số máy chủ, API bên thứ ba, khung dự án và giao diện</p>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-submit-large" onclick="document.getElementById('global-config-form').requestSubmit();" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; font-weight: 600;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Lưu tất cả cấu hình
+                        </button>
                     </div>
 
-                    <div class="card-container card-padded" style="margin-top:20px;">
-                        <form id="global-config-form">
+                    <form id="global-config-form">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 20px;">
 
-                            <div style="padding-top: 5px; margin-bottom: 15px;">
-                                <label style="color: var(--primary); margin-bottom:12px; font-size:0.7rem;">🎨 GIAO DIỆN &amp; MÀU SẮC (THEME)</label>
-                                <div class="form-group">
-                                    <label>Chọn Theme màu hệ thống</label>
-                                    <select id="g_theme_selector" onchange="UI.setTheme(this.value)">
-                                        <option value="mint">🌿 Xanh Mint (Mint Green Glow - Mặc định)</option>
-                                        <option value="emerald">🌲 Lục Bảo (Emerald Green)</option>
-                                        <option value="cyan">❄️ Băng Tuyết (Cyber Cyan)</option>
-                                        <option value="ocean">🌊 Xanh Biển (Ocean Blue)</option>
-                                        <option value="indigo">🌌 Chàm (Electric Indigo)</option>
-                                        <option value="purple">🔮 Tím Neon (Cyber Purple)</option>
-                                        <option value="rose">🌹 Hồng Ruby (Neon Rose)</option>
-                                        <option value="orange">🟠 Cam Cyber (Neon Orange)</option>
-                                        <option value="amber">👑 Hoàng Kim (Sunset Amber)</option>
-                                        <option value="red">🔥 Đỏ Rực (Crimson Red)</option>
+                            <!-- KHỐI 1: KHUNG DỰ ÁN & ĐƯỜNG DẪN LOCAL -->
+                            <div class="setting-group-card" style="grid-column: 1 / -1; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-size: 1.25rem;">🏗️</span>
+                                        <div>
+                                            <div style="font-size: 1rem; font-weight: 700; color: #fff;">Khởi tạo dự án &amp; Đường dẫn hệ thống</div>
+                                            <div style="font-size: 0.8rem; color: var(--muted);">Cấu hình mã nguồn mẫu, cơ sở dữ liệu gốc và các thư mục tài nguyên</div>
+                                        </div>
+                                    </div>
+                                    <span class="badge" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.25); font-size: 0.72rem; padding: 4px 10px; border-radius: 20px; font-weight: 600;">Project Scaffolding</span>
+                                </div>
+
+                                <div class="form-grid-2" style="gap: 16px;">
+                                    <div class="form-group">
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">📂 Thư mục mã nguồn mẫu (Source Path)</label>
+                                        <input type="text" id="g_source_path" placeholder="D:/RBWStack/www/source_laravel" style="width: 100%;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">📁 Tên thư mục Source (Folder Name)</label>
+                                        <input type="text" id="g_source_folder_name" placeholder="source_laravel" style="width: 100%;">
+                                    </div>
+                                </div>
+
+                                <div class="form-grid-2" style="gap: 16px; margin-top: 14px;">
+                                    <div class="form-group">
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">🗄️ Tên Database mẫu (Source DB Name)</label>
+                                        <input type="text" id="g_source_db_name" placeholder="source_nasani_2026" style="width: 100%;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">⚡ Đường dẫn Code Editor (Antigravity/VSCode)</label>
+                                        <input type="text" id="g_editor_path" placeholder="C:\Users\...\Antigravity.exe" style="width: 100%;">
+                                    </div>
+                                </div>
+
+                                <div class="form-grid-2" style="gap: 16px; margin-top: 14px;">
+                                    <div class="form-group">
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">🔤 Thư viện Font chữ Local (Font Library)</label>
+                                        <input type="text" id="g_font_source_path" placeholder="D:/RBWStack/www/font_library" style="width: 100%;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">🌱 Thư viện Ảnh Mẫu (Data Seed Images)</label>
+                                        <input type="text" id="g_images_pool_path" placeholder="D:/RBWStack/www/images" style="width: 100%;">
+                                    </div>
+                                </div>
+
+                                <div class="form-group" style="margin-top: 14px;">
+                                    <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">📅 Định dạng tên thư mục tháng (Mặc định khi đúc dự án)</label>
+                                    <select id="g_month_folder_format" class="custom-select" style="width: 100%;">
+                                        <option value="YYYY_MM">YYYY_MM (Ví dụ: 2026_09 - Chuẩn khuyến nghị)</option>
+                                        <option value="YYYY/thangMM">YYYY/thangMM (Ví dụ: 2026/thang09)</option>
+                                        <option value="thangMM">thangMM (Ví dụ: thang09)</option>
+                                        <option value="YYYY/YYtMM">YYYY/YYtMM (Ví dụ: 2026/26t09)</option>
                                     </select>
                                 </div>
                             </div>
 
-                            <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
-                                <label style="color: var(--primary); margin-bottom:12px; font-size:0.7rem;">☁️ CLOUDFLARE API (PRODUCTION)</label>
-                                <div class="form-group">
-                                    <label>Account ID</label>
-                                    <input type="text" id="g_cf_account_id">
-                                </div>
-                                <div class="form-grid-2">
-                                    <div class="form-group">
-                                        <label>Global API Key / Token</label>
+                            <!-- KHỐI 2: CLOUDFLARE API (PRODUCTION) -->
+                            <div class="setting-group-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; flex-direction: column; justify-content: space-between;">
+                                <div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <span style="font-size: 1.25rem;">☁️</span>
+                                            <div>
+                                                <div style="font-size: 1rem; font-weight: 700; color: #fff;">Cloudflare API (Production)</div>
+                                                <div style="font-size: 0.8rem; color: var(--muted);">Tự động quản lý DNS, bản ghi A và tối ưu SSL</div>
+                                            </div>
+                                        </div>
+                                        <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.25); font-size: 0.72rem; padding: 4px 10px; border-radius: 20px; font-weight: 600;">DNS Automation</span>
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom: 14px;">
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">Account ID</label>
+                                        <input type="text" id="g_cf_account_id" placeholder="Nhập Cloudflare Account ID..." style="width: 100%;">
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom: 14px;">
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">Global API Key / Token</label>
                                         <div class="password-wrapper">
-                                            <input type="password" id="g_cf_api_token">
+                                            <input type="password" id="g_cf_api_token" placeholder="Cloudflare API Token...">
                                             <span class="toggle-password" onclick="UI.togglePassword('g_cf_api_token', this)">
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -1203,18 +1284,30 @@
                                             </span>
                                         </div>
                                     </div>
+
                                     <div class="form-group">
-                                        <label>Auth Email</label>
-                                        <input type="text" id="g_cf_auth_email">
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">Auth Email</label>
+                                        <input type="text" id="g_cf_auth_email" placeholder="email@domain.com" style="width: 100%;">
                                     </div>
                                 </div>
                             </div>
 
-                            <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
-                                <label style="color: var(--success); margin-bottom:12px; font-size:0.7rem;">🤖 AI API KEYS (MODELS CHECKER)</label>
-                                <div class="form-grid-2">
-                                    <div class="form-group">
-                                        <label>Gemini API Key</label>
+                            <!-- KHỐI 3: TRÍ TUỆ NHÂN TẠO (AI API KEYS) -->
+                            <div class="setting-group-card" style="background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; flex-direction: column; justify-content: space-between;">
+                                <div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <span style="font-size: 1.25rem;">🤖</span>
+                                            <div>
+                                                <div style="font-size: 1rem; font-weight: 700; color: #fff;">Khóa API Trí Tuệ Nhân Tạo (AI)</div>
+                                                <div style="font-size: 0.8rem; color: var(--muted);">Phục vụ tính năng AI Model Checker</div>
+                                            </div>
+                                        </div>
+                                        <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25); font-size: 0.72rem; padding: 4px 10px; border-radius: 20px; font-weight: 600;">AI Engine</span>
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom: 14px;">
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">Google Gemini API Key</label>
                                         <div class="password-wrapper">
                                             <input type="password" id="g_gemini_key" placeholder="AIzaSy...">
                                             <span class="toggle-password" onclick="UI.togglePassword('g_gemini_key', this)">
@@ -1225,8 +1318,9 @@
                                             </span>
                                         </div>
                                     </div>
+
                                     <div class="form-group">
-                                        <label>Claude API Key</label>
+                                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; display: block;">Anthropic Claude API Key</label>
                                         <div class="password-wrapper">
                                             <input type="password" id="g_claude_key" placeholder="sk-ant-api03...">
                                             <span class="toggle-password" onclick="UI.togglePassword('g_claude_key', this)">
@@ -1240,44 +1334,14 @@
                                 </div>
                             </div>
 
-                            <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
-                                <label style="color: var(--purple); margin-bottom:12px; font-size:0.7rem;">🏗️ PROJECT SCAFFOLDING (ĐÚC DỰ ÁN)</label>
-                                <div class="form-grid-2">
-                                    <div class="form-group"><label>Source Path</label><input type="text" id="g_source_path" placeholder="D:/RBWStack/www/source_laravel"></div>
-                                    <div class="form-group"><label>Source Folder Name</label><input type="text" id="g_source_folder_name" placeholder="source_laravel"></div>
-                                </div>
-                                <div class="form-grid-2">
-                                    <div class="form-group"><label>Source DB Name</label><input type="text" id="g_source_db_name" placeholder="source_nasani_2026"></div>
-                                    <div class="form-group">
-                                        <label>Editor Path (Mở dự án)</label>
-                                        <input type="text" id="g_editor_path" placeholder="C:\Users\...\Antigravity.exe">
-                                    </div>
-                                </div>
-                                <div class="form-grid-2">
-                                    <div class="form-group">
-                                        <label>Font Source Path (Thư viện Font local)</label>
-                                        <input type="text" id="g_font_source_path" placeholder="D:/RBWStack/www/font_library">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>🌱 Thư viện Ảnh Mẫu (Tạo Dữ Liệu Mẫu)</label>
-                                        <input type="text" id="g_images_pool_path" placeholder="D:/RBWStack/www/images">
-                                    </div>
-                                </div>
-                                <div class="form-group" style="margin-top: 10px;">
-                                    <label>📁 Cấu hình Định dạng Thư mục Tháng (Mặc định)</label>
-                                    <select id="g_month_folder_format" class="custom-select">
-                                        <option value="YYYY_MM">YYYY_MM (Ví dụ: 2026_08 - Chuẩn mặc định)</option>
-                                        <option value="YYYY/thangMM">YYYY/thangMM (Ví dụ: 2026/thang08)</option>
-                                        <option value="thangMM">thangMM (Ví dụ: thang08)</option>
-                                        <option value="YYYY/YYtMM">YYYY/YYtMM (Ví dụ: 2026/26t08)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-submit-row" style="margin-top: 25px; border-top: 1px solid var(--border); padding-top: 20px;">
-                                <button type="submit" class="btn btn-primary btn-submit-large">Lưu cấu hình</button>
-                            </div>
-                        </form>
-                    </div>
+                        </div>
+
+                        <div class="form-submit-row" style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px;">
+                            <button type="submit" class="btn btn-primary btn-submit-large" style="padding: 12px 28px; font-size: 0.95rem; font-weight: 700; border-radius: 10px;">
+                                💾 Lưu toàn bộ cấu hình
+                            </button>
+                        </div>
+                    </form>
                 </div>
 
             </div>
@@ -1304,7 +1368,7 @@
                     <div class="quick-paste-box">
                         <label>⚡ PASTE NHANH CẤU HÌNH</label>
                         <textarea id="quick_paste" placeholder="Dán thông tin hosting tại đây..."></textarea>
-                        <button type="button" class="btn btn-primary btn-sm-full" onclick="UI.parseQuickConfig()">Phân tích & Đổ dữ liệu</button>
+                        <button type="button" class="btn btn-primary btn-sm-full" onclick="UI.parseQuickConfig('', event)">Phân tích & Đổ dữ liệu</button>
                     </div>
 
                     <form id="config-form">
@@ -1630,7 +1694,7 @@
                     <label class="label-m0" style="color:var(--primary);">⚡ PASTE NHANH CẤU HÌNH</label>
                 </div>
                 <textarea id="d_quick_paste" placeholder="Dán thông tin hosting tại đây (DA / FTP info)..." style="height: 60px;"></textarea>
-                <button type="button" class="btn btn-primary btn-sm-full" onclick="UI.parseQuickConfig('detail')">Phân tích &amp; Đổ dữ liệu</button>
+                <button type="button" class="btn btn-primary btn-sm-full" onclick="UI.parseQuickConfig('detail', event)">Phân tích &amp; Đổ dữ liệu</button>
             </div>
 
             <form id="detail-config-form">
@@ -1676,11 +1740,11 @@
             </div>
             <div class="quick-paste-box" style="margin:0; border:none; background:transparent; padding:0;">
                 <p style="font-size:0.75rem; color:var(--muted); margin-bottom:15px;">Dán toàn bộ thông tin Hosting/FTP bạn nhận được vào đây. Hệ thống sẽ tự động bóc tách các trường dữ liệu.</p>
-                <textarea id="d_quick_paste" placeholder="Ví dụ:
+                <textarea id="qp_quick_paste" placeholder="Ví dụ:
 Host: 123.123.123.123
 User: u123456
 Pass: password123..." style="height:200px;"></textarea>
-                <button type="button" class="btn btn-primary btn-sm-full" style="padding:12px;" onclick="UI.parseQuickConfig('detail')">Phân tích & Đổ dữ liệu</button>
+                <button type="button" class="btn btn-primary btn-sm-full" style="padding:12px;" onclick="UI.parseQuickConfig('detail', event)">Phân tích & Đổ dữ liệu</button>
             </div>
         </div>
     </div>

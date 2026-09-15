@@ -71,7 +71,15 @@ const UI = {
 		const overlay = document.getElementById('ui-loading-overlay');
 		if (overlay) overlay.remove();
 	},
-	renderCategories(categories) {
+	formatBytes(bytes, decimals = 1) {
+		if (!bytes || bytes <= 0) return '0 B';
+		const k = 1024;
+		const dm = decimals < 0 ? 0 : decimals;
+		const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+	},
+	renderCategories(categories, stats = {}) {
 		const sidebar = document.getElementById("category-sidebar");
 		if (!sidebar) return;
 		sidebar.innerHTML = "";
@@ -114,11 +122,17 @@ const UI = {
 				displayIcon = cat.substring(0, 2).toUpperCase();
 			}
 
+			const stat = (stats && stats[cat]) ? stats[cat] : null;
+			const sizeStr = stat && stat.size_formatted ? stat.size_formatted : '';
+			if (sizeStr) {
+				displaySubtitle = `${displaySubtitle} • ${sizeStr}`;
+			}
+
 			item.innerHTML = `
                 <div class="category-item-icon">${displayIcon}</div>
                 <div class="flex-1-minw0">
                     <div class="category-item-title" title="${displayTitle}">${displayTitle}</div>
-                    <div class="category-item-subtitle">${displaySubtitle}</div>
+                    <div class="category-item-subtitle" title="${sizeStr ? `Tổng dung lượng: ${sizeStr}` : ''}">${displaySubtitle}</div>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
             `;
@@ -126,15 +140,17 @@ const UI = {
 		});
 	},
 
-	renderProjects(projects, category) {
+	renderProjects(projects, category, categoryTotalSizeFormatted = null) {
 		const list = document.getElementById("project-list");
 		if (!list) return;
 		list.innerHTML = "";
 
-		document.getElementById("current-category").innerText =
-			category || "Tất cả";
-		document.getElementById("content-title").innerText =
-			`Dự án: ${category || "Tất cả"}`;
+		const catText = category || "Toàn bộ";
+		const currentCatEl = document.getElementById("current-category");
+		if (currentCatEl) currentCatEl.innerText = catText;
+		
+		const titleEl = document.getElementById("content-title");
+		if (titleEl) titleEl.innerText = `Dự án: ${catText}`;
 
 		if (projects.length === 0) {
 			list.innerHTML =
@@ -244,6 +260,7 @@ const UI = {
                         <div class="item-card-main flex-1-minw0">
                             <div class="item-card-title">${p.name}</div>
                             ${p.modified_at ? `<div class="item-card-date"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${p.modified_at}</div>` : ''}
+                            <div class="item-card-size" ${p.size_formatted ? '' : 'style="display:none;"'} title="Dung lượng dự án: ${p.size_formatted || ''}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span>${p.size_formatted || ''}</span></div>
                         </div>
                         <button class="btn btn-ghost btn-action-trigger" onclick="event.stopPropagation(); UI.openMenu(event, '${safeName}', '${safeCat}')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
@@ -284,6 +301,8 @@ const UI = {
 
 		const safeName = projectName;
 		const safeCat = category;
+		const project = App.projects ? App.projects.find((p) => p.name === projectName) : null;
+		const isConfigPhp = !!(project && (project.is_config_php || project.has_config_php));
 
 		// Build menu content
 		portal.innerHTML = `
@@ -291,6 +310,7 @@ const UI = {
                 <span class="menu-icon mi-purple"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>
                 <strong class="portal-antigravity-text">Mở bằng Antigravity</strong>
             </button>
+
             <div class="menu-divider"></div>
             <button class="action-menu-item" onclick="UI.closePortalMenu(); App.openConfig('${safeName}')">
                 <span class="menu-icon mi-cyan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-2.82-1.17l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
@@ -335,10 +355,11 @@ const UI = {
                 <span class="menu-icon mi-green"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></span>
                 Đổi PHP Version
             </button>
+            ${!isConfigPhp ? `
             <button class="action-menu-item" onclick="UI.closePortalMenu(); App.downloadPackage('${safeName}','${safeCat}')">
                 <span class="menu-icon mi-amber"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
                 Download Package
-            </button>
+            </button>` : ""}
             <div class="menu-divider"></div>
             <button class="action-menu-item portal-danger-item" onclick="UI.closePortalMenu(); App.cleanupTools('${safeName}','${safeCat}', 'demo')">
                 <span class="menu-icon mi-red"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg></span>
@@ -615,6 +636,10 @@ const UI = {
 			(prod.ftp_host || prod.web_domain || prod.da_user || prod.ftp_user)
 		);
 		const isConfiguredLocal = !!(config && config.configured_local);
+		const isConfigPhp = !!(
+			(config && (config.is_config_php || config.has_config_php)) ||
+			(project && (project.is_config_php || project.has_config_php))
+		);
 
 		container.innerHTML = `
 			<div class="env-block">
@@ -629,9 +654,10 @@ const UI = {
 				</div>
 				<div class="chip-row">
 					<div class="chip ${isConfiguredLocal ? "locked" : "util"}" onclick="${isConfiguredLocal ? "UI.notify('Dự án này đã được cấu hình Source Local!', 'info')" : `App.setupLocalSource('${safeName}', '${safeCat}')`}"><div class="ic" style="background:${isConfiguredLocal ? "rgba(255,255,255,0.05)" : "var(--primary-glow)"};color:${isConfiguredLocal ? "var(--text-muted)" : "var(--primary)"};">${isConfiguredLocal ? "✓" : "🔧"}</div><div class="lbl">${isConfiguredLocal ? "Đã cấu hình Source" : "Cấu hình Source Local"}</div></div>
+					<div class="chip util" onclick="App.autoLoginAdmin('${safeName}', '${safeCat}', 'local')" title="Tự động đăng nhập thẳng vào trang quản trị Admin Local"><div class="ic" style="background:rgba(168,85,247,0.18);color:#c084fc;">🔑</div><div class="lbl">Đăng nhập Admin (Local)</div></div>
 					<div class="chip neutral" onclick="App.openAntigravity('${safeName}')"><div class="ic">▶</div><div class="lbl">Mở bằng Antigravity</div></div>
-					<div class="chip util" onclick="UI.showChangeTypeModal('${safeName}', '${safeCat}')"><div class="ic">🔄</div><div class="lbl">Đổi Type DB</div></div>
-					<div class="chip util" onclick="App.integrateAMP('${safeName}','${safeCat}')"><div class="ic">⚡</div><div class="lbl">Tích hợp AMP</div></div>
+					${!isConfigPhp ? `<div class="chip util" onclick="UI.showChangeTypeModal('${safeName}', '${safeCat}')"><div class="ic">🔄</div><div class="lbl">Đổi Type DB</div></div>` : ""}
+					${!isConfigPhp ? `<div class="chip util" onclick="App.integrateAMP('${safeName}','${safeCat}')"><div class="ic">⚡</div><div class="lbl">Tích hợp AMP</div></div>` : ""}
 					<div class="chip util" onclick="App.clearProjectCache('${safeName}','${safeCat}')"><div class="ic">🧹</div><div class="lbl">Xóa cache trình duyệt</div></div>
 				</div>
 			</div>
@@ -647,10 +673,11 @@ const UI = {
 					</div>
 				</div>
 				<div class="chip-row">
+					<div class="chip ${hasDemo ? "util" : "locked"}" onclick="${hasDemo ? `App.autoLoginAdmin('${safeName}', '${safeCat}', 'demo')` : `UI.notify('Dự án chưa được Deploy Demo! Vui lòng Deploy Demo trước khi đăng nhập.', 'warning')`}" title="${hasDemo ? "Tự động đăng nhập thẳng vào trang quản trị Admin trên Hosting Demo" : "Chưa Deploy Demo — Cần Deploy Demo trước"}"><div class="ic" style="background:${hasDemo ? "rgba(168,85,247,0.18)" : "rgba(255,255,255,0.05)"};color:${hasDemo ? "#c084fc" : "var(--text-muted)"};">🔑</div><div class="lbl">Đăng nhập Admin (Demo)</div></div>
 					<div class="chip ${isLockedDemo ? "locked" : ""}" onclick="${isLockedDemo ? "UI.notify('Dự án đang bị KHÓA!', 'error')" : `App.deployDemo('${safeName}','${safeCat}')`}"><div class="ic" style="background:rgba(255,183,77,0.15);color:#FFCB7A;">▶</div><div class="lbl">Deploy Demo</div></div>
 					<div class="chip ${isLockedDemo ? "locked" : ""}" onclick="${isLockedDemo ? "UI.notify('Dự án đang bị KHÓA!', 'error')" : `App.deployDbDemo('${safeName}','${safeCat}')`}"><div class="ic" style="background:rgba(255,183,77,0.15);color:#FFCB7A;">▤</div><div class="lbl">Deploy DB Demo</div></div>
 					${hasDemo ? `<div class="chip util" onclick="App.pushTools('${safeName}', '${safeCat}')"><div class="ic">⚡</div><div class="lbl">Sync Tools</div></div>` : ""}
-					${hasDemo ? `<div class="chip util" onclick="App.downloadPackage('${safeName}','${safeCat}')"><div class="ic">⭳</div><div class="lbl">Download Package</div></div>` : ""}
+					${hasDemo && !isConfigPhp ? `<div class="chip util" onclick="App.downloadPackage('${safeName}','${safeCat}')"><div class="ic">⭳</div><div class="lbl">Download Package</div></div>` : ""}
 					${hasDemo ? `<div class="chip danger" onclick="App.cleanupTools('${safeName}','${safeCat}', 'demo')"><div class="ic">✎</div><div class="lbl">Dọn dẹp Demo</div></div>` : ""}
 					<div class="chip" onclick="App.toggleActionLock('${safeName}','demo', '${safeCat}')"><div class="ic" style="background:rgba(63,216,160,0.15);color:#5FF0BE;">⚿</div><div class="lbl">${isLockedDemo ? "Mở khóa Demo" : "Khóa Demo"}</div></div>
 				</div>
@@ -680,6 +707,7 @@ const UI = {
 					</div>
 				</div>
 				<div class="chip-row">
+					<div class="chip ${hasProd ? "util" : "locked"}" onclick="${hasProd ? `App.autoLoginAdmin('${safeName}', '${safeCat}', 'prod')` : `UI.notify('Dự án chưa được Publish Production! Vui lòng Publish Production trước khi đăng nhập.', 'warning')`}" title="${hasProd ? "Tự động đăng nhập thẳng vào trang quản trị Admin trên Production" : "Chưa Publish Production — Cần Publish Production trước"}"><div class="ic" style="background:${hasProd ? "rgba(168,85,247,0.18)" : "rgba(255,255,255,0.05)"};color:${hasProd ? "#c084fc" : "var(--text-muted)"};">🔑</div><div class="lbl">Đăng nhập Admin (Prod)</div></div>
 					<div class="chip util" onclick="UI.showModal('${prefix ? "detail-config-modal" : "config-modal"}')"><div class="ic">⚙</div><div class="lbl">Cấu hình Hosting</div></div>
 					<div class="chip ${isLockedProd ? "locked" : ""}" onclick="${isLockedProd ? "UI.notify('Production đang bị KHÓA!', 'error')" : `App.publishToProduction('${safeName}','${safeCat}')`}"><div class="ic" style="background:rgba(63,216,160,0.15);color:#5FF0BE;">◉</div><div class="lbl">Publish Production</div></div>
 					<div class="chip util" onclick="App.installSSL('${safeName}', '${safeCat}')"><div class="ic">🔒</div><div class="lbl">Install SSL</div></div>
@@ -896,23 +924,37 @@ const UI = {
 		}
 	},
 
-	parseQuickConfig(mode = "") {
+	parseQuickConfig(mode = "", ev = null) {
 		const prefix = mode === "detail" ? "d_" : "";
-		const textarea =
-			document.getElementById(prefix + "quick_paste") ||
-			document.getElementById("d_quick_paste") ||
-			document.getElementById("quick_paste");
+		let textarea = null;
+		if (ev && ev.target) {
+			const box =
+				ev.target.closest(".quick-paste-box") || ev.target.closest(".modal");
+			if (box) textarea = box.querySelector("textarea");
+		}
+		if (!textarea) {
+			textarea =
+				document.getElementById(prefix + "quick_paste") ||
+				document.getElementById("d_quick_paste") ||
+				document.getElementById("qp_quick_paste") ||
+				document.getElementById("quick_paste");
+		}
 		if (!textarea) return;
-		const text = textarea.value.trim();
-		if (!text) return;
+		const rawText = textarea.value.trim();
+		if (!rawText) {
+			this.notify(
+				"Vui lòng dán văn bản cấu hình vào ô trước khi phân tích!",
+				"warning",
+			);
+			return;
+		}
+
+		// 0. Làm sạch markdown link [text](url) -> text
+		let text = rawText
+			.replace(/\[([^\]]+)\]\((?:mailto:)?([^)]+)\)/g, "$1")
+			.trim();
 
 		const config = { da_port: "1111" };
-		const lines = text.split(/\r?\n/);
-
-		const extractVal = (line) => {
-			const m = line.match(/^([^:]+):\s*(.*)$/);
-			return m ? m[2].trim() : line.trim();
-		};
 
 		const cleanHost = (str) => {
 			if (!str) return "";
@@ -924,81 +966,185 @@ const UI = {
 				.trim();
 		};
 
+		const cleanPassword = (str) => {
+			if (!str) return "";
+			return str
+				.replace(
+					/\s*[-–—|]\s*(ngày\s*hết\s*hạn|hết\s*hạn|exp|expired).*$/i,
+					"",
+				)
+				.replace(/\s*\((ngày\s*hết\s*hạn|hết\s*hạn|exp|expired).*?\)/i, "")
+				.trim();
+		};
+
+		const isKeyLabel = (str) => {
+			const s = str.toLowerCase().replace(/[:：]/g, "").trim();
+			return /^(domain|tên\s*miền|web\s*domain|website|control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị|host\s*name|host|ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|host\s*ip|ip\s*host|username|user|tài\s*khoản|tên\s*đăng\s*nhập|tài\s*khoản\s*ftp|ftp\s*user|ftp\s*username|panel\s*user|da\s*user|hosting\s*user|password|pass|mật\s*khẩu|ftp\s*pass|ftp\s*password|panel\s*pass|da\s*pass|mật\s*khẩu\s*ftp|hết\s*hạn|ngày\s*hết\s*hạn)$/i.test(
+				s,
+			);
+		};
+
+		const rawLines = text
+			.split(/\r?\n/)
+			.map((l) => l.trim())
+			.filter((l) => l.length > 0);
+
+		const pairs = [];
 		let currentSection = "";
 
-		lines.forEach((line) => {
-			line = line.trim();
-			if (!line) return;
+		for (let i = 0; i < rawLines.length; i++) {
+			const line = rawLines[i];
 
-			// Section headers detection
-			if (/^(===|---|\[)?\s*(hosting|control\s*panel|directadmin|cpanel)\s*(===|---|\])?$/i.test(line)) {
-				currentSection = "DA";
-				return;
-			}
-			if (/^(===|---|\[)?\s*(ftp)\s*(===|---|\])?$/i.test(line)) {
+			// Nhận diện chuyển section
+			if (
+				/^(thông\s*tin\s*tài\s*khoản\s*ftp|tài\s*khoản\s*ftp|thông\s*tin\s*ftp|ftp\s*account|ftp\s*information|ftp)$/i.test(
+					line.replace(/[:：=_\-\[\]]/g, "").trim(),
+				)
+			) {
 				currentSection = "FTP";
-				return;
+				continue;
 			}
+			if (
+				/^(hosting|thông\s*tin\s*hosting|control\s*panel|directadmin|cpanel|thông\s*tin\s*quản\s*trị)$/i.test(
+					line.replace(/[:：=_\-\[\]]/g, "").trim(),
+				) ||
+				/^hosting\s+cho\s+tên\s+miền/i.test(line)
+			) {
+				currentSection = "DA";
+				const domainM = line.match(
+					/tên\s+miền\s+([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
+				);
+				if (domainM && !config.web_domain) {
+					config.web_domain = cleanHost(domainM[1]);
+				}
+				continue;
+			}
+
+			// Trường hợp A: Phân cách bởi dấu Tab (\t) hoặc 2 khoảng trắng trở lên
+			const tabParts = line.split(/\t+|\s{2,}/);
+			if (tabParts.length >= 2 && isKeyLabel(tabParts[0])) {
+				pairs.push({
+					key: tabParts[0].trim(),
+					val: tabParts.slice(1).join(" ").trim(),
+					section: currentSection,
+				});
+				continue;
+			}
+
+			// Trường hợp B: Phân cách bởi dấu hai chấm ":"
+			const colonIdx = line.indexOf(":");
+			const isUrl = /^https?:\/\//i.test(line);
+
+			if (colonIdx > 0 && !isUrl && isKeyLabel(line.substring(0, colonIdx))) {
+				const k = line.substring(0, colonIdx).trim();
+				const v = line.substring(colonIdx + 1).trim();
+				pairs.push({ key: k, val: v, section: currentSection });
+				continue;
+			}
+
+			// Trường hợp C: Key ở dòng hiện tại, Value ở dòng kế tiếp
+			if (isKeyLabel(line)) {
+				const nextLine = rawLines[i + 1];
+				if (nextLine && !isKeyLabel(nextLine)) {
+					pairs.push({ key: line, val: nextLine, section: currentSection });
+					i++;
+					continue;
+				}
+			}
+		}
+
+		pairs.forEach(({ key, val, section }) => {
+			const k = key.toLowerCase().replace(/[:：]/g, "").trim();
 
 			// 1. Tên miền / Domain
-			if (/^(domain|tên\s*miền|web\s*domain|website)\s*:/i.test(line)) {
-				config.web_domain = cleanHost(extractVal(line));
+			if (/^(domain|tên\s*miền|web\s*domain|website)$/i.test(k)) {
+				config.web_domain = cleanHost(val);
 			}
-			// 2. FTP Host / Server Host / IP
-			else if (/^(ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|host\s*ip|ip\s*host|host\s*name)\s*:/i.test(line)) {
-				config.ftp_host = cleanHost(extractVal(line));
-			}
-			else if (/^host\s*:/i.test(line)) {
-				if (!config.ftp_host || currentSection === "FTP") {
-					config.ftp_host = cleanHost(extractVal(line));
-				}
-			}
-			// 3. Control Panel URL
-			else if (/^(control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị)\s*:/i.test(line)) {
-				const rawVal = extractVal(line);
-				const portMatch = rawVal.match(/:(\d{2,5})/);
+			// 2. Control Panel
+			else if (
+				/^(control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị)$/i.test(
+					k,
+				)
+			) {
+				const portMatch = val.match(/:(\d{2,5})/);
 				if (portMatch) config.da_port = portMatch[1];
-				const host = cleanHost(rawVal);
-				if (host && !config.ftp_host) config.ftp_host = host;
-			}
-			// 4. FTP User
-			else if (/^(ftp\s*user|ftp\s*username|tài\s*khoản\s*ftp)\s*:/i.test(line)) {
-				config.ftp_user = extractVal(line);
-			}
-			// 5. Panel User / DA User
-			else if (/^(panel\s*user|da\s*user|directadmin\s*user|cpanel\s*user|hosting\s*user)\s*:/i.test(line)) {
-				config.da_user = extractVal(line);
-				if (!config.ftp_user) config.ftp_user = config.da_user;
-			}
-			// 6. Generic User
-			else if (/^(user|username|tài\s*khoản|tên\s*đăng\s*nhập)\s*:/i.test(line)) {
-				const val = extractVal(line);
-				if (currentSection === "DA") {
-					config.da_user = val;
-					if (!config.ftp_user) config.ftp_user = val;
-				} else if (currentSection === "FTP") {
-					config.ftp_user = val;
-					if (!config.da_user) config.da_user = val;
-				} else {
-					if (!config.ftp_user) config.ftp_user = val;
-					if (!config.da_user) config.da_user = val;
+				const hostMatches =
+					val.match(
+						/(?:https?:\/\/)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\d{1,3}(?:\.\d{1,3}){3})/gi,
+					) || [];
+				if (hostMatches.length > 0 && !config.ftp_host) {
+					config.ftp_host = cleanHost(hostMatches[0]);
 				}
 			}
-			// 7. FTP Pass
-			else if (/^(ftp\s*pass|ftp\s*password|mật\s*khẩu\s*ftp)\s*:/i.test(line)) {
-				config.ftp_pass = extractVal(line);
+			// 3. Host name / FTP Host
+			else if (
+				/^(host\s*name|host|ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|host\s*ip|ip\s*host)$/i.test(
+					k,
+				)
+			) {
+				config.ftp_host = cleanHost(val);
 			}
-			// 8. Panel Pass / DA Pass
-			else if (/^(panel\s*pass|da\s*pass|directadmin\s*pass|cpanel\s*pass|hosting\s*pass)\s*:/i.test(line)) {
-				const val = extractVal(line);
-				if (!config.ftp_pass) config.ftp_pass = val;
+			// 4. Username
+			else if (/^(ftp\s*user|ftp\s*username|tài\s*khoản\s*ftp)$/i.test(k)) {
+				config.ftp_user = val.trim();
+			} else if (
+				/^(panel\s*user|da\s*user|directadmin\s*user|cpanel\s*user|hosting\s*user)$/i.test(
+					k,
+				)
+			) {
+				config.da_user = val.trim();
+				if (!config.ftp_user) config.ftp_user = config.da_user;
+			} else if (
+				/^(username|user|tài\s*khoản|tên\s*đăng\s*nhập)$/i.test(k)
+			) {
+				const v = val.trim();
+				if (section === "DA") {
+					config.da_user = v;
+					if (!config.ftp_user) config.ftp_user = v;
+				} else if (section === "FTP") {
+					config.ftp_user = v;
+					if (!config.da_user) config.da_user = v;
+				} else {
+					if (v.includes("@")) {
+						config.ftp_user = v;
+						if (!config.da_user) config.da_user = v.split("@")[0];
+					} else {
+						if (!config.da_user) config.da_user = v;
+						if (!config.ftp_user) config.ftp_user = v;
+					}
+				}
 			}
-			// 9. Generic Password
-			else if (/^(password|pass|mật\s*khẩu)\s*:/i.test(line)) {
-				const val = extractVal(line);
-				if (!config.ftp_pass) config.ftp_pass = val;
+			// 5. Password
+			else if (/^(ftp\s*pass|ftp\s*password|mật\s*khẩu\s*ftp)$/i.test(k)) {
+				config.ftp_pass = cleanPassword(val);
+			} else if (
+				/^(panel\s*pass|da\s*pass|directadmin\s*pass|cpanel\s*pass|hosting\s*pass)$/i.test(
+					k,
+				)
+			) {
+				const p = cleanPassword(val);
+				if (!config.ftp_pass) config.ftp_pass = p;
+			} else if (/^(password|pass|mật\s*khẩu)$/i.test(k)) {
+				const p = cleanPassword(val);
+				if (!config.ftp_pass || section === "FTP") {
+					config.ftp_pass = p;
+				}
 			}
 		});
+
+		// Fallback thông minh
+		if (!config.web_domain) {
+			const m = text.match(
+				/(?:domain|tên\s*miền)\s*[:\t]?\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
+			);
+			if (m) config.web_domain = cleanHost(m[1]);
+		}
+		if (!config.ftp_host) {
+			const m = text.match(
+				/(?:host\s*name|host|ftp\s*host|server\s*ip|ip)\s*[:\t]?\s*(\d{1,3}(?:\.\d{1,3}){3}|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
+			);
+			if (m) config.ftp_host = cleanHost(m[1]);
+		}
 
 		// Đổ dữ liệu vào tất cả các form tương ứng
 		const setVal = (field, val) => {

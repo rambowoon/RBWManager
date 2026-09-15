@@ -17,26 +17,137 @@ class ProjectScanner {
         return $dataDir . '/projects_cache.json';
     }
 
+    private static $sizesCache = null;
+    private static $sizesCacheModified = false;
+
+    private function loadSizesCache() {
+        if (self::$sizesCache !== null) return;
+        $file = __DIR__ . '/../data/sizes_cache.json';
+        if (file_exists($file)) {
+            self::$sizesCache = json_decode(@file_get_contents($file), true) ?: [];
+        } else {
+            self::$sizesCache = [];
+        }
+    }
+
+    public function saveSizesCache() {
+        if (!self::$sizesCacheModified || self::$sizesCache === null) return;
+        $dataDir = __DIR__ . '/../data';
+        if (!is_dir($dataDir)) @mkdir($dataDir, 0777, true);
+        @file_put_contents($dataDir . '/sizes_cache.json', json_encode(self::$sizesCache));
+        self::$sizesCacheModified = false;
+    }
+
+    public function __destruct() {
+        $this->saveSizesCache();
+    }
+
+    public function getDirectorySize($path, $forceRefresh = false) {
+        if (!is_dir($path)) return 0;
+        $this->loadSizesCache();
+
+        $mtime = @filemtime($path) ?: 0;
+        $key = md5(realpath($path) ?: $path);
+
+        if (!$forceRefresh && isset(self::$sizesCache[$key])) {
+            $cached = self::$sizesCache[$key];
+            if (isset($cached['mtime']) && $cached['mtime'] === $mtime && isset($cached['size'])) {
+                return (float)$cached['size'];
+            }
+        }
+
+        $size = 0;
+        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            $cmd = 'robocopy ' . escapeshellarg($path) . ' ' . escapeshellarg($path) . ' /E /L /NFL /NDL /NJH /BYTES 2>NUL';
+            $out = @shell_exec($cmd);
+            if ($out && preg_match('/Bytes\s*:\s*(\d+)/i', $out, $m)) {
+                $size = (float)$m[1];
+            }
+        } else {
+            $out = @exec('du -sb ' . escapeshellarg($path) . ' 2>/dev/null');
+            if ($out && preg_match('/^(\d+)/', trim($out), $m)) {
+                $size = (float)$m[1];
+            }
+        }
+
+        // Fallback to PHP iterator if needed and size is still 0
+        if ($size === 0 && is_dir($path)) {
+            try {
+                $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS));
+                foreach ($it as $f) {
+                    if ($f->isFile()) $size += $f->getSize();
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        self::$sizesCache[$key] = [
+            'path' => $path,
+            'mtime' => $mtime,
+            'size' => $size,
+            'updated_at' => time()
+        ];
+        self::$sizesCacheModified = true;
+        return $size;
+    }
+
+    public function getCachedDirectorySize($path) {
+        if (!is_dir($path)) return 0;
+        $this->loadSizesCache();
+        $mtime = @filemtime($path) ?: 0;
+        $key = md5(realpath($path) ?: $path);
+        if (isset(self::$sizesCache[$key])) {
+            $cached = self::$sizesCache[$key];
+            if (isset($cached['mtime']) && $cached['mtime'] === $mtime && isset($cached['size'])) {
+                return (float)$cached['size'];
+            }
+        }
+        return null;
+    }
+
+    public static function formatBytes($bytes, $precision = 1) {
+        if ($bytes <= 0) return '0 B';
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $pow = min((int)floor(log($bytes, 1024)), count($units) - 1);
+        if ($pow < 0) $pow = 0;
+        $val = $bytes / (1024 ** $pow);
+        return round($val, $precision) . ' ' . $units[$pow];
+    }
+
     public function buildCache() {
         $strictCategories = $this->scanCategoriesRaw(true);
         $allCategories = $this->scanCategoriesRaw(false);
 
         $projectsCache = [];
+        $categoryStats = [];
+
         $projectsCache[''] = $this->scanProjectsRaw('');
         $projectsCache['all'] = $this->scanProjectsRaw('all');
 
         foreach ($allCategories as $cat) {
-            $projectsCache[$cat] = $this->scanProjectsRaw($cat);
+            $catProjects = $this->scanProjectsRaw($cat);
+            $projectsCache[$cat] = $catProjects;
+
+            $catTotalSize = 0;
+            foreach ($catProjects as $cp) {
+                $catTotalSize += (float)($cp['size'] ?? 0);
+            }
+            $categoryStats[$cat] = [
+                'count' => count($catProjects),
+                'size' => $catTotalSize,
+                'size_formatted' => self::formatBytes($catTotalSize)
+            ];
         }
 
         $data = [
             'updated_at' => time(),
             'categories_strict' => $strictCategories,
             'categories_all' => $allCategories,
+            'category_stats' => $categoryStats,
             'projects' => $projectsCache
         ];
 
         file_put_contents($this->getCacheFile(), json_encode($data));
+        $this->saveSizesCache();
         return $data;
     }
 
@@ -100,9 +211,86 @@ class ProjectScanner {
         $catKey = ($category === null) ? '' : $category;
         $cache = $this->getCacheData($forceRefresh);
         if (isset($cache['projects'][$catKey])) {
-            return $cache['projects'][$catKey];
+            $projs = $cache['projects'][$catKey];
+            $dirty = false;
+            foreach ($projs as &$p) {
+                if (!isset($p['size']) || $p['size'] === null) {
+                    $cachedSize = $this->getCachedDirectorySize($p['path'] ?? '');
+                    if ($cachedSize !== null) {
+                        $p['size'] = $cachedSize;
+                        $p['size_formatted'] = self::formatBytes($cachedSize);
+                        $dirty = true;
+                    }
+                }
+            }
+            unset($p);
+            if ($dirty) {
+                $cache['projects'][$catKey] = $projs;
+                @file_put_contents($this->getCacheFile(), json_encode($cache));
+            }
+            return $projs;
         }
         return $this->scanProjectsRaw($category);
+    }
+
+    public function setCategorySize($category, $size) {
+        if (!$category) return;
+        $this->loadSizesCache();
+        $catDir = $this->baseDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $category);
+        $key = md5(realpath($catDir) ?: $catDir);
+        self::$sizesCache[$key] = [
+            'path' => $catDir,
+            'mtime' => @filemtime($catDir) ?: 0,
+            'size' => (float)$size,
+            'updated_at' => time()
+        ];
+        self::$sizesCacheModified = true;
+        $this->saveSizesCache();
+    }
+
+    public function getAllCategoryStats($forceRefresh = false) {
+        $this->loadSizesCache();
+        $allCategories = $this->getCategories(false, false);
+        $stats = [];
+        foreach ($allCategories as $cat) {
+            $catDir = $this->baseDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $cat);
+            $key = md5(realpath($catDir) ?: $catDir);
+            if (isset(self::$sizesCache[$key]) && isset(self::$sizesCache[$key]['size'])) {
+                $size = (float)self::$sizesCache[$key]['size'];
+                $stats[$cat] = [
+                    'size' => $size,
+                    'size_formatted' => self::formatBytes($size)
+                ];
+            }
+        }
+        return $stats;
+    }
+
+    public function getCategoryStats($category, $forceRefresh = false) {
+        if (!$category) {
+            $allProjects = $this->getProjects('', $forceRefresh);
+            $totalSize = 0;
+            foreach ($allProjects as $p) {
+                $totalSize += (float)($p['size'] ?? 0);
+            }
+            return [
+                'count' => count($allProjects),
+                'size' => $totalSize,
+                'size_formatted' => self::formatBytes($totalSize)
+            ];
+        }
+
+        $allStats = $this->getAllCategoryStats($forceRefresh);
+        if (isset($allStats[$category])) {
+            return $allStats[$category];
+        }
+
+        $catDir = $this->baseDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $category);
+        $size = $this->getDirectorySize($catDir, $forceRefresh);
+        return [
+            'size' => $size,
+            'size_formatted' => self::formatBytes($size)
+        ];
     }
 
     private function scanCategoriesRaw($strictMonth = false) {
@@ -213,14 +401,20 @@ class ProjectScanner {
                     }
                     
                     $mtime = is_dir($path) ? (@filemtime($path) ?: 0) : 0;
+                    $isConfigPhp = is_file($path . DIRECTORY_SEPARATOR . 'libraries' . DIRECTORY_SEPARATOR . 'config.php');
+                    $size = $this->getCachedDirectorySize($path);
                     $projects[] = [
                         'name' => $item,
                         'path' => $path,
                         'category' => '',
                         'relPath' => $item,
                         'type' => 'project',
+                        'is_config_php' => $isConfigPhp,
+                        'has_config_php' => $isConfigPhp,
                         'mtime' => $mtime,
-                        'modified_at' => $mtime > 0 ? date('d/m/Y H:i', $mtime) : ''
+                        'modified_at' => $mtime > 0 ? date('d/m/Y H:i', $mtime) : '',
+                        'size' => $size,
+                        'size_formatted' => $size !== null ? self::formatBytes($size) : null
                     ];
                 }
             }
@@ -241,14 +435,20 @@ class ProjectScanner {
                             }
                             
                             $mtime = is_dir($path) ? (@filemtime($path) ?: 0) : 0;
+                            $isConfigPhp = is_file($path . DIRECTORY_SEPARATOR . 'libraries' . DIRECTORY_SEPARATOR . 'config.php');
+                            $size = $this->getCachedDirectorySize($path);
                             $projects[] = [
                                 'name' => $item,
                                 'path' => $path,
                                 'category' => $cat,
                                 'relPath' => $cat . '/' . $item,
                                 'type' => 'project',
+                                'is_config_php' => $isConfigPhp,
+                                'has_config_php' => $isConfigPhp,
                                 'mtime' => $mtime,
-                                'modified_at' => $mtime > 0 ? date('d/m/Y H:i', $mtime) : ''
+                                'modified_at' => $mtime > 0 ? date('d/m/Y H:i', $mtime) : '',
+                                'size' => $size,
+                                'size_formatted' => $size !== null ? self::formatBytes($size) : null
                             ];
                         }
                     }
@@ -272,14 +472,20 @@ class ProjectScanner {
                         }
                         
                         $mtime = is_dir($path) ? (@filemtime($path) ?: 0) : 0;
+                        $isConfigPhp = is_file($path . DIRECTORY_SEPARATOR . 'libraries' . DIRECTORY_SEPARATOR . 'config.php');
+                        $size = $this->getCachedDirectorySize($path);
                         $projects[] = [
                             'name' => $item,
                             'path' => $path,
                             'category' => $category,
                             'relPath' => $category . '/' . $item,
                             'type' => 'project',
+                            'is_config_php' => $isConfigPhp,
+                            'has_config_php' => $isConfigPhp,
                             'mtime' => $mtime,
-                            'modified_at' => $mtime > 0 ? date('d/m/Y H:i', $mtime) : ''
+                            'modified_at' => $mtime > 0 ? date('d/m/Y H:i', $mtime) : '',
+                            'size' => $size,
+                            'size_formatted' => $size !== null ? self::formatBytes($size) : null
                         ];
                     }
                 }
