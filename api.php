@@ -121,6 +121,202 @@ function saveSyncAutoBackup($projectName, $category, $subFolder, $cleanPath, $co
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
+function getProjectDbConfig($projectPath)
+{
+    $envFile = $projectPath . DIRECTORY_SEPARATOR . '.env';
+    if (file_exists($envFile)) {
+        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $db = ['host' => '127.0.0.1', 'port' => 3306, 'name' => '', 'user' => 'root', 'pass' => '', 'prefix' => 'table_'];
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (!$line || $line[0] === '#') continue;
+            if (strpos($line, '=') === false) continue;
+            list($k, $v) = explode('=', $line, 2);
+            $k = strtoupper(trim($k));
+            $v = trim($v, " \t\n\r\0\x0B\"'");
+            if (in_array($k, ['DB_HOST', 'DATABASE_HOST'])) $db['host'] = $v;
+            elseif (in_array($k, ['DB_PORT', 'DATABASE_PORT'])) $db['port'] = (int)$v;
+            elseif (in_array($k, ['DB_DATABASE', 'DB_NAME', 'DATABASE_NAME'])) $db['name'] = $v;
+            elseif (in_array($k, ['DB_USERNAME', 'DB_USER', 'DATABASE_USER'])) $db['user'] = $v;
+            elseif (in_array($k, ['DB_PASSWORD', 'DB_PASS', 'DATABASE_PASS'])) $db['pass'] = $v;
+            elseif (in_array($k, ['DB_PREFIX', 'DATABASE_PREFIX'])) $db['prefix'] = $v;
+        }
+        if (!empty($db['name'])) return $db;
+    }
+
+    $cfgFile = $projectPath . DIRECTORY_SEPARATOR . 'libraries' . DIRECTORY_SEPARATOR . 'config.php';
+    if (file_exists($cfgFile)) {
+        $c = file_get_contents($cfgFile);
+        $db = ['host' => '127.0.0.1', 'port' => 3306, 'name' => '', 'user' => 'root', 'pass' => '', 'prefix' => 'table_'];
+        if (preg_match("/['\"]host['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $c, $m)) $db['host'] = $m[1];
+        if (preg_match("/['\"]port['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $c, $m)) $db['port'] = (int)$m[1];
+        if (preg_match("/['\"]dbname['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $c, $m)) $db['name'] = $m[1];
+        if (preg_match("/['\"]username['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $c, $m)) $db['user'] = $m[1];
+        if (preg_match("/['\"]password['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $c, $m)) $db['pass'] = $m[1];
+        if (preg_match("/['\"](?:table_)?prefix['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $c, $m)) $db['prefix'] = $m[1];
+        if (!empty($db['name'])) return $db;
+    }
+    return null;
+}
+
+function fetchDbSchemaFromPdo($pdo)
+{
+    $schema = [];
+    $tables = [];
+    try {
+        $stmt = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'");
+        $rows = $stmt->fetchAll(PDO::FETCH_NUM);
+        foreach ($rows as $r) $tables[] = $r[0];
+    } catch (\Exception $e) {
+        try {
+            $stmt = $pdo->query("SHOW TABLES");
+            $rows = $stmt->fetchAll(PDO::FETCH_NUM);
+            foreach ($rows as $r) $tables[] = $r[0];
+        } catch (\Exception $e2) {
+            return [];
+        }
+    }
+
+    foreach ($tables as $tbl) {
+        $createSql = '';
+        try {
+            $cRow = $pdo->query("SHOW CREATE TABLE `{$tbl}`")->fetch(PDO::FETCH_ASSOC);
+            $createSql = $cRow['Create Table'] ?? '';
+        } catch (\Exception $e) {}
+
+        $columns = [];
+        try {
+            $cols = $pdo->query("SHOW FULL COLUMNS FROM `{$tbl}`")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($cols as $col) {
+                $columns[$col['Field']] = [
+                    'field' => $col['Field'],
+                    'type' => $col['Type'],
+                    'collation' => $col['Collation'],
+                    'null' => $col['Null'],
+                    'key' => $col['Key'],
+                    'default' => $col['Default'],
+                    'extra' => $col['Extra'],
+                    'comment' => $col['Comment'] ?? ''
+                ];
+            }
+        } catch (\Exception $e) {}
+
+        $schema[$tbl] = [
+            'columns' => $columns,
+            'create_sql' => $createSql
+        ];
+    }
+    return $schema;
+}
+
+function compareDatabaseSchemas($sourceSchema, $targetSchema, $sourceName = 'Local', $targetName = 'Remote')
+{
+    $changes = [];
+
+    // 1. Kiểm tra bảng có ở Source nhưng chưa có ở Target -> CREATE TABLE IF NOT EXISTS
+    foreach ($sourceSchema as $tableName => $tableData) {
+        if (!isset($targetSchema[$tableName])) {
+            $createSql = $tableData['create_sql'];
+            $safeCreateSql = preg_replace('/^CREATE\s+TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $createSql);
+            $changes[] = [
+                'type' => 'new_table',
+                'table' => $tableName,
+                'column' => null,
+                'summary' => "Tạo bảng mới `{$tableName}` (Chưa có trên {$targetName})",
+                'sql' => $safeCreateSql . ';',
+                'columns_count' => count($tableData['columns'])
+            ];
+            continue;
+        }
+
+        // 2. Bảng đã tồn tại ở cả 2 bên -> Kiểm tra từng cột thiếu ở Target hoặc có sự thay đổi kiểu/chiều dài
+        $targetColumns = $targetSchema[$tableName]['columns'];
+        $sourceColumns = $tableData['columns'];
+
+        $prevColumn = null;
+        foreach ($sourceColumns as $colName => $colDef) {
+            $sqlDef = "`{$colName}` " . $colDef['type'];
+            if ($colDef['null'] === 'NO') {
+                $sqlDef .= " NOT NULL";
+            } else {
+                $sqlDef .= " NULL";
+            }
+            if ($colDef['default'] !== null) {
+                if (strtoupper($colDef['default']) === 'CURRENT_TIMESTAMP') {
+                    $sqlDef .= " DEFAULT CURRENT_TIMESTAMP";
+                } else {
+                    $sqlDef .= " DEFAULT " . (is_numeric($colDef['default']) ? $colDef['default'] : "'" . addslashes($colDef['default']) . "'");
+                }
+            } elseif ($colDef['null'] === 'YES') {
+                $sqlDef .= " DEFAULT NULL";
+            }
+            if (!empty($colDef['extra'])) {
+                $sqlDef .= " " . $colDef['extra'];
+            }
+            if (!empty($colDef['comment'])) {
+                $sqlDef .= " COMMENT '" . addslashes($colDef['comment']) . "'";
+            }
+
+            if (!isset($targetColumns[$colName])) {
+                // Cột mới hoàn toàn -> ADD COLUMN
+                $posSql = $prevColumn ? " AFTER `{$prevColumn}`" : " FIRST";
+                $alterSql = "ALTER TABLE `{$tableName}` ADD COLUMN {$sqlDef}{$posSql};";
+
+                $changes[] = [
+                    'type' => 'new_column',
+                    'table' => $tableName,
+                    'column' => $colName,
+                    'summary' => "Thêm cột `{$colName}` ({$colDef['type']}) vào bảng `{$tableName}`",
+                    'sql' => $alterSql
+                ];
+            } else {
+                // Cột đã tồn tại -> Kiểm tra thay đổi kiểu dữ liệu, chiều dài, Null, Default (Bỏ qua Bảng mã đối chiếu Collation)
+                $targetCol = $targetColumns[$colName];
+                $diffReasons = [];
+
+                // 1. So sánh Type & Length (ví dụ: varchar(100) vs varchar(255), int vs bigint...)
+                $srcTypeNorm = strtolower(trim($colDef['type'] ?? ''));
+                $tgtTypeNorm = strtolower(trim($targetCol['type'] ?? ''));
+                $stripDisplayWidth = function($t) {
+                    return preg_replace('/^(tinyint|smallint|mediumint|int|bigint)\(\d+\)/', '$1', $t);
+                };
+                if ($srcTypeNorm !== $tgtTypeNorm && $stripDisplayWidth($srcTypeNorm) !== $stripDisplayWidth($tgtTypeNorm)) {
+                    $diffReasons[] = "kiểu/chiều dài: {$targetCol['type']} ➔ {$colDef['type']}";
+                }
+
+                // 2. So sánh thuộc tính Null
+                if (($colDef['null'] ?? '') !== ($targetCol['null'] ?? '')) {
+                    $diffReasons[] = "null: " . (($targetCol['null'] ?? '') === 'YES' ? 'NULL' : 'NOT NULL') . " ➔ " . (($colDef['null'] ?? '') === 'YES' ? 'NULL' : 'NOT NULL');
+                }
+
+                // 3. So sánh Default value
+                if (empty($colDef['extra']) && empty($targetCol['extra'])) {
+                    $srcDef = ($colDef['default'] === null) ? 'NULL' : $colDef['default'];
+                    $tgtDef = ($targetCol['default'] === null) ? 'NULL' : $targetCol['default'];
+                    if ($srcDef !== $tgtDef) {
+                        $diffReasons[] = "mặc định: '{$tgtDef}' ➔ '{$srcDef}'";
+                    }
+                }
+
+                if (!empty($diffReasons)) {
+                    $alterSql = "ALTER TABLE `{$tableName}` MODIFY COLUMN {$sqlDef};";
+                    $changes[] = [
+                        'type' => 'modify_column',
+                        'table' => $tableName,
+                        'column' => $colName,
+                        'summary' => "Cập nhật cột `{$colName}` bảng `{$tableName}` (" . implode(', ', $diffReasons) . ")",
+                        'sql' => $alterSql,
+                        'diff_reasons' => $diffReasons
+                    ];
+                }
+            }
+            $prevColumn = $colName;
+        }
+    }
+
+    return $changes;
+}
+
 $cliInputData = null;
 if (PHP_SAPI === 'cli') {
     $debugLogFile = __DIR__ . '/logs/debug_bg_job.log';
@@ -1263,6 +1459,7 @@ switch ($action) {
     case 'fmCheckSyncStatus':
     case 'fmSyncCenterCompare':
     case 'fmSyncCenterExecute':
+    case 'fmSyncCenterExecuteDb':
         $data = readJsonInput();
         if (!$data) $data = $_POST;
 
@@ -1630,12 +1827,113 @@ switch ($action) {
                 'message' => "Đã xóa {$deletedCount} bản sao lưu thành công!"
             ]);
         } elseif ($action === 'fmDelete') {
-            $isDir = !empty($data['isDir']);
-            $res = RemoteClient::deleteViaFTP($url, $userPwd, $isDir);
-            if ($res === true) {
-                echo json_encode(['status' => 'success']);
+            @set_time_limit(600);
+            $items = !empty($data['items']) && is_array($data['items']) 
+                ? $data['items'] 
+                : [['path' => $cleanPath, 'isDir' => !empty($data['isDir'])]];
+
+            $deletedCount = 0;
+            $errors = [];
+
+            // Gom nhóm theo thư mục cha để xóa bằng DirectAdmin theo batch
+            $daGroups = [];
+            foreach ($items as $it) {
+                $itemRel = ltrim($it['path'] ?? '', '/');
+                $itemRemotePath = rtrim($ftpRoot, '/') . '/' . $itemRel;
+                $parent = dirname($itemRemotePath);
+                $name = basename($itemRemotePath);
+                $daGroups[$parent][] = [
+                    'name' => $name,
+                    'isDir' => !empty($it['isDir']),
+                    'rel' => $itemRel,
+                    'fullRemote' => $itemRemotePath
+                ];
+            }
+
+            // 1. Thử xóa qua DirectAdmin trước (xóa đồng thời nhiều file & folder trong 0.1s)
+            $remainingItems = [];
+            if (!empty($config['ftp_host']) && !empty($pass)) {
+                $daConfig = $config;
+                $daConfig['ftp_pass'] = $pass;
+
+                foreach ($daGroups as $parentPath => $groupItems) {
+                    $daData = [
+                        'action' => 'multiple',
+                        'button' => 'delete',
+                        'path'   => '/' . trim($parentPath, '/')
+                    ];
+                    foreach ($groupItems as $idx => $gi) {
+                        $daData['select' . $idx] = '/' . trim($gi['fullRemote'], '/');
+                    }
+                    $daRes = RemoteClient::executeDA($daConfig, 'CMD_API_FILE_MANAGER', $daData, true);
+                    if (is_string($daRes) && (strpos($daRes, 'Files+deleted') !== false || strpos($daRes, 'Files deleted') !== false || (strpos($daRes, 'error=0') !== false && strpos($daRes, 'Users+Deleted') === false))) {
+                        $deletedCount += count($groupItems);
+                    } else {
+                        foreach ($groupItems as $gi) {
+                            $remainingItems[] = $gi;
+                        }
+                    }
+                }
             } else {
-                echo json_encode(['status' => 'error', 'message' => $res]);
+                foreach ($daGroups as $parentPath => $groupItems) {
+                    foreach ($groupItems as $gi) {
+                        $remainingItems[] = $gi;
+                    }
+                }
+            }
+
+            // 2. Nếu còn mục chưa xóa được (hoặc không dùng DA), xóa qua Native FTP trong 1 phiên kết nối duy nhất
+            if (!empty($remainingItems)) {
+                $conn = null;
+                $parts = explode(':', $userPwd, 2);
+                $u = $parts[0] ?? '';
+                $p = $parts[1] ?? '';
+                if (function_exists('ftp_connect') && !empty($host) && !empty($u)) {
+                    $conn = @ftp_ssl_connect($host, 21, 15) ?: @ftp_connect($host, 21, 15);
+                    if ($conn && !@ftp_login($conn, $u, $p)) {
+                        @ftp_close($conn);
+                        $conn = null;
+                    }
+                    if ($conn) @ftp_pasv($conn, true);
+                }
+
+                foreach ($remainingItems as $rem) {
+                    $remUrl = "ftp://$host{$rem['fullRemote']}";
+                    $ok = false;
+                    if ($conn) {
+                        if ($rem['isDir']) {
+                            $ok = RemoteClient::rmdirRecursiveFtpNative($conn, $rem['fullRemote']);
+                        } else {
+                            $ok = @ftp_delete($conn, $rem['fullRemote']);
+                        }
+                    }
+                    if (!$ok) {
+                        $ftpRes = RemoteClient::deleteViaFTP($remUrl, $userPwd, $rem['isDir']);
+                        $ok = ($ftpRes === true);
+                    }
+
+                    if ($ok) {
+                        $deletedCount++;
+                    } else {
+                        $errors[] = $rem['name'];
+                    }
+                }
+
+                if ($conn) @ftp_close($conn);
+            }
+
+            if ($deletedCount > 0 || empty($errors)) {
+                echo json_encode([
+                    'status' => 'success',
+                    'deleted' => $deletedCount,
+                    'errors' => $errors,
+                    'message' => "Đã xóa {$deletedCount} mục thành công!"
+                ]);
+            } else {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Không thể xóa các mục đã chọn trên máy chủ'
+                ]);
             }
         } elseif ($action === 'fmCreateDir') {
             $config['ftp_pass'] = $pass; // pass to makeDirViaDA / makeDirViaFTP
@@ -2018,7 +2316,7 @@ switch ($action) {
             $remoteData = $callBridge();
 
             // Nếu bridge vừa ping được nhưng scanFiles báo phiên bản cũ -> cập nhật lại
-            if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v6_sub_excludes_nosql') {
+            if (!$remoteData || ($remoteData['status'] ?? '') !== 'success' || ($remoteData['version'] ?? '') !== 'v7_sql_schema_sync') {
                 if ($allowUploadBridge) {
                     try {
                         $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
@@ -2104,6 +2402,97 @@ switch ($action) {
                     ];
                 }
             }
+
+            // 4. So sánh cấu trúc Database (SQL Schema Diff)
+            $dbDiff = [
+                'has_db' => false,
+                'local_db' => '',
+                'remote_db' => '',
+                'upload' => [],
+                'download' => []
+            ];
+
+            $localDbConfig = getProjectDbConfig($project['path']);
+            $remoteSchemaData = null;
+
+            // Gọi bridge lấy Remote Schema
+            $bridgeSchemaUrls = array_map(function ($u) {
+                return str_replace('action=scanFiles', 'action=getDbSchema', $u);
+            }, $bridgeUrls);
+
+            foreach ($bridgeSchemaUrls as $sUrl) {
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $sUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                $sRes = curl_exec($ch);
+                curl_close($ch);
+
+                $sDecoded = json_decode($sRes, true);
+                if (is_array($sDecoded) && ($sDecoded['status'] ?? '') === 'success') {
+                    $remoteSchemaData = $sDecoded;
+                    break;
+                }
+            }
+
+            $localSchema = [];
+            if ($localDbConfig && !empty($localDbConfig['name'])) {
+                try {
+                    $lHost = $localDbConfig['host'] ?? '127.0.0.1';
+                    $lPort = $localDbConfig['port'] ?? 3306;
+                    $lName = $localDbConfig['name'];
+                    $lUser = $localDbConfig['user'] ?? 'root';
+                    $lPass = $localDbConfig['pass'] ?? '';
+
+                    $lPdo = new PDO("mysql:host={$lHost};port={$lPort};dbname={$lName};charset=utf8mb4", $lUser, $lPass, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+                    ]);
+                    $localSchema = fetchDbSchemaFromPdo($lPdo);
+                } catch (\Exception $e) {}
+            }
+
+            $remoteSchema = $remoteSchemaData['tables'] ?? [];
+            $uploadChanges = compareDatabaseSchemas($localSchema, $remoteSchema, 'Local', $envLabel);
+            $downloadChanges = compareDatabaseSchemas($remoteSchema, $localSchema, $envLabel, 'Local');
+
+            $uploadStmts = [];
+            $uploadSummary = ['new_tables' => [], 'new_columns' => [], 'modify_columns' => []];
+            foreach ($uploadChanges as $ch) {
+                if (!empty($ch['sql'])) $uploadStmts[] = $ch['sql'];
+                if ($ch['type'] === 'new_table') $uploadSummary['new_tables'][] = $ch['table'];
+                elseif ($ch['type'] === 'new_column') $uploadSummary['new_columns'][] = $ch['table'] . '.' . $ch['column'];
+                elseif ($ch['type'] === 'modify_column') $uploadSummary['modify_columns'][] = $ch['table'] . '.' . $ch['column'];
+            }
+
+            $downloadStmts = [];
+            $downloadSummary = ['new_tables' => [], 'new_columns' => [], 'modify_columns' => []];
+            foreach ($downloadChanges as $ch) {
+                if (!empty($ch['sql'])) $downloadStmts[] = $ch['sql'];
+                if ($ch['type'] === 'new_table') $downloadSummary['new_tables'][] = $ch['table'];
+                elseif ($ch['type'] === 'new_column') $downloadSummary['new_columns'][] = $ch['table'] . '.' . $ch['column'];
+                elseif ($ch['type'] === 'modify_column') $downloadSummary['modify_columns'][] = $ch['table'] . '.' . $ch['column'];
+            }
+
+            $hasDb = !empty($localSchema) || !empty($remoteSchema);
+            $dbDiff = [
+                'has_db' => $hasDb,
+                'available' => $hasDb,
+                'local_configured' => !empty($localDbConfig['name']),
+                'remote_configured' => !empty($remoteSchemaData['db_name']),
+                'local_db' => $localDbConfig['name'] ?? '',
+                'remote_db' => $remoteSchemaData['db_name'] ?? '',
+                'upload' => $uploadChanges,
+                'download' => $downloadChanges,
+                'upload_statements' => $uploadStmts,
+                'download_statements' => $downloadStmts,
+                'upload_summary' => $uploadSummary,
+                'download_summary' => $downloadSummary,
+                'error' => $hasDb ? null : 'Chưa cấu hình hoặc không kết nối được Database trên Local / Server'
+            ];
+
+            $comparison['db_diff'] = $dbDiff;
 
             echo json_encode([
                 'status' => 'success',
@@ -2310,6 +2699,214 @@ switch ($action) {
             }
 
             echo json_encode(['status' => 'success', 'results' => $results]);
+        } elseif ($action === 'fmSyncCenterExecuteDb') {
+            @set_time_limit(300);
+            $data = readJsonInput();
+            if (!$data) $data = $_POST;
+
+            $projectName = $data['name'] ?? '';
+            $category = $data['category'] ?? '';
+            $syncEnv = $data['env'] ?? 'demo';
+            $direction = $data['direction'] ?? 'upload'; // 'upload' (to Remote) or 'download' (to Local)
+            $queries = $data['queries'] ?? [];
+
+            $projects = $scanner->getProjects($category);
+            $project = null;
+            foreach ($projects as $p) {
+                if ($p['name'] === $projectName) { $project = $p; break; }
+            }
+            if (!$project) {
+                $allProjects = $scanner->getProjects('all');
+                foreach ($allProjects as $p) {
+                    if ($p['name'] === $projectName) { $project = $p; break; }
+                }
+            }
+            if (!$project) {
+                echo json_encode(['status' => 'error', 'message' => 'Dự án không tồn tại ở Local']);
+                break;
+            }
+
+            $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
+            $hostConfigInfo = getProjectTargetHostConfig($projectConfig, $syncEnv);
+            $currentEnv = $hostConfigInfo['env'];
+            $config = $hostConfigInfo['config'];
+            $envLabel = ($currentEnv === 'prod') ? 'Production Hosting' : 'Demo Hosting';
+
+            $localDbConfig = getProjectDbConfig($project['path']);
+            if (!$localDbConfig || empty($localDbConfig['name'])) {
+                echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy cấu hình Database Local (.env hoặc libraries/config.php)']);
+                break;
+            }
+
+            if (empty($queries) || !is_array($queries)) {
+                // Tự động suy ra queries nếu client không truyền
+                $localSchema = [];
+                try {
+                    $lHost = $localDbConfig['host'] ?? '127.0.0.1';
+                    $lPort = $localDbConfig['port'] ?? 3306;
+                    $lName = $localDbConfig['name'];
+                    $lUser = $localDbConfig['user'] ?? 'root';
+                    $lPass = $localDbConfig['pass'] ?? '';
+                    $lPdo = new PDO("mysql:host={$lHost};port={$lPort};dbname={$lName};charset=utf8mb4", $lUser, $lPass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                    $localSchema = fetchDbSchemaFromPdo($lPdo);
+                } catch (\Exception $e) {}
+
+                $cleanHost = !empty($config['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $config['web_domain']) : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
+                if ($currentEnv === 'prod') {
+                    $bridgeSchemaUrls = [
+                        'https://' . $cleanHost . '/bridge.php?action=getDbSchema',
+                        'http://' . $cleanHost . '/bridge.php?action=getDbSchema'
+                    ];
+                } else {
+                    $webSub = $deployService->getWebSubPath($config['ftp_root'] ?? '');
+                    $fullSubPath = rtrim($webSub, '/') . '/' . trim($project['relPath'], '/');
+                    $bridgeSchemaUrls = [
+                        'https://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=getDbSchema',
+                        'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=getDbSchema'
+                    ];
+                }
+
+                $remoteSchemaData = null;
+                foreach ($bridgeSchemaUrls as $sUrl) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $sUrl);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                    $sRes = curl_exec($ch);
+                    curl_close($ch);
+                    $sDecoded = json_decode($sRes, true);
+                    if (is_array($sDecoded) && ($sDecoded['status'] ?? '') === 'success') {
+                        $remoteSchemaData = $sDecoded;
+                        break;
+                    }
+                }
+                $remoteSchema = $remoteSchemaData['tables'] ?? [];
+                $changes = ($direction === 'upload')
+                    ? compareDatabaseSchemas($localSchema, $remoteSchema, 'Local', $envLabel)
+                    : compareDatabaseSchemas($remoteSchema, $localSchema, $envLabel, 'Local');
+                foreach ($changes as $ch) {
+                    if (!empty($ch['sql'])) $queries[] = $ch['sql'];
+                }
+            }
+
+            if (empty($queries)) {
+                echo json_encode(['status' => 'error', 'message' => 'Không có câu lệnh SQL DDL nào cần thực thi']);
+                break;
+            }
+
+            if ($direction === 'upload') {
+                // ĐỒNG BỘ LÊN REMOTE: Gọi bridge.php?action=syncDbSchema (Bridge sẽ tự động backup trước)
+                $cleanHost = !empty($config['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $config['web_domain']) : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
+                if ($currentEnv === 'prod') {
+                    $bridgeSyncUrls = [
+                        'https://' . $cleanHost . '/bridge.php?action=syncDbSchema',
+                        'http://' . $cleanHost . '/bridge.php?action=syncDbSchema'
+                    ];
+                } else {
+                    $webSub = $deployService->getWebSubPath($config['ftp_root'] ?? '');
+                    $fullSubPath = rtrim($webSub, '/') . '/' . trim($project['relPath'], '/');
+                    $bridgeSyncUrls = [
+                        'https://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=syncDbSchema',
+                        'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=syncDbSchema'
+                    ];
+                }
+
+                $syncRes = null;
+                foreach ($bridgeSyncUrls as $url) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $url);
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['queries' => $queries]));
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                    $res = curl_exec($ch);
+                    curl_close($ch);
+                    $dataRes = json_decode($res, true);
+                    if (is_array($dataRes) && ($dataRes['status'] ?? '') === 'success') {
+                        $syncRes = $dataRes;
+                        break;
+                    } elseif (is_array($dataRes)) {
+                        $syncRes = $dataRes;
+                    }
+                }
+
+                if (!$syncRes) {
+                    echo json_encode(['status' => 'error', 'message' => "Không thể kết nối đến Bridge trên {$envLabel} để đồng bộ Database"]);
+                    break;
+                }
+                echo json_encode($syncRes);
+            } else {
+                // ĐỒNG BỘ VỀ LOCAL: Tự động sao lưu Database Local trước
+                $backupDir = __DIR__ . '/backups/db';
+                if (!is_dir($backupDir)) {
+                    @mkdir($backupDir, 0755, true);
+                }
+                $backupFile = $backupDir . '/db_backup_local_' . $localDbConfig['name'] . '_' . date('Ymd_His') . '.sql';
+                $backupRes = $deployService->exportLocalDatabase($localDbConfig, $backupFile);
+
+                if (!$backupRes || !file_exists($backupFile) || filesize($backupFile) < 10) {
+                    echo json_encode([
+                        'status' => 'error',
+                        'code' => 'BACKUP_FAILED',
+                        'message' => 'LỖI BẢO MẬT: Không thể sao lưu Database Local trước khi đồng bộ! Tiến trình đã bị hủy lập tức để bảo vệ dữ liệu.'
+                    ]);
+                    break;
+                }
+
+                $backupSize = filesize($backupFile);
+                $backupRelName = 'backups/db/' . basename($backupFile);
+
+                // Thực thi các câu lệnh DDL vào Local Database
+                $applied = [];
+                $errors = [];
+                try {
+                    $host = $localDbConfig['host'] ?? '127.0.0.1';
+                    $port = $localDbConfig['port'] ?? 3306;
+                    $dbname = $localDbConfig['name'];
+                    $user = $localDbConfig['user'] ?? 'root';
+                    $pass = $localDbConfig['pass'] ?? '';
+
+                    $pdo = new PDO("mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4", $user, $pass, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+                    ]);
+                    $pdo->exec("SET FOREIGN_KEY_CHECKS=0;");
+
+                    foreach ($queries as $sql) {
+                        $sql = trim($sql);
+                        if (empty($sql)) continue;
+                        try {
+                            $pdo->exec($sql);
+                            $applied[] = $sql;
+                        } catch (\Exception $e) {
+                            $errors[] = ['sql' => $sql, 'error' => $e->getMessage()];
+                        }
+                    }
+
+                    $pdo->exec("SET FOREIGN_KEY_CHECKS=1;");
+                } catch (\Exception $e) {
+                    echo json_encode([
+                        'status' => 'error',
+                        'message' => 'Lỗi khi thực thi câu lệnh SQL vào Local: ' . $e->getMessage(),
+                        'backup_file' => $backupRelName,
+                        'backup_size' => $backupSize
+                    ]);
+                    break;
+                }
+
+                echo json_encode([
+                    'status' => 'success',
+                    'applied_count' => count($applied),
+                    'error_count' => count($errors),
+                    'errors' => $errors,
+                    'backup_file' => $backupRelName,
+                    'backup_size' => $backupSize,
+                    'message' => "Đã sao lưu Database Local an toàn (" . round($backupSize / 1024, 1) . " KB) và áp dụng thành công " . count($applied) . " thay đổi cấu trúc!"
+                ]);
+            }
         }
         break;
 

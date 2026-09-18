@@ -6,6 +6,9 @@ var FileManager = {
     rawFiles: [],
     lastFindIndex: -1,
     treeCache: {},
+    selectedItems: new Map(), // key: path, val: { path, isDir, name }
+    currentRenderedFiles: [],
+    lastClickedIndex: -1,
 
     getDefaultEnv() {
         const config = (typeof App !== 'undefined' && App.currentProjectConfig) ? App.currentProjectConfig : {};
@@ -62,6 +65,46 @@ var FileManager = {
             this.loadTree(false);
         }
         this.loadCurrentPath();
+        this.bindDragDrop();
+        this.ensureSelectionStyles();
+        this.initMarqueeSelection();
+        this.initContextMenu();
+        this.initKeyBindings();
+    },
+
+    bindDragDrop() {
+        const pane = document.querySelector('.fm-main-pane');
+        if (!pane || pane.dataset.dndBound === 'true') return;
+        pane.dataset.dndBound = 'true';
+
+        let dragCounter = 0;
+        pane.addEventListener('dragenter', e => {
+            e.preventDefault();
+            dragCounter++;
+            pane.style.boxShadow = 'inset 0 0 0 2px var(--primary, #00d2d3), 0 0 20px rgba(0,210,211,0.2)';
+            pane.style.borderRadius = '10px';
+        });
+        pane.addEventListener('dragover', e => {
+            e.preventDefault();
+        });
+        pane.addEventListener('dragleave', e => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter <= 0) {
+                dragCounter = 0;
+                pane.style.boxShadow = 'none';
+            }
+        });
+        pane.addEventListener('drop', async e => {
+            e.preventDefault();
+            dragCounter = 0;
+            pane.style.boxShadow = 'none';
+            const files = await this.extractFilesFromDataTransfer(e.dataTransfer);
+            if (files && files.length > 0) {
+                const isFolder = files.some(f => f.webkitRelativePath && f.webkitRelativePath.includes('/'));
+                this.uploadFilesQueue(files, isFolder);
+            }
+        });
     },
 
     setEnv(env) {
@@ -482,10 +525,91 @@ var FileManager = {
         return dateStr;
     },
 
+    ensureSelectionStyles() {
+        if (document.getElementById('fm-selection-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'fm-selection-styles';
+        style.textContent = `
+            .fm-row-item {
+                user-select: none;
+                -webkit-user-select: none;
+            }
+            .fm-row-selected {
+                background: rgba(0, 210, 211, 0.12) !important;
+                border-left: 3px solid var(--primary, #00d2d3) !important;
+            }
+            #fm-marquee-box {
+                position: absolute;
+                border: 1px dashed var(--primary, #00d2d3);
+                background: rgba(0, 210, 211, 0.15);
+                pointer-events: none;
+                z-index: 999;
+                border-radius: 4px;
+                display: none;
+            }
+            #fm-context-menu {
+                position: fixed;
+                z-index: 1000020;
+                background: #141923;
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                border-radius: 10px;
+                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 20px rgba(0, 0, 0, 0.5);
+                padding: 6px;
+                min-width: 220px;
+                display: none;
+                backdrop-filter: blur(12px);
+                animation: modalIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+            }
+            .fm-ctx-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 7px 12px;
+                font-size: 12.5px;
+                font-weight: 500;
+                color: #e2e8f0;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                gap: 10px;
+                user-select: none;
+            }
+            .fm-ctx-item:hover {
+                background: rgba(255, 255, 255, 0.08);
+                color: #fff;
+            }
+            .fm-ctx-item.fm-ctx-danger {
+                color: #ff7675;
+            }
+            .fm-ctx-item.fm-ctx-danger:hover {
+                background: rgba(255, 118, 117, 0.15);
+                color: #ff7675;
+            }
+            .fm-ctx-divider {
+                height: 1px;
+                background: rgba(255, 255, 255, 0.08);
+                margin: 4px 6px;
+            }
+            .fm-ctx-key {
+                font-size: 10.5px;
+                font-family: var(--mono, monospace);
+                color: #64748b;
+                background: rgba(255, 255, 255, 0.05);
+                padding: 1px 6px;
+                border-radius: 4px;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+            }
+        `;
+        document.head.appendChild(style);
+    },
+
     renderList(files) {
         const tbody = document.getElementById('fm-file-list');
+        this.currentRenderedFiles = files || [];
+        
         if (!files || files.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--muted);">Thư mục trống</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--muted);">Thư mục trống</td></tr>`;
+            this.updateSelectionUI();
             return;
         }
 
@@ -497,39 +621,53 @@ var FileManager = {
         });
 
         let html = '';
-        files.forEach(f => {
+        files.forEach((f, idx) => {
             const meta = this.getFileMeta(f.name, f.is_dir);
             let icon = meta.badge;
             const size = f.is_dir ? '-' : this.formatBytes(f.size);
             const path = (this.currentPath === '/' ? '' : this.currentPath) + '/' + f.name;
             const fileUrl = this.baseUrl ? (this.baseUrl + (this.currentPath === '/' ? '' : this.currentPath) + '/' + encodeURIComponent(f.name)) : '';
             const displayDate = this.formatDate(f.date);
+            const isSelected = this.selectedItems.has(path);
             
             let actions = '';
             const btnStyle = "padding: 4px 10px; font-size: 11.5px; border-radius: 6px; font-weight: 500; transition: all 0.2s ease; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03);";
             
             if (f.is_dir) {
                 actions = `
-                    <button class="btn btn-ghost btn-sm" onclick="FileManager.navigateTo('${path}')" title="Mở" style="${btnStyle} color: #74b9ff;" onmouseover="this.style.background='rgba(116,185,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">📂 Mở</button>
-                    <button class="btn btn-ghost btn-sm" onclick="FileManager.deleteItem('${path}', true)" title="Xóa" style="${btnStyle} color: #ff7675;" onmouseover="this.style.background='rgba(255,118,117,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">🗑️ Xóa</button>
+                    <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); FileManager.navigateTo('${path}')" title="Mở" style="${btnStyle} color: #74b9ff;" onmouseover="this.style.background='rgba(116,185,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">📂 Mở</button>
+                    <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); FileManager.deleteItem('${path}', true)" title="Xóa" style="${btnStyle} color: #ff7675;" onmouseover="this.style.background='rgba(255,118,117,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">🗑️ Xóa</button>
                 `;
             } else {
                 if (this.isImage(f.name) && fileUrl) {
-                    icon = `<img src="${fileUrl}" style="width:32px; height:32px; object-fit:cover; border-radius:5px; border:1px solid rgba(255,255,255,0.15); cursor:pointer; vertical-align:middle; display:inline-block; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='none'" onclick="FileManager.previewImage('${fileUrl}', '${this.escapeHtml(f.name)}')" onerror="this.outerHTML='${meta.badge}'">`;
-                    actions += `<button class="btn btn-ghost btn-sm" onclick="FileManager.previewImage('${fileUrl}', '${this.escapeHtml(f.name)}')" title="Xem ảnh" style="${btnStyle} color: #00cec9;" onmouseover="this.style.background='rgba(0,206,201,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">👁️ Xem</button>`;
+                    icon = `<img src="${fileUrl}" style="width:32px; height:32px; object-fit:cover; border-radius:5px; border:1px solid rgba(255,255,255,0.15); cursor:pointer; vertical-align:middle; display:inline-block; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='none'" onclick="event.stopPropagation(); FileManager.previewImage('${fileUrl}', '${this.escapeHtml(f.name)}')" onerror="this.outerHTML='${meta.badge}'">`;
+                    actions += `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); FileManager.previewImage('${fileUrl}', '${this.escapeHtml(f.name)}')" title="Xem ảnh" style="${btnStyle} color: #00cec9;" onmouseover="this.style.background='rgba(0,206,201,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">👁️ Xem</button>`;
                 }
                 if (this.isEditable(f.name)) {
-                    actions += `<button class="btn btn-ghost btn-sm" onclick="FileManager.editFile('${path}')" title="Sửa nhanh" style="${btnStyle} color: #a29bfe;" onmouseover="this.style.background='rgba(162,155,254,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">📝 Sửa</button>`;
-                    actions += `<button class="btn btn-ghost btn-sm" onclick="FileManager.openInEditor('${path}')" title="Mở trong Antigravity IDE" style="${btnStyle} color: #ffeaa7;" onmouseover="this.style.background='rgba(255,234,167,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">⚡ IDE</button>`;
+                    actions += `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); FileManager.editFile('${path}')" title="Sửa nhanh" style="${btnStyle} color: #a29bfe;" onmouseover="this.style.background='rgba(162,155,254,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">📝 Sửa</button>`;
+                    actions += `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); FileManager.openInEditor('${path}')" title="Mở trong Antigravity IDE" style="${btnStyle} color: #ffeaa7;" onmouseover="this.style.background='rgba(255,234,167,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">⚡ IDE</button>`;
                 }
-                actions += `<button class="btn btn-ghost btn-sm" onclick="FileManager.deleteItem('${path}', false)" title="Xóa" style="${btnStyle} color: #ff7675;" onmouseover="this.style.background='rgba(255,118,117,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">🗑️ Xóa</button>`;
+                actions += `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); FileManager.deleteItem('${path}', false)" title="Xóa" style="${btnStyle} color: #ff7675;" onmouseover="this.style.background='rgba(255,118,117,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">🗑️ Xóa</button>`;
             }
 
             html += `
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: all 0.15s ease; cursor: default;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.03)';" onmouseout="this.style.backgroundColor='transparent';">
-                    <td style="padding: 10px 12px; width: 46px; text-align: center; vertical-align: middle;">${icon}</td>
+                <tr class="fm-row-item ${isSelected ? 'fm-row-selected' : ''}" 
+                    data-fm-path="${path}" 
+                    data-fm-is-dir="${f.is_dir ? '1' : '0'}" 
+                    data-fm-name="${this.escapeHtml(f.name)}" 
+                    data-fm-index="${idx}"
+                    onclick="FileManager.onRowClick(event, '${path}', ${f.is_dir ? 'true' : 'false'}, '${this.escapeHtml(f.name)}', ${idx})"
+                    oncontextmenu="FileManager.onRowContextMenu(event, '${path}', ${f.is_dir ? 'true' : 'false'}, '${this.escapeHtml(f.name)}', ${idx}); return false;"
+                    style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: all 0.15s ease; cursor: default;" 
+                    onmouseover="if(!this.classList.contains('fm-row-selected')) this.style.backgroundColor='rgba(255,255,255,0.03)';" 
+                    onmouseout="if(!this.classList.contains('fm-row-selected')) this.style.backgroundColor='transparent';">
+                    
+                    <td style="padding: 10px 14px; width: 36px; text-align: center; vertical-align: middle;">
+                        <input type="checkbox" class="fm-item-checkbox" data-path="${path}" ${isSelected ? 'checked' : ''} onclick="FileManager.onItemCheckboxClick(event, '${path}', ${f.is_dir ? 'true' : 'false'}, '${this.escapeHtml(f.name)}')">
+                    </td>
+                    <td style="padding: 10px 12px; width: 36px; text-align: center; vertical-align: middle;">${icon}</td>
                     <td style="padding: 10px 14px; font-weight: 500; vertical-align: middle; font-family: var(--mono, monospace); font-size: 13px;">
-                        ${f.is_dir ? `<a href="javascript:void(0)" onclick="FileManager.navigateTo('${path}')" style="color:${meta.nameColor}; text-decoration:none; font-weight:600; transition: opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">${f.name}</a>` : `<span style="color:${meta.nameColor};">${f.name}</span>`}
+                        ${f.is_dir ? `<a href="javascript:void(0)" onclick="event.stopPropagation(); FileManager.navigateTo('${path}')" style="color:${meta.nameColor}; text-decoration:none; font-weight:600; transition: opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">${f.name}</a>` : `<span style="color:${meta.nameColor};">${f.name}</span>`}
                     </td>
                     <td style="padding: 10px 14px; color:#94a3b8; font-size: 0.8rem; vertical-align: middle; font-family: var(--mono, monospace);">${size}</td>
                     <td style="padding: 10px 14px; color:#94a3b8; font-size: 0.8rem; vertical-align: middle; font-family: var(--mono, monospace);">${displayDate}</td>
@@ -542,31 +680,356 @@ var FileManager = {
             `;
         });
         tbody.innerHTML = html;
+        this.updateSelectionUI();
     },
 
-    async deleteItem(path, isDir) {
-        const itemName = path.split('/').pop();
+    onItemCheckboxClick(event, path, isDir, name) {
+        event.stopPropagation();
+        if (event.target.checked) {
+            this.selectedItems.set(path, { path, isDir, name });
+        } else {
+            this.selectedItems.delete(path);
+        }
+        this.updateSelectionUI();
+    },
+
+    toggleSelectAll(checked) {
+        if (checked) {
+            this.currentRenderedFiles.forEach(f => {
+                const path = (this.currentPath === '/' ? '' : this.currentPath) + '/' + f.name;
+                this.selectedItems.set(path, { path, isDir: f.is_dir, name: f.name });
+            });
+        } else {
+            this.selectedItems.clear();
+        }
+        this.updateSelectionUI();
+    },
+
+    onRowClick(event, path, isDir, name, index) {
+        // Skip if clicked on link, button, input, or image preview
+        const tag = event.target.tagName.toLowerCase();
+        if (['input', 'button', 'a', 'img'].includes(tag) || event.target.closest('button') || event.target.closest('a')) {
+            return;
+        }
+
+        if (event.ctrlKey || event.metaKey) {
+            // Toggle item
+            if (this.selectedItems.has(path)) {
+                this.selectedItems.delete(path);
+            } else {
+                this.selectedItems.set(path, { path, isDir, name });
+            }
+            this.lastClickedIndex = index;
+        } else if (event.shiftKey && this.lastClickedIndex !== -1) {
+            // Range select
+            const start = Math.min(this.lastClickedIndex, index);
+            const end = Math.max(this.lastClickedIndex, index);
+            for (let i = start; i <= end; i++) {
+                const item = this.currentRenderedFiles[i];
+                if (item) {
+                    const p = (this.currentPath === '/' ? '' : this.currentPath) + '/' + item.name;
+                    this.selectedItems.set(p, { path: p, isDir: item.is_dir, name: item.name });
+                }
+            }
+        } else {
+            // Single select
+            this.selectedItems.clear();
+            this.selectedItems.set(path, { path, isDir, name });
+            this.lastClickedIndex = index;
+        }
+
+        this.updateSelectionUI();
+    },
+
+    updateSelectionUI() {
+        const selectAllCheckbox = document.getElementById('fm-select-all');
+        const count = this.selectedItems.size;
+        const total = this.currentRenderedFiles.length;
+
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = total > 0 && count === total;
+            selectAllCheckbox.indeterminate = count > 0 && count < total;
+        }
+
+        // Highlight table rows
+        document.querySelectorAll('#fm-file-list tr.fm-row-item').forEach(tr => {
+            const p = tr.dataset.fmPath;
+            const cb = tr.querySelector('.fm-item-checkbox');
+            if (this.selectedItems.has(p)) {
+                tr.classList.add('fm-row-selected');
+                tr.style.backgroundColor = 'rgba(0,210,211,0.12)';
+                if (cb) cb.checked = true;
+            } else {
+                tr.classList.remove('fm-row-selected');
+                tr.style.backgroundColor = 'transparent';
+                if (cb) cb.checked = false;
+            }
+        });
+
+        // Update Batch Bar
+        const batchBar = document.getElementById('fm-batch-bar');
+        const batchCount = document.getElementById('fm-batch-count');
+        const batchLabel = document.getElementById('fm-batch-label');
+
+        if (batchBar && batchCount && batchLabel) {
+            if (count > 0) {
+                let dirCount = 0;
+                let fileCount = 0;
+                this.selectedItems.forEach(it => {
+                    if (it.isDir) dirCount++; else fileCount++;
+                });
+                batchCount.innerText = count;
+                const parts = [];
+                if (dirCount > 0) parts.push(`${dirCount} thư mục`);
+                if (fileCount > 0) parts.push(`${fileCount} tệp`);
+                batchLabel.innerText = `mục đã chọn (${parts.join(', ')})`;
+                batchBar.style.display = 'flex';
+            } else {
+                batchBar.style.display = 'none';
+            }
+        }
+    },
+
+    clearSelection() {
+        this.selectedItems.clear();
+        this.updateSelectionUI();
+    },
+
+    async deleteSelectedItems() {
+        const items = Array.from(this.selectedItems.values());
+        if (items.length === 0) return;
+
+        let dirCount = 0;
+        let fileCount = 0;
+        items.forEach(it => { if (it.isDir) dirCount++; else fileCount++; });
+
         const envLabel = this.currentEnv === 'prod' ? 'Production Server' : 'Demo Server';
-        const msg = `Bạn có chắc chắn muốn xóa ${isDir ? 'thư mục' : 'file'} <b style="color:var(--primary); word-break:break-all;">${itemName}</b> không?<br><span style="color:var(--danger); font-size:0.85em;">⚠️ Hành động này sẽ xóa trực tiếp trên ${envLabel} và không thể hoàn tác!</span>`;
-        const confirmed = (typeof UI !== 'undefined' && UI.confirm) ? await UI.confirm(msg) : confirm(`Bạn có chắc chắn muốn xóa không?`);
+        const parts = [];
+        if (dirCount > 0) parts.push(`<b>${dirCount} thư mục</b>`);
+        if (fileCount > 0) parts.push(`<b>${fileCount} tệp tin</b>`);
+
+        const msg = `Bạn có chắc chắn muốn xóa vĩnh viễn <b style="color:var(--primary);">${items.length} mục đã chọn</b> (${parts.join(', ')}) không?<br><span style="color:var(--danger); font-size:0.85em;">⚠️ Hành động này sẽ xóa trực tiếp trên ${envLabel} và không thể hoàn tác!</span>`;
+        const confirmed = (typeof UI !== 'undefined' && UI.confirm) ? await UI.confirm(msg) : confirm(`Bạn có chắc chắn muốn xóa ${items.length} mục đã chọn không?`);
         if (!confirmed) return;
-        
+
+        UI.showLoading(`Đang dọn sạch và xóa ${items.length} mục đã chọn trên máy chủ...`);
+
         fetch('api.php?action=fmDelete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 name: document.getElementById('detail-project-name')?.innerText,
                 category: App.currentCategory,
-                path: path,
-                isDir: isDir,
-                env: this.currentEnv
+                env: this.currentEnv,
+                items: items
             })
         }).then(res => res.json()).then(res => {
             if (res.status === 'success') {
-                UI.showToast('Xóa thành công', 'success');
+                UI.showToast(res.message || 'Xóa thành công', 'success');
+                this.clearSelection();
                 this.loadCurrentPath();
+                this.loadTree(true);
             } else {
                 UI.showToast('Lỗi: ' + res.message, 'error');
+            }
+        }).catch(err => {
+            UI.showToast('Lỗi kết nối: ' + err.message, 'error');
+        }).finally(() => {
+            UI.hideLoading();
+        });
+    },
+
+    async deleteItem(path, isDir) {
+        const itemName = path.split('/').pop();
+        this.selectedItems.clear();
+        this.selectedItems.set(path, { path, isDir, name: itemName });
+        this.deleteSelectedItems();
+    },
+
+    onRowContextMenu(event, path, isDir, name, index) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!this.selectedItems.has(path)) {
+            this.selectedItems.clear();
+            this.selectedItems.set(path, { path, isDir, name });
+            this.lastClickedIndex = index;
+            this.updateSelectionUI();
+        }
+        this.showContextMenu(event.clientX, event.clientY);
+    },
+
+    initContextMenu() {
+        if (document.getElementById('fm-context-menu')) return;
+        const menu = document.createElement('div');
+        menu.id = 'fm-context-menu';
+        document.body.appendChild(menu);
+
+        document.addEventListener('click', () => this.hideContextMenu());
+        window.addEventListener('blur', () => this.hideContextMenu());
+        window.addEventListener('resize', () => this.hideContextMenu());
+    },
+
+    showContextMenu(x, y) {
+        const menu = document.getElementById('fm-context-menu');
+        if (!menu) return;
+
+        const count = this.selectedItems.size;
+        let html = '';
+
+        if (count === 1) {
+            const firstItem = Array.from(this.selectedItems.values())[0];
+            if (firstItem.isDir) {
+                html += `<div class="fm-ctx-item" onclick="FileManager.navigateTo('${firstItem.path}')"><span>📂 Mở thư mục</span></div>`;
+            } else {
+                if (this.isImage(firstItem.name) && this.baseUrl) {
+                    const imgUrl = this.baseUrl + (firstItem.path.startsWith('/') ? '' : '/') + encodeURIComponent(firstItem.name);
+                    html += `<div class="fm-ctx-item" onclick="FileManager.previewImage('${imgUrl}', '${this.escapeHtml(firstItem.name)}')"><span>👁️ Xem ảnh</span></div>`;
+                }
+                if (this.isEditable(firstItem.name)) {
+                    html += `<div class="fm-ctx-item" onclick="FileManager.editFile('${firstItem.path}')"><span>📝 Sửa nhanh</span></div>`;
+                    html += `<div class="fm-ctx-item" onclick="FileManager.openInEditor('${firstItem.path}')"><span>⚡ Mở Antigravity IDE</span></div>`;
+                }
+            }
+            html += `<div class="fm-ctx-item fm-ctx-danger" onclick="FileManager.deleteSelectedItems()"><span>🗑️ Xóa</span><span class="fm-ctx-key">Del</span></div>`;
+            html += `<div class="fm-ctx-divider"></div>`;
+        } else if (count > 1) {
+            html += `<div class="fm-ctx-item fm-ctx-danger" onclick="FileManager.deleteSelectedItems()"><span>🗑️ Xóa ${count} mục đã chọn</span><span class="fm-ctx-key">Del</span></div>`;
+            html += `<div class="fm-ctx-divider"></div>`;
+        }
+
+        html += `
+            <div class="fm-ctx-item" onclick="FileManager.showCreateDirModal()"><span>📁 Tạo thư mục mới</span></div>
+            <div class="fm-ctx-item" onclick="FileManager.triggerUploadFiles()"><span>☁️ Tải lên tệp tin</span></div>
+            <div class="fm-ctx-item" onclick="FileManager.triggerUploadFolder()"><span>📁 Tải lên cả thư mục</span></div>
+            <div class="fm-ctx-divider"></div>
+            <div class="fm-ctx-item" onclick="FileManager.loadCurrentPath(); FileManager.loadTree(true);"><span>🔄 Làm mới</span><span class="fm-ctx-key">F5</span></div>
+        `;
+
+        menu.innerHTML = html;
+        menu.style.display = 'block';
+
+        // Position with bounds check
+        const menuWidth = 230;
+        const menuHeight = menu.offsetHeight || 220;
+        const posX = (x + menuWidth > window.innerWidth) ? (window.innerWidth - menuWidth - 10) : x;
+        const posY = (y + menuHeight > window.innerHeight) ? (window.innerHeight - menuHeight - 10) : y;
+
+        menu.style.left = `${posX}px`;
+        menu.style.top = `${posY}px`;
+    },
+
+    hideContextMenu() {
+        const menu = document.getElementById('fm-context-menu');
+        if (menu) menu.style.display = 'none';
+    },
+
+    initMarqueeSelection() {
+        const container = document.querySelector('.fm-list-container');
+        if (!container || container.dataset.marqueeInit === 'true') return;
+        container.dataset.marqueeInit = 'true';
+
+        let marqueeBox = document.getElementById('fm-marquee-box');
+        if (!marqueeBox) {
+            marqueeBox = document.createElement('div');
+            marqueeBox.id = 'fm-marquee-box';
+            container.appendChild(marqueeBox);
+        }
+
+        let isDragging = false;
+        let startX = 0, startY = 0;
+
+        container.addEventListener('mousedown', e => {
+            // Only left click on empty background
+            if (e.button !== 0) return;
+            const tag = e.target.tagName.toLowerCase();
+            if (['input', 'button', 'a', 'img'].includes(tag) || e.target.closest('button') || e.target.closest('a')) {
+                return;
+            }
+
+            const rect = container.getBoundingClientRect();
+            startX = e.clientX - rect.left + container.scrollLeft;
+            startY = e.clientY - rect.top + container.scrollTop;
+
+            isDragging = true;
+            marqueeBox.style.left = `${startX}px`;
+            marqueeBox.style.top = `${startY}px`;
+            marqueeBox.style.width = '0px';
+            marqueeBox.style.height = '0px';
+            marqueeBox.style.display = 'block';
+
+            if (!e.ctrlKey && !e.metaKey && !e.target.closest('tr.fm-row-item')) {
+                this.clearSelection();
+            }
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            const rect = container.getBoundingClientRect();
+            const currentX = e.clientX - rect.left + container.scrollLeft;
+            const currentY = e.clientY - rect.top + container.scrollTop;
+
+            const x = Math.min(startX, currentX);
+            const y = Math.min(startY, currentY);
+            const w = Math.abs(currentX - startX);
+            const h = Math.abs(currentY - startY);
+
+            marqueeBox.style.left = `${x}px`;
+            marqueeBox.style.top = `${y}px`;
+            marqueeBox.style.width = `${w}px`;
+            marqueeBox.style.height = `${h}px`;
+
+            // Hit test rows
+            const marqueeRect = marqueeBox.getBoundingClientRect();
+            document.querySelectorAll('#fm-file-list tr.fm-row-item').forEach(tr => {
+                const trRect = tr.getBoundingClientRect();
+                const intersect = !(trRect.right < marqueeRect.left || 
+                                    trRect.left > marqueeRect.right || 
+                                    trRect.bottom < marqueeRect.top || 
+                                    trRect.top > marqueeRect.bottom);
+                const path = tr.dataset.fmPath;
+                const isDir = tr.dataset.fmIsDir === '1';
+                const name = tr.dataset.fmName;
+
+                if (intersect) {
+                    this.selectedItems.set(path, { path, isDir, name });
+                }
+            });
+
+            this.updateSelectionUI();
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                marqueeBox.style.display = 'none';
+            }
+        });
+
+        // Context menu on empty area
+        container.addEventListener('contextmenu', e => {
+            if (!e.target.closest('tr.fm-row-item')) {
+                e.preventDefault();
+                this.showContextMenu(e.clientX, e.clientY);
+            }
+        });
+    },
+
+    initKeyBindings() {
+        if (window.fmKeysBound) return;
+        window.fmKeysBound = true;
+
+        window.addEventListener('keydown', e => {
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+            if (['input', 'textarea'].includes(activeTag)) return;
+
+            if (e.key === 'Delete' || e.key === 'Del') {
+                if (this.selectedItems.size > 0) {
+                    e.preventDefault();
+                    this.deleteSelectedItems();
+                }
+            } else if (e.key === 'Escape') {
+                this.hideContextMenu();
+                this.clearSelection();
             }
         });
     },
@@ -576,6 +1039,8 @@ var FileManager = {
         if (!name) return;
         
         const path = (this.currentPath === '/' ? '' : this.currentPath) + '/' + name;
+        UI.showLoading(`Đang tạo thư mục "${name}"...`);
+        
         fetch('api.php?action=fmCreateDir', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -592,41 +1057,310 @@ var FileManager = {
             } else {
                 UI.showToast('Lỗi: ' + (res.message || 'Không thể tạo thư mục'), 'error');
             }
+        }).catch(err => {
+            UI.showToast('Lỗi kết nối: ' + err.message, 'error');
+        }).finally(() => {
+            UI.hideLoading();
         });
     },
 
     showUploadModal() {
-        let input = document.createElement('input');
-        input.type = 'file';
-        input.onchange = e => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const formData = new FormData();
-            formData.append('name', document.getElementById('detail-project-name')?.innerText);
-            formData.append('category', App.currentCategory);
-            formData.append('path', (this.currentPath === '/' ? '' : this.currentPath) + '/' + file.name);
-            formData.append('file', file);
-            formData.append('env', this.currentEnv);
-            
-            UI.showToast('Đang tải lên...', 'info');
-            fetch('api.php?action=fmUpload', {
-                method: 'POST',
-                body: formData
-            }).then(r => r.json()).then(res => {
-                if (res.status === 'success') {
-                    UI.showToast('Tải lên thành công', 'success');
-                    this.loadCurrentPath();
-                } else {
-                    UI.showToast('Lỗi: ' + res.message, 'error');
+        let existing = document.getElementById('fm-upload-dialog-modal');
+        if (existing) existing.remove();
+
+        const currentPathDisplay = this.currentPath === '/' ? '/' : this.currentPath;
+        const envLabel = this.currentEnv === 'prod' ? 'Production Server' : 'Demo Server';
+
+        const modalHtml = `
+            <div class="modal-overlay" id="fm-upload-dialog-modal" style="display:flex; z-index:9999; background:rgba(6,9,15,0.78); backdrop-filter:blur(8px); animation:modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);" onclick="if(event.target===this) this.remove()">
+                <div class="modal-content" style="max-width: 540px; width: 92%; background: #131822; border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,0.75); overflow: hidden; display: flex; flex-direction: column;">
+                    
+                    <!-- Header -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 22px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.08);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(0,210,211,0.12); display: flex; align-items: center; justify-content: center; font-size: 16px;">☁️</div>
+                            <div>
+                                <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #f8fafc;">Tải lên Máy chủ</h3>
+                                <span style="font-size: 11.5px; color: #94a3b8;">Đích: <code style="color:var(--primary, #00d2d3); background:rgba(0,210,211,0.08); padding:1px 6px; border-radius:4px;">${this.escapeHtml(currentPathDisplay)}</code> (${envLabel})</span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('fm-upload-dialog-modal').remove()" style="background:none; border:none; color:#71717a; font-size:22px; cursor:pointer; padding:2px 8px; border-radius:6px; transition:all 0.15s;" onmouseover="this.style.color='#fff'; this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.color='#71717a'; this.style.background='none'">×</button>
+                    </div>
+
+                    <!-- Body -->
+                    <div style="padding: 22px; display: flex; flex-direction: column; gap: 14px;">
+                        <p style="margin: 0; font-size: 12.5px; color: #94a3b8;">Vui lòng chọn hình thức bạn muốn tải lên:</p>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                            <!-- Card 1: Upload Files -->
+                            <div onclick="FileManager.triggerUploadFiles()" style="cursor: pointer; padding: 20px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; text-align: center; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; align-items: center; gap: 10px;" onmouseover="this.style.borderColor='var(--primary, #00d2d3)'; this.style.background='rgba(0,210,211,0.06)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'; this.style.background='rgba(255,255,255,0.03)'; this.style.transform='none'">
+                                <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(0,210,211,0.12); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #00d2d3;">📄</div>
+                                <div>
+                                    <div style="font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px;">Tải lên Tệp tin</div>
+                                    <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4;">Chọn 1 hoặc nhiều file từ máy tính</div>
+                                </div>
+                                <span style="font-size: 11px; padding: 4px 10px; border-radius: 6px; background: rgba(0,210,211,0.15); color: #00d2d3; font-weight: 600;">Chọn Files ▾</span>
+                            </div>
+
+                            <!-- Card 2: Upload Folder -->
+                            <div onclick="FileManager.triggerUploadFolder()" style="cursor: pointer; padding: 20px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; text-align: center; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; align-items: center; gap: 10px;" onmouseover="this.style.borderColor='#a29bfe'; this.style.background='rgba(162,155,254,0.08)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'; this.style.background='rgba(255,255,255,0.03)'; this.style.transform='none'">
+                                <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(162,155,254,0.15); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #a29bfe;">📁</div>
+                                <div>
+                                    <div style="font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px;">Tải lên Cả Thư mục</div>
+                                    <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4;">Tải toàn bộ folder & cây thư mục con</div>
+                                </div>
+                                <span style="font-size: 11px; padding: 4px 10px; border-radius: 6px; background: rgba(162,155,254,0.2); color: #c7d2fe; font-weight: 600;">Chọn Thư mục ▾</span>
+                            </div>
+                        </div>
+
+                        <!-- Drag and drop zone -->
+                        <div id="fm-modal-dropzone" style="border: 2px dashed rgba(255,255,255,0.15); border-radius: 12px; padding: 18px 14px; text-align: center; color: #94a3b8; font-size: 12px; transition: all 0.2s ease; background: rgba(0,0,0,0.15);">
+                            💡 Hoặc kéo & thả file / thư mục vào đây để bắt đầu tải lên ngay
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Bind drag & drop in modal
+        const dropzone = document.getElementById('fm-modal-dropzone');
+        if (dropzone) {
+            dropzone.ondragover = e => { e.preventDefault(); dropzone.style.borderColor = 'var(--primary, #00d2d3)'; dropzone.style.background = 'rgba(0,210,211,0.08)'; };
+            dropzone.ondragleave = () => { dropzone.style.borderColor = 'rgba(255,255,255,0.15)'; dropzone.style.background = 'rgba(0,0,0,0.15)'; };
+            dropzone.ondrop = async e => {
+                e.preventDefault();
+                dropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+                dropzone.style.background = 'rgba(0,0,0,0.15)';
+                const modal = document.getElementById('fm-upload-dialog-modal');
+                if (modal) modal.remove();
+
+                const files = await FileManager.extractFilesFromDataTransfer(e.dataTransfer);
+                if (files && files.length > 0) {
+                    FileManager.uploadFilesQueue(files, true);
                 }
-            });
+            };
+        }
+    },
+
+    triggerUploadFiles() {
+        const modal = document.getElementById('fm-upload-dialog-modal');
+        if (modal) modal.remove();
+
+        let input = document.getElementById('fm-hidden-input-files');
+        if (!input) {
+            input = document.createElement('input');
+            input.id = 'fm-hidden-input-files';
+            input.type = 'file';
+            input.multiple = true;
+            input.style.display = 'none';
+            document.body.appendChild(input);
+        }
+        input.value = '';
+        input.onchange = e => {
+            if (e.target.files && e.target.files.length > 0) {
+                this.uploadFilesQueue(e.target.files, false);
+            }
         };
         input.click();
     },
 
+    triggerUploadFolder() {
+        const modal = document.getElementById('fm-upload-dialog-modal');
+        if (modal) modal.remove();
+
+        let input = document.getElementById('fm-hidden-input-folder');
+        if (!input) {
+            input = document.createElement('input');
+            input.id = 'fm-hidden-input-folder';
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.directory = true;
+            input.multiple = true;
+            input.style.display = 'none';
+            document.body.appendChild(input);
+        }
+        input.value = '';
+        input.onchange = e => {
+            if (e.target.files && e.target.files.length > 0) {
+                this.uploadFilesQueue(e.target.files, true);
+            }
+        };
+        input.click();
+    },
+
+    async extractFilesFromDataTransfer(dataTransfer) {
+        const fileList = [];
+        if (!dataTransfer || !dataTransfer.items) return fileList;
+
+        const items = dataTransfer.items;
+        const queue = [];
+
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.kind === 'file') {
+                const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+                if (entry) {
+                    queue.push(entry);
+                } else {
+                    const f = item.getAsFile();
+                    if (f) fileList.push(f);
+                }
+            }
+        }
+
+        const readEntry = (entry, path = '') => {
+            return new Promise((resolve) => {
+                if (entry.isFile) {
+                    entry.file(f => {
+                        try {
+                            Object.defineProperty(f, 'webkitRelativePath', {
+                                value: (path ? path + '/' : '') + f.name,
+                                writable: true
+                            });
+                        } catch (err) {}
+                        fileList.push(f);
+                        resolve();
+                    }, () => resolve());
+                } else if (entry.isDirectory) {
+                    const dirReader = entry.createReader();
+                    const readAll = () => {
+                        dirReader.readEntries(async entries => {
+                            if (entries.length === 0) {
+                                resolve();
+                            } else {
+                                for (const child of entries) {
+                                    await readEntry(child, (path ? path + '/' : '') + entry.name);
+                                }
+                                readAll();
+                            }
+                        }, () => resolve());
+                    };
+                    readAll();
+                } else {
+                    resolve();
+                }
+            });
+        };
+
+        while (queue.length > 0) {
+            const entry = queue.shift();
+            await readEntry(entry);
+        }
+
+        return fileList;
+    },
+
+    async uploadFilesQueue(filesList, isFolder = false) {
+        if (!filesList || filesList.length === 0) return;
+
+        const files = Array.from(filesList);
+        const totalCount = files.length;
+        let successCount = 0;
+        let failCount = 0;
+
+        const rootTarget = this.currentPath === '/' ? '' : this.currentPath;
+        const uploadTitle = isFolder ? 'Đang tải lên Thư mục' : 'Đang tải lên Tệp tin';
+
+        this.showUploadProgressModal(uploadTitle, totalCount);
+
+        for (let i = 0; i < totalCount; i++) {
+            const file = files[i];
+            const relPath = file.webkitRelativePath ? file.webkitRelativePath : file.name;
+            const targetFilePath = rootTarget + '/' + relPath;
+
+            const percent = Math.round((i / totalCount) * 100);
+            this.updateUploadProgressModal(i + 1, totalCount, relPath, percent);
+
+            const formData = new FormData();
+            formData.append('name', document.getElementById('detail-project-name')?.innerText);
+            formData.append('category', App.currentCategory);
+            formData.append('path', targetFilePath);
+            formData.append('file', file);
+            formData.append('env', this.currentEnv);
+
+            try {
+                const res = await fetch('api.php?action=fmUpload', {
+                    method: 'POST',
+                    body: formData
+                }).then(r => r.json());
+
+                if (res.status === 'success') {
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            } catch (err) {
+                failCount++;
+            }
+        }
+
+        this.hideUploadProgressModal();
+
+        if (failCount === 0) {
+            UI.showToast(`✅ Đã tải lên thành công toàn bộ ${successCount} tệp tin!`, 'success');
+        } else {
+            UI.showToast(`Đã tải lên ${successCount}/${totalCount} tệp (${failCount} tệp lỗi)`, 'warning');
+        }
+
+        this.loadCurrentPath();
+        this.loadTree(true);
+    },
+
+    showUploadProgressModal(title, total) {
+        let existing = document.getElementById('fm-upload-progress-modal');
+        if (existing) existing.remove();
+
+        const html = `
+            <div class="modal-overlay" id="fm-upload-progress-modal" style="display:flex; z-index:1000002; background:rgba(6,9,15,0.85); backdrop-filter:blur(10px);">
+                <div style="background:linear-gradient(145deg, #151b26, #0d1118); border:1px solid rgba(0,210,211,0.25); padding:26px 32px; border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,0.8), 0 0 35px rgba(0,210,211,0.12); width:440px; max-width:92%; display:flex; flex-direction:column; gap:16px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:34px; height:34px; border-radius:8px; background:rgba(0,210,211,0.15); display:flex; align-items:center; justify-content:center; color:#00d2d3; font-size:16px;">☁️</div>
+                            <div>
+                                <div style="font-size:14px; font-weight:700; color:#f8fafc;" id="fm-prog-title">${this.escapeHtml(title)}</div>
+                                <div style="font-size:11.5px; color:#94a3b8;" id="fm-prog-counter">Chuẩn bị tải lên ${total} tệp...</div>
+                            </div>
+                        </div>
+                        <span id="fm-prog-percent" style="font-size:16px; font-weight:800; color:var(--primary, #00d2d3); font-family:var(--mono, monospace);">0%</span>
+                    </div>
+
+                    <!-- Progress Bar Track -->
+                    <div style="width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:6px; overflow:hidden; position:relative;">
+                        <div id="fm-prog-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #00d2d3, #0984e3); border-radius:6px; transition:width 0.15s ease;"></div>
+                    </div>
+
+                    <!-- Current file label -->
+                    <div id="fm-prog-file" style="font-size:11.5px; color:#cbd5e1; font-family:var(--mono, monospace); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:rgba(255,255,255,0.03); padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
+                        Đang khởi động...
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    updateUploadProgressModal(current, total, fileName, percent) {
+        const counter = document.getElementById('fm-prog-counter');
+        const percentEl = document.getElementById('fm-prog-percent');
+        const bar = document.getElementById('fm-prog-bar');
+        const fileEl = document.getElementById('fm-prog-file');
+
+        if (counter) counter.innerText = `Đang tải: ${current} / ${total} tệp`;
+        if (percentEl) percentEl.innerText = `${percent}%`;
+        if (bar) bar.style.width = `${percent}%`;
+        if (fileEl) fileEl.innerText = `📄 ${fileName}`;
+    },
+
+    hideUploadProgressModal() {
+        const modal = document.getElementById('fm-upload-progress-modal');
+        if (modal) modal.remove();
+    },
+
     editFile(path) {
-        UI.showToast('Đang tải nội dung file...', 'info');
+        const fileName = path.split('/').pop();
+        UI.showLoading(`Đang tải nội dung file "${fileName}"...`);
         fetch('api.php?action=fmGet', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -642,6 +1376,10 @@ var FileManager = {
             } else {
                 UI.showToast('Lỗi: ' + res.message, 'error');
             }
+        }).catch(err => {
+            UI.showToast('Lỗi kết nối: ' + err.message, 'error');
+        }).finally(() => {
+            UI.hideLoading();
         });
     },
 
@@ -803,11 +1541,16 @@ var FileManager = {
     },
     
     saveFile(path) {
+        const fileName = path.split('/').pop();
         const content = document.getElementById('fm-editor-textarea').value;
         const btn = document.querySelector('#fm-editor-modal .btn-primary');
-        const oldText = btn.innerText;
-        btn.innerText = 'Đang lưu...';
-        btn.disabled = true;
+        const oldText = btn ? btn.innerText : 'Lưu';
+        if (btn) {
+            btn.innerText = 'Đang lưu...';
+            btn.disabled = true;
+        }
+        
+        UI.showLoading(`Đang lưu file "${fileName}" lên máy chủ...`);
         
         fetch('api.php?action=fmSave', {
             method: 'POST',
@@ -820,20 +1563,33 @@ var FileManager = {
                 env: this.currentEnv
             })
         }).then(res => res.json()).then(res => {
-            btn.innerText = oldText;
-            btn.disabled = false;
+            if (btn) {
+                btn.innerText = oldText;
+                btn.disabled = false;
+            }
             if (res.status === 'success') {
                 UI.showToast('Lưu file thành công!', 'success');
-                document.getElementById('fm-editor-modal').remove();
+                const modal = document.getElementById('fm-editor-modal');
+                if (modal) modal.remove();
                 this.loadCurrentPath();
             } else {
                 UI.showToast('Lỗi: ' + res.message, 'error');
             }
+        }).catch(err => {
+            if (btn) {
+                btn.innerText = oldText;
+                btn.disabled = false;
+            }
+            UI.showToast('Lỗi kết nối: ' + err.message, 'error');
+        }).finally(() => {
+            UI.hideLoading();
         });
     },
 
     openInEditor(path) {
-        UI.showToast('Đang tải file và khởi động Antigravity...', 'info');
+        const fileName = path.split('/').pop();
+        UI.showLoading(`Đang chuẩn bị file "${fileName}" & mở Antigravity IDE...`);
+        
         fetch('api.php?action=fmOpenInEditor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -892,11 +1648,14 @@ var FileManager = {
             }
         }).catch(err => {
             UI.showToast('Lỗi kết nối khi mở IDE', 'error');
+        }).finally(() => {
+            UI.hideLoading();
         });
     },
 
     syncLocalFile(path) {
-        UI.showToast('Đang đồng bộ file lên Demo Host...', 'info');
+        const fileName = path.split('/').pop();
+        UI.showLoading(`Đang đồng bộ file "${fileName}" lên Demo Host...`);
         fetch('api.php?action=fmSyncLocalFile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -912,6 +1671,10 @@ var FileManager = {
             } else {
                 UI.showToast('Lỗi đồng bộ: ' + res.message, 'error');
             }
+        }).catch(err => {
+            UI.showToast('Lỗi kết nối khi đồng bộ: ' + err.message, 'error');
+        }).finally(() => {
+            UI.hideLoading();
         });
     },
 
@@ -1263,6 +2026,148 @@ const SyncCenter = {
         return `<span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:5px; background:rgba(255,255,255,0.08); color:#94a3b8; font-size:10px; font-weight:700;">FILE</span>`;
     },
 
+    renderDbSyncCard(dbDiff) {
+        const envLabel = this.currentEnv === 'prod' ? 'Production' : 'Demo';
+        if (!dbDiff) return '';
+
+        if (!dbDiff.available) {
+            return `
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px;">🗄️</span>
+                        <div>
+                            <div style="font-weight: 600; font-size: 13.5px; color: #cbd5e1;">Cơ sở dữ liệu (SQL Schema)</div>
+                            <div style="font-size: 12px; color: #94a3b8;">${this.escapeHtml(dbDiff.error || 'Không phát hiện cấu hình Database hợp lệ để đối soát.')}</div>
+                        </div>
+                    </div>
+                    <span class="sc-tag" style="background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1);">Chưa kết nối DB</span>
+                </div>
+            `;
+        }
+
+        const uploadStmts = dbDiff.upload_statements || [];
+        const downloadStmts = dbDiff.download_statements || [];
+        const uploadSummary = dbDiff.upload_summary || { new_tables: [], new_columns: [] };
+        const downloadSummary = dbDiff.download_summary || { new_tables: [], new_columns: [] };
+        const hasDiff = uploadStmts.length > 0 || downloadStmts.length > 0;
+
+        if (!hasDiff) {
+            return `
+                <div style="background: rgba(16,185,129,0.04); border: 1px solid rgba(16,185,129,0.2); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 34px; height: 34px; border-radius: 8px; background: rgba(16,185,129,0.12); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 18px;">✓</div>
+                        <div>
+                            <div style="font-weight: 700; font-size: 13.5px; color: #34d399; display: flex; align-items: center; gap: 8px;">
+                                <span>Cấu trúc Database (SQL Schema) đã đồng bộ 100%</span>
+                                <span style="font-size: 11px; font-weight: 500; color: #94a3b8;">(Local ⟷ ${envLabel})</span>
+                            </div>
+                            <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">
+                                Tất cả bảng và cột dữ liệu đều khớp hoàn hảo. Không có câu lệnh DDL nào cần áp dụng.
+                            </div>
+                        </div>
+                    </div>
+                    <span class="sc-tag sc-tag-emerald" style="padding: 4px 10px; font-size: 11.5px;">✓ Khớp cấu trúc</span>
+                </div>
+            `;
+        }
+
+        let html = `
+            <div style="background: linear-gradient(180deg, rgba(20, 26, 38, 0.95), rgba(13, 17, 26, 0.95)); border: 1px solid rgba(0, 210, 211, 0.25); border-radius: 14px; padding: 16px 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.35);">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 36px; height: 36px; border-radius: 9px; background: rgba(0,210,211,0.15); color: #00d2d3; display: flex; align-items: center; justify-content: center; font-size: 18px;">🗄️</div>
+                        <div>
+                            <div style="font-weight: 700; font-size: 14.5px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <span>Đồng bộ Cấu trúc Database (SQL Schema Diff)</span>
+                                <span class="sc-tag sc-tag-cyan" style="font-size: 11px;">Chỉ cấu trúc • Tuyệt đối không đè dữ liệu</span>
+                            </div>
+                            <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">
+                                Phát hiện khác biệt cấu trúc giữa Local và ${envLabel}. Hệ thống sẽ <b style="color: #38bdf8;">tự động backup .sql</b> trước khi áp dụng câu lệnh.
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 11.5px; color: #a1a1aa; background: rgba(255,255,255,0.04); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                            🛡️ Auto-Backup: <b style="color: #34d399;">BẬT</b>
+                        </span>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
+        `;
+
+        // Chiều 1: Upload (Local -> Hosting)
+        html += `
+            <div style="background: rgba(16, 185, 129, 0.04); border: 1px solid ${uploadStmts.length > 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.06)'}; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-weight: 700; font-size: 13px; color: #34d399; display: flex; align-items: center; gap: 6px;">
+                            <span>↑ Local ➔ ${envLabel}</span>
+                        </span>
+                        <span class="sc-badge-count" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">${uploadStmts.length} câu lệnh DDL</span>
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin-bottom: 12px;">
+                        ${uploadStmts.length > 0 ? `
+                            Hosting khác biệt so với Local:<br>
+                            ${uploadSummary.new_tables && uploadSummary.new_tables.length > 0 ? `• <b style="color:#fff;">${uploadSummary.new_tables.length}</b> bảng mới: <code>${this.escapeHtml(uploadSummary.new_tables.join(', '))}</code><br>` : ''}
+                            ${uploadSummary.new_columns && uploadSummary.new_columns.length > 0 ? `• <b style="color:#fff;">${uploadSummary.new_columns.length}</b> cột mới: <code>${this.escapeHtml(uploadSummary.new_columns.slice(0, 4).join(', '))}${uploadSummary.new_columns.length > 4 ? ' ...' : ''}</code><br>` : ''}
+                            ${uploadSummary.modify_columns && uploadSummary.modify_columns.length > 0 ? `• <b style="color:#fbbf24;">${uploadSummary.modify_columns.length}</b> cột đổi kiểu/chiều dài: <code>${this.escapeHtml(uploadSummary.modify_columns.slice(0, 4).join(', '))}${uploadSummary.modify_columns.length > 4 ? ' ...' : ''}</code>` : ''}
+                        ` : '<span style="color:#94a3b8;">Hosting đã có đầy đủ toàn bộ bảng & cột của Local.</span>'}
+                    </div>
+                </div>
+                ${uploadStmts.length > 0 ? `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                        <button type="button" class="btn btn-primary" onclick="SyncCenter.executeDbSync('upload')" style="flex: 1; height: 34px; font-size: 12.5px; font-weight: 600; border-radius: 7px; background: linear-gradient(135deg, #10b981, #059669); border: none; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                            <span>↑ Đồng bộ lên ${envLabel} (Tự động Backup)</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost" onclick="SyncCenter.previewDbSql('upload')" title="Xem trước câu lệnh SQL DDL" style="height: 34px; padding: 0 12px; font-size: 12px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1;">
+                            Xem SQL
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        // Chiều 2: Download (Hosting -> Local)
+        html += `
+            <div style="background: rgba(168, 85, 247, 0.04); border: 1px solid ${downloadStmts.length > 0 ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255,255,255,0.06)'}; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-weight: 700; font-size: 13px; color: #c084fc; display: flex; align-items: center; gap: 6px;">
+                            <span>↓ ${envLabel} ➔ Local</span>
+                        </span>
+                        <span class="sc-badge-count" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">${downloadStmts.length} câu lệnh DDL</span>
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin-bottom: 12px;">
+                        ${downloadStmts.length > 0 ? `
+                            Local khác biệt so với Hosting:<br>
+                            ${downloadSummary.new_tables && downloadSummary.new_tables.length > 0 ? `• <b style="color:#fff;">${downloadSummary.new_tables.length}</b> bảng mới: <code>${this.escapeHtml(downloadSummary.new_tables.join(', '))}</code><br>` : ''}
+                            ${downloadSummary.new_columns && downloadSummary.new_columns.length > 0 ? `• <b style="color:#fff;">${downloadSummary.new_columns.length}</b> cột mới: <code>${this.escapeHtml(downloadSummary.new_columns.slice(0, 4).join(', '))}${downloadSummary.new_columns.length > 4 ? ' ...' : ''}</code><br>` : ''}
+                            ${downloadSummary.modify_columns && downloadSummary.modify_columns.length > 0 ? `• <b style="color:#fbbf24;">${downloadSummary.modify_columns.length}</b> cột đổi kiểu/chiều dài: <code>${this.escapeHtml(downloadSummary.modify_columns.slice(0, 4).join(', '))}${downloadSummary.modify_columns.length > 4 ? ' ...' : ''}</code>` : ''}
+                        ` : '<span style="color:#94a3b8;">Local đã có đầy đủ toàn bộ bảng & cột của Hosting.</span>'}
+                    </div>
+                </div>
+                ${downloadStmts.length > 0 ? `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                        <button type="button" class="btn btn-primary" onclick="SyncCenter.executeDbSync('download')" style="flex: 1; height: 34px; font-size: 12.5px; font-weight: 600; border-radius: 7px; background: linear-gradient(135deg, #a855f7, #7c3aed); border: none; box-shadow: 0 4px 12px rgba(168,85,247,0.3); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                            <span>↓ Đồng bộ về Local (Tự động Backup)</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost" onclick="SyncCenter.previewDbSql('download')" title="Xem trước câu lệnh SQL DDL" style="height: 34px; padding: 0 12px; font-size: 12px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1;">
+                            Xem SQL
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        return html;
+    },
+
     render() {
         if (!this.lastData) return;
         const allItems = this.getAllItems();
@@ -1272,14 +2177,22 @@ const SyncCenter = {
         const countConflict = this.lastData.conflict.length;
         const total = allItems.length;
 
-        if (total === 0) {
+        const dbDiff = this.lastData.db_diff || null;
+        const uploadDbCount = dbDiff && dbDiff.upload_statements ? dbDiff.upload_statements.length : 0;
+        const downloadDbCount = dbDiff && dbDiff.download_statements ? dbDiff.download_statements.length : 0;
+        const hasDbChanges = uploadDbCount > 0 || downloadDbCount > 0;
+
+        if (total === 0 && !hasDbChanges) {
             document.getElementById('sync-center-content').innerHTML = `
-                <div style="padding: 60px 20px; text-align: center; background: rgba(16,185,129,0.03); border: 1px solid rgba(16,185,129,0.15); border-radius: 16px;">
-                    <div style="display:inline-flex; width:64px; height:64px; border-radius:50%; background:rgba(16,185,129,0.1); color:#10b981; align-items:center; justify-content:center; margin-bottom:16px;">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    ${this.renderDbSyncCard(dbDiff)}
+                    <div style="padding: 50px 20px; text-align: center; background: rgba(16,185,129,0.03); border: 1px solid rgba(16,185,129,0.15); border-radius: 16px;">
+                        <div style="display:inline-flex; width:60px; height:60px; border-radius:50%; background:rgba(16,185,129,0.1); color:#10b981; align-items:center; justify-content:center; margin-bottom:14px;">
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <h3 style="color:#fff; font-size:17px; font-weight:700; margin-bottom:6px;">Tuyệt vời! Mọi thứ đã đồng bộ 100%</h3>
+                        <p style="color:var(--text-muted, #94a3b8); font-size:13px; max-width:420px; margin:0 auto;">Cả mã nguồn file và cấu trúc Database đều hoàn toàn đồng nhất giữa Local và Hosting.</p>
                     </div>
-                    <h3 style="color:#fff; font-size:18px; font-weight:700; margin-bottom:6px;">Tuyệt vời! Mọi thứ đã đồng bộ 100%</h3>
-                    <p style="color:var(--text-muted, #94a3b8); font-size:13px; max-width:400px; margin:0 auto;">Không tìm thấy file nào bị lệch giữa máy Local và Demo Server.</p>
                 </div>
             `;
             return;
@@ -1483,6 +2396,9 @@ const SyncCenter = {
             </style>
 
             <div style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- SQL Schema Diff Card -->
+                ${this.renderDbSyncCard(dbDiff)}
+
                 <!-- Header Toolbar & Filters -->
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -1743,6 +2659,104 @@ const SyncCenter = {
                 actions: actions
             })
         }).then(r => r.json());
+    },
+
+    previewDbSql(direction) {
+        if (!this.lastData || !this.lastData.db_diff) return;
+        const dbDiff = this.lastData.db_diff;
+        const stmts = direction === 'upload' ? (dbDiff.upload_statements || []) : (dbDiff.download_statements || []);
+        const envLabel = this.currentEnv === 'prod' ? 'Production' : 'Demo';
+        const title = direction === 'upload' ? `Xem trước SQL DDL (Local ➔ ${envLabel})` : `Xem trước SQL DDL (${envLabel} ➔ Local)`;
+        const targetLabel = direction === 'upload' ? (this.currentEnv === 'prod' ? 'Production Hosting' : 'Demo Hosting') : 'Local Workspace';
+
+        let existing = document.getElementById('sc-db-preview-modal');
+        if (existing) existing.remove();
+
+        const sqlText = stmts.join('\n\n');
+
+        const modalHtml = `
+            <div class="modal-overlay" id="sc-db-preview-modal" style="display:flex; z-index:10050; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px);">
+                <div class="modal-content" style="max-width:760px; width:92%; max-height:85vh; background:#0f141c; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.14); box-shadow:0 24px 70px rgba(0,0,0,0.9); display:flex; flex-direction:column;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; background:#161c28; border-bottom:1px solid rgba(255,255,255,0.08);">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:20px;">🗄️</span>
+                            <div>
+                                <h3 style="margin:0; font-size:15px; font-weight:700; color:#fff;">${this.escapeHtml(title)}</h3>
+                                <span style="font-size:12px; color:var(--text-muted, #94a3b8);">Áp dụng lên: <b style="color:#38bdf8;">${this.escapeHtml(targetLabel)}</b> (${stmts.length} câu lệnh)</span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('sc-db-preview-modal').remove()" style="background:none; border:none; color:#71717a; font-size:22px; cursor:pointer; line-height:1; padding:4px 8px; border-radius:6px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#71717a'">×</button>
+                    </div>
+                    <div style="padding:16px 20px; overflow-y:auto; flex:1; background:#090d14;">
+                        <div style="background:rgba(16,185,129,0.08); border-left:3px solid #10b981; border-radius:4px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:#6ee7b7;">
+                            🛡️ <b>Cơ chế An toàn:</b> Hệ thống sẽ <b>tự động sao lưu toàn bộ Database ${this.escapeHtml(targetLabel)}</b> thành tệp <code>.sql</code> trước khi chạy các câu lệnh bên dưới. Nếu sao lưu thất bại, hệ thống sẽ dừng ngay lập tức để bảo vệ dữ liệu.
+                        </div>
+                        <pre style="margin:0; padding:14px; background:#05070a; border:1px solid rgba(255,255,255,0.08); border-radius:8px; color:#e2e8f0; font-family:var(--mono, monospace); font-size:12.5px; line-height:1.6; white-space:pre-wrap; word-break:break-all; max-height:400px; overflow-y:auto;">${this.escapeHtml(sqlText || '-- Không có câu lệnh nào')}</pre>
+                    </div>
+                    <div style="padding:14px 20px; background:#141923; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                        <span style="font-size:12px; color:#94a3b8;">Chỉ đồng bộ DDL (CREATE TABLE / ALTER TABLE) • Không đè Data</span>
+                        <div style="display:flex; gap:10px;">
+                            <button type="button" class="btn btn-ghost" onclick="document.getElementById('sc-db-preview-modal').remove()" style="padding:8px 16px; font-size:13px; border:1px solid rgba(255,255,255,0.12); border-radius:8px; color:#cbd5e1;">
+                                Đóng
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="document.getElementById('sc-db-preview-modal').remove(); SyncCenter.executeDbSync('${direction}');" style="padding:8px 18px; font-size:13px; font-weight:600; border-radius:8px; background:linear-gradient(135deg, #00d2d3, #0984e3); border:none; color:#fff; display:flex; align-items:center; gap:6px;">
+                                <span>Tiến hành Đồng bộ (Có Backup)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    async executeDbSync(direction) {
+        if (!this.lastData || !this.lastData.db_diff) return;
+        const dbDiff = this.lastData.db_diff;
+        const stmts = direction === 'upload' ? (dbDiff.upload_statements || []) : (dbDiff.download_statements || []);
+        if (stmts.length === 0) {
+            UI.showToast('Không có thay đổi cấu trúc nào cần đồng bộ.', 'info');
+            return;
+        }
+
+        const envLabel = this.currentEnv === 'prod' ? 'Production' : 'Demo';
+        const targetLabel = direction === 'upload' ? (this.currentEnv === 'prod' ? 'Production Hosting' : 'Demo Hosting') : 'Local Workspace';
+        const projectName = document.getElementById('detail-project-name')?.innerText;
+        if (!projectName) return;
+
+        const confirmed = await UI.confirm(
+            `Xác nhận đồng bộ cấu trúc SQL (${stmts.length} câu lệnh DDL) sang ${targetLabel}?`
+        );
+        if (!confirmed) return;
+
+        UI.showLoading(`Đang sao lưu Database & đồng bộ cấu trúc SQL sang ${targetLabel}...`);
+
+        fetch('api.php?action=fmSyncCenterExecuteDb', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: projectName,
+                category: App.currentCategory,
+                env: this.currentEnv,
+                direction: direction,
+                queries: stmts
+            })
+        })
+        .then(r => r.json())
+        .then(res => {
+            UI.hideLoading();
+            if (res.status === 'success') {
+                const backupInfo = res.backup_file ? `\n(Đã tạo bản backup: ${res.backup_file})` : '';
+                UI.showToast(`Đồng bộ cấu trúc SQL thành công! ${backupInfo}`, 'success');
+                this.scan(); // Quét lại để cập nhật trạng thái schema
+            } else {
+                UI.showToast('Lỗi đồng bộ cấu trúc: ' + (res.message || 'Thao tác bị hủy bỏ để bảo vệ an toàn dữ liệu'), 'error');
+            }
+        })
+        .catch(err => {
+            UI.hideLoading();
+            UI.showToast('Lỗi kết nối khi đồng bộ cấu trúc Database', 'error');
+        });
     },
 
     // ==========================================

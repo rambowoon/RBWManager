@@ -61,6 +61,12 @@ class RamboWoonBridge
             case 'downloadTemp':
                 $this->downloadTemp();
                 break;
+            case 'getDbSchema':
+                $this->getDbSchema();
+                break;
+            case 'syncDbSchema':
+                $this->syncDbSchema();
+                break;
             default:
                 echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
                 break;
@@ -1441,7 +1447,7 @@ class RamboWoonBridge
         
         $scanDir($root);
         
-        echo json_encode(['status' => 'success', 'version' => 'v6_sub_excludes_nosql', 'files' => $files]);
+        echo json_encode(['status' => 'success', 'version' => 'v7_sql_schema_sync', 'files' => $files]);
         exit;
     }
 
@@ -1511,6 +1517,159 @@ class RamboWoonBridge
             'message' => "Đã dọn dẹp thành công $deletedCount hình ảnh trong thư mục assets/images/images trên demo server.",
             'errors' => $errors
         ]));
+    }
+
+    public function getDbSchema()
+    {
+        header('Content-Type: application/json');
+        $dbConfig = $this->getDbConfig();
+        if (empty($dbConfig['name'])) {
+            echo json_encode(['status' => 'no_db', 'message' => 'Chưa cấu hình Database trên server']);
+            exit;
+        }
+
+        try {
+            $pdo = $this->getPdoConnection($dbConfig);
+            $tables = $this->extractDbSchema($pdo);
+            echo json_encode([
+                'status' => 'success',
+                'db_name' => $dbConfig['name'],
+                'tables' => $tables
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => 'Lỗi đọc Database Remote: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+
+    public function syncDbSchema()
+    {
+        header('Content-Type: application/json');
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true);
+        if (!$data) $data = $_POST;
+
+        $queries = $data['queries'] ?? [];
+        if (empty($queries) || !is_array($queries)) {
+            echo json_encode(['status' => 'error', 'message' => 'Không có câu lệnh SQL nào để đồng bộ']);
+            exit;
+        }
+
+        $dbConfig = $this->getDbConfig();
+        if (empty($dbConfig['name'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Chưa cấu hình Database trên server']);
+            exit;
+        }
+
+        // BƯỚC 1: SAO LƯU AN TOÀN TRƯỚC TIÊN (BẮT BUỘC)
+        $backupDir = __DIR__ . '/backups/db';
+        if (!is_dir($backupDir)) {
+            @mkdir($backupDir, 0755, true);
+        }
+        $backupFile = $backupDir . '/db_backup_' . $dbConfig['name'] . '_' . date('Ymd_His') . '.sql';
+        $backupOk = $this->exportDatabase($dbConfig, $backupFile, false);
+
+        if (!$backupOk || !file_exists($backupFile) || filesize($backupFile) < 10) {
+            die(json_encode([
+                'status' => 'error',
+                'code' => 'BACKUP_FAILED',
+                'message' => 'QUY TRÌNH AN TOÀN BỊ HỦY: Không thể sao lưu Database trên Remote trước khi đồng bộ! Tiến trình lập tức dừng lại để bảo vệ 100% dữ liệu.'
+            ]));
+        }
+
+        $backupSize = filesize($backupFile);
+        $backupRelName = 'backups/db/' . basename($backupFile);
+
+        // BƯỚC 2: THỰC THI CÁC CÂU LỆNH DDL
+        $applied = [];
+        $errors = [];
+        try {
+            $pdo = $this->getPdoConnection($dbConfig);
+            $pdo->exec("SET FOREIGN_KEY_CHECKS=0;");
+            $pdo->exec("SET SESSION lock_wait_timeout = 10;");
+
+            foreach ($queries as $sql) {
+                $sql = trim($sql);
+                if (empty($sql)) continue;
+                try {
+                    $pdo->exec($sql);
+                    $applied[] = $sql;
+                } catch (\Exception $e) {
+                    $errors[] = ['sql' => $sql, 'error' => $e->getMessage()];
+                }
+            }
+
+            $pdo->exec("SET FOREIGN_KEY_CHECKS=1;");
+        } catch (\Exception $e) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Lỗi khi thực thi câu lệnh SQL: ' . $e->getMessage(),
+                'backup_file' => $backupRelName,
+                'backup_size' => $backupSize
+            ]);
+            exit;
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'applied_count' => count($applied),
+            'error_count' => count($errors),
+            'errors' => $errors,
+            'backup_file' => $backupRelName,
+            'backup_size' => $backupSize,
+            'message' => "Đã sao lưu an toàn (" . round($backupSize / 1024, 1) . " KB) và áp dụng thành công " . count($applied) . " thay đổi cấu trúc Database!"
+        ]);
+        exit;
+    }
+
+    private function extractDbSchema($pdo)
+    {
+        $schema = [];
+        $tables = [];
+        try {
+            $stmt = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'");
+            $rows = $stmt->fetchAll(\PDO::FETCH_NUM);
+            foreach ($rows as $r) $tables[] = $r[0];
+        } catch (\Exception $e) {
+            try {
+                $stmt = $pdo->query("SHOW TABLES");
+                $rows = $stmt->fetchAll(\PDO::FETCH_NUM);
+                foreach ($rows as $r) $tables[] = $r[0];
+            } catch (\Exception $e2) {
+                return [];
+            }
+        }
+
+        foreach ($tables as $tbl) {
+            $createSql = '';
+            try {
+                $cRow = $pdo->query("SHOW CREATE TABLE `{$tbl}`")->fetch(\PDO::FETCH_ASSOC);
+                $createSql = $cRow['Create Table'] ?? '';
+            } catch (\Exception $e) {}
+
+            $columns = [];
+            try {
+                $cols = $pdo->query("SHOW FULL COLUMNS FROM `{$tbl}`")->fetchAll(\PDO::FETCH_ASSOC);
+                foreach ($cols as $col) {
+                    $columns[$col['Field']] = [
+                        'field' => $col['Field'],
+                        'type' => $col['Type'],
+                        'collation' => $col['Collation'],
+                        'null' => $col['Null'],
+                        'key' => $col['Key'],
+                        'default' => $col['Default'],
+                        'extra' => $col['Extra'],
+                        'comment' => $col['Comment'] ?? ''
+                    ];
+                }
+            } catch (\Exception $e) {}
+
+            $schema[$tbl] = [
+                'columns' => $columns,
+                'create_sql' => $createSql
+            ];
+        }
+        return $schema;
     }
 }
 

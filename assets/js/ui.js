@@ -46,23 +46,41 @@ const UI = {
 		});
 	},
 
-	showLoading(message = 'Đang xử lý...') {
+	showLoading(message = 'Đang xử lý...', subText = 'Vui lòng chờ trong giây lát...') {
+		if (!document.getElementById('ui-loading-styles')) {
+			const style = document.createElement('style');
+			style.id = 'ui-loading-styles';
+			style.textContent = `
+				@keyframes ui-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+				@keyframes ui-pulse-glow { 0%, 100% { transform: scale(0.95); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } }
+			`;
+			document.head.appendChild(style);
+		}
+
 		let overlay = document.getElementById('ui-loading-overlay');
 		if (!overlay) {
 			overlay = document.createElement('div');
 			overlay.id = 'ui-loading-overlay';
 			overlay.className = 'modal-overlay';
-			overlay.style.cssText = 'position:fixed; inset:0; z-index:1000001; background:rgba(6,9,15,0.75); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; animation:modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);';
+			overlay.style.cssText = 'position:fixed; inset:0; z-index:1000001; background:rgba(6,9,15,0.78); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; animation:modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);';
 			overlay.innerHTML = `
-				<div style="background:#131822; border:1px solid rgba(255,255,255,0.12); padding:24px 32px; border-radius:16px; box-shadow:0 24px 60px rgba(0,0,0,0.6); display:flex; flex-direction:column; align-items:center; gap:14px; min-width:220px; max-width:360px; text-align:center;">
-					<div class="loader" style="width:34px; height:34px; border:3px solid rgba(0,210,211,0.15); border-top-color:var(--primary, #00d2d3); border-radius:50%; animation:sc-spin 0.8s linear infinite;"></div>
-					<div id="ui-loading-msg" style="color:#f1f5f9; font-size:13px; font-weight:600; line-height:1.5;">${message}</div>
+				<div style="background:linear-gradient(145deg, #151b26, #0d1118); border:1px solid rgba(0,210,211,0.22); padding:26px 36px; border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,0.75), 0 0 35px rgba(0,210,211,0.12); display:flex; flex-direction:column; align-items:center; gap:14px; min-width:260px; max-width:400px; text-align:center; position:relative; overflow:hidden;">
+					<div style="position:relative; width:44px; height:44px; display:flex; align-items:center; justify-content:center;">
+						<div style="width:42px; height:42px; border:3px solid rgba(0,210,211,0.15); border-top-color:var(--primary, #00d2d3); border-right-color:rgba(0,210,211,0.6); border-radius:50%; animation:ui-spin 0.75s linear infinite;"></div>
+						<div style="position:absolute; width:10px; height:10px; background:#00d2d3; border-radius:50%; box-shadow:0 0 12px #00d2d3; animation:ui-pulse-glow 1.5s ease-in-out infinite;"></div>
+					</div>
+					<div style="display:flex; flex-direction:column; gap:4px;">
+						<div id="ui-loading-msg" style="color:#f8fafc; font-size:13.5px; font-weight:600; line-height:1.45; word-break:break-word;">${message}</div>
+						<div id="ui-loading-sub" style="color:#94a3b8; font-size:11.5px; font-weight:400;">${subText}</div>
+					</div>
 				</div>
 			`;
 			document.body.appendChild(overlay);
 		} else {
 			const msgEl = overlay.querySelector('#ui-loading-msg');
 			if (msgEl) msgEl.innerText = message;
+			const subEl = overlay.querySelector('#ui-loading-sub');
+			if (subEl) subEl.innerText = subText;
 			overlay.style.display = 'flex';
 		}
 	},

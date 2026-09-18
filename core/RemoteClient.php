@@ -313,46 +313,179 @@ class RemoteClient
 
     public static function deleteViaFTP($url, $userPwd, $isDir = false)
     {
-        $ch = curl_init();
         $parsed = parse_url($url);
-        $baseUrl = $parsed['scheme'] . '://' . $parsed['host'] . '/';
-        $path = ltrim($parsed['path'], '/');
+        $scheme = $parsed['scheme'] ?? 'ftp';
+        $host = $parsed['host'] ?? '';
+        $port = !empty($parsed['port']) ? (int)$parsed['port'] : 21;
+        $path = '/' . trim($parsed['path'] ?? '', '/');
         
+        $parts = explode(':', $userPwd, 2);
+        $user = $parts[0] ?? '';
+        $pass = $parts[1] ?? '';
+
+        // 1. Ưu tiên sử dụng PHP Native FTP extension (cực nhanh, xóa đệ quy triệt để và an toàn 100%)
+        if (function_exists('ftp_connect') && !empty($host) && !empty($user)) {
+            $conn = @ftp_ssl_connect($host, $port, 15);
+            if (!$conn) {
+                $conn = @ftp_connect($host, $port, 15);
+            }
+            if ($conn && @ftp_login($conn, $user, $pass)) {
+                @ftp_pasv($conn, true);
+                $success = false;
+                if ($isDir) {
+                    $success = self::rmdirRecursiveFtpNative($conn, $path);
+                } else {
+                    $success = @ftp_delete($conn, $path);
+                }
+                @ftp_close($conn);
+
+                if ($success) {
+                    return true;
+                }
+            }
+        }
+
+        // 2. Fallback sang cURL nếu native FTP không khả dụng
+        if ($isDir) {
+            return self::deleteFtpDirectoryRecursive($url, $userPwd);
+        }
+
+        $baseUrl = "{$scheme}://{$host}:{$port}/";
+        $cleanRelPath = trim($parsed['path'] ?? '', '/');
+
+        $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $baseUrl);
         curl_setopt($ch, CURLOPT_USERPWD, $userPwd);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        
-        $cmd = $isDir ? "RMD $path" : "DELE $path";
-        curl_setopt($ch, CURLOPT_QUOTE, [$cmd]);
-        
+        curl_setopt($ch, CURLOPT_QUOTE, ["DELE $cleanRelPath"]);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         if (defined('CURLOPT_USE_SSL')) curl_setopt($ch, CURLOPT_USE_SSL, 3);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        
+
         $res = curl_exec($ch);
         $error = curl_error($ch);
         curl_close($ch);
-        
+
         if ($error) {
             return "FTP Error: $error";
         }
         return true;
     }
 
-    private static function executeDA($config, $path, $data = null, $isPost = true)
+    public static function rmdirRecursiveFtpNative($conn, $path)
+    {
+        $path = '/' . trim($path, '/');
+        $items = @ftp_nlist($conn, $path);
+        if (is_array($items)) {
+            foreach ($items as $item) {
+                $base = basename($item);
+                if ($base === '.' || $base === '..') continue;
+                $fullPath = (strpos($item, '/') === false || strpos($item, $path) !== 0) ? ($path . '/' . $base) : $item;
+                if ($fullPath === $path) continue;
+
+                // Thử xóa file trước
+                if (!@ftp_delete($conn, $fullPath)) {
+                    // Nếu không phải file, đệ quy xóa thư mục con
+                    self::rmdirRecursiveFtpNative($conn, $fullPath);
+                }
+            }
+        }
+        return @ftp_rmdir($conn, $path);
+    }
+
+    public static function deleteFtpDirectoryRecursive($url, $userPwd)
+    {
+        $parsed = parse_url($url);
+        $scheme = $parsed['scheme'] ?? 'ftp';
+        $host = $parsed['host'] ?? '';
+        $port = isset($parsed['port']) ? ':' . $parsed['port'] : '';
+        $baseUrl = "{$scheme}://{$host}{$port}/";
+        $dirPath = trim($parsed['path'] ?? '', '/');
+
+        if (empty($dirPath)) {
+            return "FTP Error: Không thể xoá thư mục gốc";
+        }
+
+        $dirUrl = $baseUrl . $dirPath . '/';
+
+        // 1. Quét danh sách chi tiết các file/folder con bên trong
+        $items = self::listFtpDirectoryDetailed($dirUrl, $userPwd);
+        $foundNames = [];
+
+        if (is_array($items)) {
+            foreach ($items as $item) {
+                $name = $item['name'] ?? '';
+                if ($name === '' || $name === '.' || $name === '..') continue;
+                $foundNames[$name] = true;
+                $subItemUrl = $baseUrl . $dirPath . '/' . $name;
+                if (!empty($item['is_dir'])) {
+                    $subRes = self::deleteFtpDirectoryRecursive($subItemUrl, $userPwd);
+                    if ($subRes !== true) return $subRes;
+                } else {
+                    $subRes = self::deleteViaFTP($subItemUrl, $userPwd, false);
+                    if ($subRes !== true) return $subRes;
+                }
+            }
+        }
+
+        // 2. Quét thêm bằng list đơn giản (NLST) để bắt file ẩn (.env, .htaccess...) có thể bị bỏ sót
+        $rawNames = self::listFtpDirectory($dirUrl, $userPwd);
+        if (is_array($rawNames)) {
+            foreach ($rawNames as $rawName) {
+                $rawName = trim($rawName);
+                if ($rawName === '' || $rawName === '.' || $rawName === '..') continue;
+                $baseName = basename($rawName);
+                if ($baseName === '.' || $baseName === '..') continue;
+                if (isset($foundNames[$baseName])) continue;
+
+                $subItemUrl = $baseUrl . $dirPath . '/' . $baseName;
+                // Thử xóa như file trước, nếu lỗi thì thử xóa như thư mục
+                $delFileRes = self::deleteViaFTP($subItemUrl, $userPwd, false);
+                if ($delFileRes !== true) {
+                    $delDirRes = self::deleteFtpDirectoryRecursive($subItemUrl, $userPwd);
+                    if ($delDirRes !== true) return $delDirRes;
+                }
+            }
+        }
+
+        // 3. Sau khi các file và thư mục con đã được dọn sạch, xoá chính thư mục này bằng RMD
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $baseUrl);
+        curl_setopt($ch, CURLOPT_USERPWD, $userPwd);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_QUOTE, ["RMD $dirPath"]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        if (defined('CURLOPT_USE_SSL')) curl_setopt($ch, CURLOPT_USE_SSL, 3);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+
+        $res = curl_exec($ch);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            return "FTP Error: $error";
+        }
+        return true;
+    }
+
+    public static function executeDA($config, $path, $data = null, $isPost = true)
     {
         // Automatically resolve relative paths (like /public_html) to absolute DirectAdmin paths
-        if (is_array($data) && isset($data['path'])) {
+        if (is_array($data)) {
             $domain = !empty($config['web_domain'])
                 ? str_replace(['https://', 'http://', '/'], '', $config['web_domain'])
                 : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
             
-            $srvPath = $data['path'];
-            if (strpos($srvPath, '/public_html') === 0) {
-                $data['path'] = '/domains/' . $domain . $srvPath;
-            } elseif (strpos($srvPath, 'public_html') === 0) {
-                $data['path'] = '/domains/' . $domain . '/' . $srvPath;
+            foreach ($data as $k => $v) {
+                if (is_string($v) && ($k === 'path' || strpos($k, 'select') === 0)) {
+                    if (strpos($v, '/public_html') === 0) {
+                        $data[$k] = '/domains/' . $domain . $v;
+                    } elseif (strpos($v, 'public_html') === 0) {
+                        $data[$k] = '/domains/' . $domain . '/' . $v;
+                    }
+                }
             }
         }
 
@@ -446,10 +579,14 @@ class RemoteClient
 
     public static function deleteViaDA($config, $path, $file)
     {
+        $parentPath = '/' . trim($path, '/');
+        $fullPath = $parentPath . '/' . ltrim($file, '/');
+
         $data = [
-            'action' => 'delete',
-            'path' => $path,
-            'select0' => $file
+            'action'  => 'multiple',
+            'button'  => 'delete',
+            'path'    => $parentPath,
+            'select0' => $fullPath
         ];
         return self::executeDA($config, 'CMD_API_FILE_MANAGER', $data, true);
     }

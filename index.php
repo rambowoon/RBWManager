@@ -924,11 +924,30 @@
                                         </div>
                                     </div>
 
-                                    <div class="fm-list-container" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; flex: 1;">
-                                        <table class="table table-webp" style="width: 100%; border-collapse: collapse;">
+                                    <!-- Batch Action Bar -->
+                                    <div id="fm-batch-bar" style="display: none; align-items: center; justify-content: space-between; padding: 10px 16px; background: rgba(0, 210, 211, 0.08); border: 1px solid rgba(0, 210, 211, 0.25); border-radius: 8px; animation: modalIn 0.15s ease;">
+                                        <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #f1f5f9;">
+                                            <span style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; background: var(--primary, #00d2d3); color: #000; font-weight: 800; font-size: 11.5px;" id="fm-batch-count">0</span>
+                                            <span id="fm-batch-label">mục đã chọn</span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <button type="button" class="btn btn-sm" onclick="FileManager.deleteSelectedItems()" style="background: rgba(255, 118, 117, 0.15); border: 1px solid rgba(255, 118, 117, 0.4); color: #ff7675; font-weight: 600; padding: 5px 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                                                🗑️ Xóa các mục đã chọn
+                                            </button>
+                                            <button type="button" class="btn btn-ghost btn-sm" onclick="FileManager.clearSelection()" style="color: #94a3b8; padding: 5px 10px; font-size: 12px; cursor: pointer;">
+                                                ✕ Bỏ chọn
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="fm-list-container" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; flex: 1; position: relative;">
+                                        <table class="table table-webp" style="width: 100%; border-collapse: collapse; user-select: none;">
                                             <thead>
                                                 <tr style="border-bottom:1px solid var(--border); text-align:left; color:var(--muted); background: rgba(0,0,0,0.1);">
-                                                    <th style="padding: 10px 14px; width: 40px;"></th>
+                                                    <th style="padding: 10px 14px; width: 36px; text-align: center;">
+                                                        <input type="checkbox" id="fm-select-all" onclick="FileManager.toggleSelectAll(this.checked)" title="Chọn tất cả" style="cursor: pointer; accent-color: var(--primary, #00d2d3);">
+                                                    </th>
+                                                    <th style="padding: 10px 14px; width: 36px;"></th>
                                                     <th style="padding: 10px 14px;">Tên File / Thư mục</th>
                                                     <th style="padding: 10px 14px; width: 120px;">Kích thước</th>
                                                     <th style="padding: 10px 14px; width: 180px;">Ngày sửa</th>
