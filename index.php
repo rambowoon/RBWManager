@@ -1488,6 +1488,112 @@
         </div>
     </div>
 
+    <!-- Set Demo Account Modal -->
+    <div id="set-demo-modal" class="modal-overlay" style="z-index: 10006;">
+        <div class="modal" style="max-width: 620px; width: 95%;">
+            <div class="modal-header-flex">
+                <div>
+                    <h2 style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                        <span>🔗</span> Set tài khoản Demo cho dự án
+                    </h2>
+                    <p style="color:var(--text-muted); font-size:0.85rem; margin:0;">
+                        Liên kết thông tin hosting Demo đã tồn tại mà không cần deploy lại mã nguồn.
+                    </p>
+                </div>
+                <button class="btn btn-close-circle" onclick="UI.hideModal('set-demo-modal')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <input type="hidden" id="set_demo_project_name">
+            <input type="hidden" id="set_demo_category">
+
+            <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 14px; margin: 16px 0 18px 0; display:flex; align-items:center; justify-content:space-between;">
+                <div style="font-size:0.85rem; color:var(--text-muted);">
+                    Dự án: <strong id="set_demo_badge_name" style="color:var(--primary); font-size:0.95rem;">—</strong>
+                </div>
+                <div id="set_demo_status_badge" class="badge badge-pending">Chưa liên kết Demo</div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:14px;">
+                <label style="font-weight:600; display:block; margin-bottom:6px;">Chọn Server Demo</label>
+                <select id="set_demo_server_id" class="form-control" style="background:#1a1c23; border:1px solid #333; color:#fff; padding:9px 12px; border-radius:6px; width:100%; outline:none;" onchange="App.onSetDemoServerOrFolderChange()">
+                    <!-- Populated by JS -->
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:14px;">
+                <label style="font-weight:600; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span>Thư mục trên Hosting Demo (Folder Path)</span>
+                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">Trong public_html</span>
+                </label>
+                <input type="text" id="set_demo_folder" class="form-control" placeholder="vd: 2026_09/ten_du_an hoặc ten_du_an" oninput="App.onSetDemoServerOrFolderChange()">
+                <small style="color:var(--text-muted); font-size:0.78rem; display:block; margin-top:4px;">Đường dẫn thư mục chứa website trên hosting Demo (thường là <code>category/tên_dự_án</code> hoặc <code>tên_dự_án</code>).</small>
+            </div>
+
+            <div class="form-group" style="margin-bottom:14px;">
+                <label style="font-weight:600; display:block; margin-bottom:6px;">URL Website Demo</label>
+                <input type="text" id="set_demo_url" class="form-control" placeholder="http://demo92.nasanivietnam.net/...">
+            </div>
+
+            <!-- Optional Advanced / DB Settings Accordion -->
+            <details id="set_demo_advanced_details" style="margin-top:14px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:10px 14px;">
+                <summary style="cursor:pointer; font-weight:600; font-size:0.85rem; color:var(--text-secondary); user-select:none;">
+                    ⚙️ Tùy chọn nâng cao (Custom Domain & Thông tin Database)
+                </summary>
+                <div style="padding-top:12px;">
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label style="font-size:0.82rem; margin-bottom:4px; display:block;">Custom Domain (nếu có tên miền riêng)</label>
+                        <input type="text" id="set_demo_custom_domain" class="form-control" placeholder="vd: demo.khachhang.com">
+                    </div>
+                    <div class="form-grid-2" style="margin-bottom:12px;">
+                        <div class="form-group">
+                            <label style="font-size:0.82rem; margin-bottom:4px; display:block;">Tên Database Demo</label>
+                            <input type="text" id="set_demo_db_name" class="form-control" placeholder="vd: demo92y2026_shop">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:0.82rem; margin-bottom:4px; display:block;">Database User</label>
+                            <input type="text" id="set_demo_db_user" class="form-control" placeholder="Mặc định: theo FTP User">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:0.82rem; margin-bottom:4px; display:block;">Database Password</label>
+                        <div class="password-wrapper" style="position:relative;">
+                            <input type="password" id="set_demo_db_pass" class="form-control" style="width:100%;">
+                            <span class="toggle-password" onclick="UI.togglePassword('set_demo_db_pass', this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Test Connection Result Container -->
+            <div id="set-demo-test-result" style="display:none; margin-top:14px; border-radius:6px; padding:10px 14px; font-size:0.85rem; line-height:1.4;"></div>
+
+            <!-- Modal Footer Actions -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; gap:10px; flex-wrap:wrap;">
+                <div>
+                    <button type="button" class="btn btn-outline" id="btn-test-demo-conn" onclick="App.testDemoConnection()" style="border-color:rgba(96,165,250,0.4); color:#60a5fa;">
+                        <span id="test-demo-spinner" style="display:none;">⏳ </span>🔍 Kiểm tra kết nối
+                    </button>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="btn btn-danger" id="btn-unlink-demo" onclick="App.unlinkDemoAccount()" style="display:none;">
+                        🗑️ Gỡ liên kết
+                    </button>
+                    <button type="button" class="btn btn-ghost" onclick="UI.hideModal('set-demo-modal')">Hủy</button>
+                    <button type="button" class="btn btn-primary" id="btn-save-set-demo" onclick="App.saveSetDemoAccount()">💾 Lưu cấu hình</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Deploy Progress Modal -->
     <div id="deploy-modal" class="modal-overlay">
         <div class="modal">

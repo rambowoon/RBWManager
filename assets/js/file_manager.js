@@ -1715,8 +1715,11 @@ const SyncCenter = {
     lastProject: null,
     currentEnv: 'demo',
     currentFilter: 'all',
+    currentScope: 'all',
     searchQuery: '',
     includeClearData: false,
+    selectedPaths: new Set(),
+    customActions: new Map(),
 
     getDefaultEnv() {
         const config = (typeof App !== 'undefined' && App.currentProjectConfig) ? App.currentProjectConfig : {};
@@ -1758,6 +1761,8 @@ const SyncCenter = {
         const defEnv = this.getDefaultEnv();
         this.currentEnv = defEnv;
         this.lastData = null;
+        this.selectedPaths = new Set();
+        this.customActions = new Map();
         this.updateEnvUI(defEnv);
 
         // Reset view to standby prompt if not yet scanned
@@ -1854,7 +1859,11 @@ const SyncCenter = {
             if (res.status === 'success') {
                 this.lastData = res.comparison;
                 this.currentFilter = 'all';
+                this.currentScope = 'all';
                 this.searchQuery = '';
+                const all = this.getAllItems();
+                this.selectedPaths = new Set(all.map(i => i.path));
+                this.customActions = new Map();
                 this.render();
             } else if (res.status === 'bridge_missing' || res.code === 'BRIDGE_MISSING') {
                 this.showBridgeUploadModal(res.env_label || envLabel);
@@ -1977,9 +1986,191 @@ const SyncCenter = {
         this.renderTableOnly();
     },
 
+    setScope(scope) {
+        this.currentScope = scope;
+        document.querySelectorAll('.sc-scope-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const activeBtn = document.getElementById(`sc-scope-btn-${scope}`);
+        if (activeBtn) activeBtn.classList.add('active');
+        this.renderTableOnly();
+    },
+
     setSearch(query) {
         this.searchQuery = (query || '').toLowerCase().trim();
         this.renderTableOnly();
+    },
+
+    getScopeMeta(path) {
+        const p = (path || '').toLowerCase().replace(/\\/g, '/');
+        if (p.includes('/admin/') || p.startsWith('admin/') || p.includes('controllers/admin') || p.includes('views/admin')) {
+            return {
+                key: 'admin',
+                label: 'ADMIN',
+                icon: '🛡️',
+                bg: 'rgba(239, 68, 68, 0.15)',
+                color: '#f87171',
+                border: 'rgba(239, 68, 68, 0.4)'
+            };
+        }
+        if (p.includes('/web/') || p.startsWith('web/') || p.includes('controllers/web') || p.includes('views/web') || p.includes('views/templates') || p.includes('views/layout')) {
+            return {
+                key: 'web',
+                label: 'WEB / CLIENT',
+                icon: '🌐',
+                bg: 'rgba(14, 165, 233, 0.15)',
+                color: '#38bdf8',
+                border: 'rgba(14, 165, 233, 0.4)'
+            };
+        }
+        if (p.includes('/models/') || p.includes('/model/') || p.startsWith('models/') || p.startsWith('model/')) {
+            return {
+                key: 'model_other',
+                label: 'MODEL',
+                icon: '📦',
+                bg: 'rgba(168, 85, 247, 0.15)',
+                color: '#c084fc',
+                border: 'rgba(168, 85, 247, 0.4)'
+            };
+        }
+        if (p.includes('routes/') || p.includes('config/') || p.includes('.env')) {
+            return {
+                key: 'model_other',
+                label: 'ROUTER/CFG',
+                icon: '⚙️',
+                bg: 'rgba(16, 185, 129, 0.15)',
+                color: '#34d399',
+                border: 'rgba(16, 185, 129, 0.4)'
+            };
+        }
+        return {
+            key: 'model_other',
+            label: 'HỆ THỐNG',
+            icon: '📁',
+            bg: 'rgba(148, 163, 184, 0.15)',
+            color: '#94a3b8',
+            border: 'rgba(148, 163, 184, 0.25)'
+        };
+    },
+
+    getDuplicateStats(items) {
+        const map = new Map();
+        items.forEach(item => {
+            const fileName = item.path.split('/').pop().toLowerCase();
+            if (!map.has(fileName)) {
+                map.set(fileName, []);
+            }
+            map.get(fileName).push(item);
+        });
+
+        const duplicatesMap = new Map();
+        let duplicateItemCount = 0;
+        map.forEach((list, fileName) => {
+            if (list.length > 1) {
+                duplicatesMap.set(fileName, list);
+                duplicateItemCount += list.length;
+            }
+        });
+
+        return {
+            duplicatesMap,
+            duplicateItemCount
+        };
+    },
+
+    selectScopeOnly(scopeKey) {
+        const allItems = this.getAllItems();
+        this.selectedPaths.clear();
+        let count = 0;
+        allItems.forEach(item => {
+            const meta = this.getScopeMeta(item.path);
+            if (scopeKey === 'all') {
+                this.selectedPaths.add(item.path);
+                count++;
+            } else if (scopeKey === 'duplicates') {
+                const { duplicatesMap } = this.getDuplicateStats(allItems);
+                const fn = item.path.split('/').pop().toLowerCase();
+                if (duplicatesMap.has(fn)) {
+                    this.selectedPaths.add(item.path);
+                    count++;
+                }
+            } else if (meta.key === scopeKey) {
+                this.selectedPaths.add(item.path);
+                count++;
+            }
+        });
+        this.renderTableOnly();
+        const label = scopeKey === 'admin' ? '🛡️ ADMIN' : (scopeKey === 'web' ? '🌐 WEB / CLIENT' : (scopeKey === 'duplicates' ? '⚠️ FILE TRÙNG TÊN' : 'TẤT CẢ'));
+        UI.showToast(`Đã chỉ chọn ${count} file thuộc [${label}], các file khác đã bỏ chọn!`, 'info');
+    },
+
+    deselectAll() {
+        this.selectedPaths.clear();
+        this.renderTableOnly();
+        UI.showToast('Đã bỏ chọn toàn bộ file', 'info');
+    },
+
+    togglePathSelect(path, checked) {
+        if (checked) {
+            this.selectedPaths.add(path);
+        } else {
+            this.selectedPaths.delete(path);
+        }
+        this.updateExecuteBtnCount();
+    },
+
+    toggleSelectAllFiltered(checked) {
+        const visibleItems = this.getFilteredItems();
+        visibleItems.forEach(item => {
+            if (checked) {
+                this.selectedPaths.add(item.path);
+            } else {
+                this.selectedPaths.delete(item.path);
+            }
+        });
+        document.querySelectorAll('.sync-cb').forEach(cb => {
+            cb.checked = checked;
+        });
+        this.updateExecuteBtnCount();
+    },
+
+    changeAction(path, action) {
+        this.customActions.set(path, action);
+    },
+
+    getFilteredItems() {
+        let items = this.getAllItems();
+        const { duplicatesMap } = this.getDuplicateStats(items);
+
+        // Filter by Direction
+        if (this.currentFilter === 'upload') {
+            items = items.filter(i => i.type === 'local_newer' || i.type === 'local_only');
+        } else if (this.currentFilter === 'download') {
+            items = items.filter(i => i.type === 'remote_newer' || i.type === 'remote_only');
+        } else if (this.currentFilter === 'conflict') {
+            items = items.filter(i => i.type === 'conflict');
+        }
+
+        // Filter by Scope
+        if (this.currentScope === 'admin') {
+            items = items.filter(i => this.getScopeMeta(i.path).key === 'admin');
+        } else if (this.currentScope === 'web') {
+            items = items.filter(i => this.getScopeMeta(i.path).key === 'web');
+        } else if (this.currentScope === 'model_other') {
+            items = items.filter(i => this.getScopeMeta(i.path).key === 'model_other');
+        } else if (this.currentScope === 'duplicates') {
+            items = items.filter(i => {
+                const fn = i.path.split('/').pop().toLowerCase();
+                return duplicatesMap.has(fn);
+            });
+        }
+
+        // Filter by Search Query
+        if (this.searchQuery) {
+            items = items.filter(i => i.path.toLowerCase().includes(this.searchQuery));
+        }
+
+        return items;
     },
 
     getAllItems() {
@@ -2177,6 +2368,19 @@ const SyncCenter = {
         const countConflict = this.lastData.conflict.length;
         const total = allItems.length;
 
+        // Scope Counts
+        let adminCount = 0;
+        let webCount = 0;
+        let modelOtherCount = 0;
+        allItems.forEach(i => {
+            const scopeKey = this.getScopeMeta(i.path).key;
+            if (scopeKey === 'admin') adminCount++;
+            else if (scopeKey === 'web') webCount++;
+            else modelOtherCount++;
+        });
+
+        const duplicateStats = this.getDuplicateStats(allItems);
+
         const dbDiff = this.lastData.db_diff || null;
         const uploadDbCount = dbDiff && dbDiff.upload_statements ? dbDiff.upload_statements.length : 0;
         const downloadDbCount = dbDiff && dbDiff.download_statements ? dbDiff.download_statements.length : 0;
@@ -2201,23 +2405,19 @@ const SyncCenter = {
         let html = `
             <style>
                 .sc-pill-btn {
-                    height: 38px; padding: 0 16px; box-sizing: border-box; border-radius: 9px; font-size: 13px; font-weight: 700;
-                    cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); display: inline-flex; align-items: center; gap: 8px;
+                    height: 36px; padding: 0 14px; box-sizing: border-box; border-radius: 8px; font-size: 12.5px; font-weight: 700;
+                    cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); display: inline-flex; align-items: center; gap: 7px;
                     border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: #94a3b8;
                 }
                 .sc-pill-btn:hover { background: rgba(255,255,255,0.08); color: #fff; transform: translateY(-1px); }
                 
-                /* Base Active Fallback */
                 .sc-pill-btn.active {
                     background: #00d2d3 !important; color: #0f172a !important; font-weight: 700 !important;
                     border-color: #00f2fe !important; box-shadow: 0 4px 18px rgba(0, 210, 211, 0.45) !important;
                     transform: translateY(-1px);
                 }
-                .sc-pill-btn.active .sc-badge-count {
-                    background: rgba(0, 0, 0, 0.3) !important; color: #fff !important;
-                }
+                .sc-pill-btn.active .sc-badge-count { background: rgba(0, 0, 0, 0.3) !important; color: #fff !important; }
                 
-                /* Pill: Tất cả (Cyan Theme) */
                 .sc-pill-btn.pill-all { border-color: rgba(0, 210, 211, 0.25); background: rgba(0, 210, 211, 0.05); color: #cbd5e1; }
                 .sc-pill-btn.pill-all .sc-badge-count { background: rgba(0, 210, 211, 0.2); color: #00d2d3; }
                 .sc-pill-btn.pill-all.active {
@@ -2227,7 +2427,6 @@ const SyncCenter = {
                 }
                 .sc-pill-btn.pill-all.active .sc-badge-count { background: rgba(0, 0, 0, 0.35) !important; color: #ffffff !important; }
                 
-                /* Pill: Đẩy lên Demo (Emerald Theme) */
                 .sc-pill-btn.pill-up { border-color: rgba(16, 185, 129, 0.25); background: rgba(16, 185, 129, 0.05); color: #cbd5e1; }
                 .sc-pill-btn.pill-up svg { color: #34d399; }
                 .sc-pill-btn.pill-up .sc-badge-count { background: rgba(16, 185, 129, 0.2); color: #34d399; }
@@ -2239,7 +2438,6 @@ const SyncCenter = {
                 .sc-pill-btn.pill-up.active svg { color: #ffffff !important; }
                 .sc-pill-btn.pill-up.active .sc-badge-count { background: rgba(0, 0, 0, 0.35) !important; color: #ffffff !important; }
                 
-                /* Pill: Kéo về Local (Purple Theme) */
                 .sc-pill-btn.pill-down { border-color: rgba(168, 85, 247, 0.25); background: rgba(168, 85, 247, 0.05); color: #cbd5e1; }
                 .sc-pill-btn.pill-down svg { color: #c084fc; }
                 .sc-pill-btn.pill-down .sc-badge-count { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
@@ -2251,7 +2449,6 @@ const SyncCenter = {
                 .sc-pill-btn.pill-down.active svg { color: #ffffff !important; }
                 .sc-pill-btn.pill-down.active .sc-badge-count { background: rgba(0, 0, 0, 0.35) !important; color: #ffffff !important; }
                 
-                /* Pill: Xung đột (Rose Theme) */
                 .sc-pill-btn.pill-conflict { border-color: rgba(244, 63, 94, 0.25); background: rgba(244, 63, 94, 0.05); color: #cbd5e1; }
                 .sc-pill-btn.pill-conflict svg { color: #fb7185; }
                 .sc-pill-btn.pill-conflict .sc-badge-count { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
@@ -2264,9 +2461,46 @@ const SyncCenter = {
                 .sc-pill-btn.pill-conflict.active .sc-badge-count { background: rgba(0, 0, 0, 0.35) !important; color: #ffffff !important; }
                 
                 .sc-badge-count {
-                    padding: 2px 8px; border-radius: 12px; font-size: 11.5px; font-weight: 700;
+                    padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 700;
                     transition: all 0.2s ease;
                 }
+
+                /* Scope Buttons */
+                .sc-scope-btn {
+                    height: 32px; padding: 0 12px; box-sizing: border-box; border-radius: 7px; font-size: 12px; font-weight: 600;
+                    cursor: pointer; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 6px;
+                    border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: #94a3b8;
+                }
+                .sc-scope-btn:hover { background: rgba(255,255,255,0.08); color: #fff; transform: translateY(-1px); }
+                .sc-scope-btn.active {
+                    background: rgba(255,255,255,0.15) !important; color: #fff !important; font-weight: 700 !important;
+                    border-color: rgba(255,255,255,0.35) !important;
+                }
+                .sc-scope-btn.sc-scope-admin.active {
+                    background: linear-gradient(135deg, rgba(239,68,68,0.85), rgba(185,28,28,0.9)) !important;
+                    color: #fff !important; border-color: #f87171 !important; box-shadow: 0 4px 14px rgba(239,68,68,0.35);
+                }
+                .sc-scope-btn.sc-scope-web.active {
+                    background: linear-gradient(135deg, rgba(14,165,233,0.85), rgba(2,132,199,0.9)) !important;
+                    color: #fff !important; border-color: #38bdf8 !important; box-shadow: 0 4px 14px rgba(14,165,233,0.35);
+                }
+                .sc-scope-btn.sc-scope-model.active {
+                    background: linear-gradient(135deg, rgba(168,85,247,0.85), rgba(126,34,206,0.9)) !important;
+                    color: #fff !important; border-color: #c084fc !important; box-shadow: 0 4px 14px rgba(168,85,247,0.35);
+                }
+                .sc-scope-btn.sc-scope-dup.active {
+                    background: linear-gradient(135deg, rgba(245,158,11,0.85), rgba(217,119,6,0.9)) !important;
+                    color: #fff !important; border-color: #fbbf24 !important; box-shadow: 0 4px 14px rgba(245,158,11,0.35);
+                }
+
+                .sc-quick-sel-btn {
+                    height: 28px; padding: 0 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600;
+                    cursor: pointer; transition: all 0.15s ease; border: 1px solid rgba(255,255,255,0.12);
+                    background: rgba(255,255,255,0.04); color: #cbd5e1; display: inline-flex; align-items: center; gap: 4px;
+                }
+                .sc-quick-sel-btn:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.25); }
+                .sc-quick-sel-clear { color: #f87171 !important; border-color: rgba(239,68,68,0.25) !important; }
+                .sc-quick-sel-clear:hover { background: rgba(239,68,68,0.15) !important; border-color: rgba(239,68,68,0.4) !important; }
                 
                 .sc-table { width: 100%; border-collapse: separate; border-spacing: 0 4px; }
                 .sc-table thead th {
@@ -2321,9 +2555,9 @@ const SyncCenter = {
                 }
                 
                 .sc-search-box {
-                    height: 38px; padding: 0 14px; box-sizing: border-box;
+                    height: 36px; padding: 0 14px; box-sizing: border-box;
                     background: rgba(13, 17, 24, 0.7); border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 8px; color: #fff; font-size: 13px; width: 240px;
+                    border-radius: 8px; color: #fff; font-size: 13px; width: 230px;
                     outline: none; transition: border-color 0.2s;
                 }
                 .sc-search-box:focus { border-color: var(--primary, #00d2d3); box-shadow: 0 0 0 2px var(--primary-glow, rgba(0,210,211,0.15)); }
@@ -2395,15 +2629,15 @@ const SyncCenter = {
                 .diff-split-table td:last-child { border-right: none; }
             </style>
 
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; flex-direction: column; gap: 14px;">
                 <!-- SQL Schema Diff Card -->
                 ${this.renderDbSyncCard(dbDiff)}
 
-                <!-- Header Toolbar & Filters -->
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <!-- Header Toolbar: Direction Filters & Search -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: rgba(255,255,255,0.02); padding: 10px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <button class="sc-pill-btn pill-all ${this.currentFilter === 'all' ? 'active' : ''}" onclick="SyncCenter.setFilter('all')">
-                            Tất cả <span class="sc-badge-count">${total}</span>
+                            Tất cả hướng <span class="sc-badge-count">${total}</span>
                         </button>
                         <button class="sc-pill-btn pill-up ${this.currentFilter === 'upload' ? 'active' : ''}" onclick="SyncCenter.setFilter('upload')">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
@@ -2422,14 +2656,57 @@ const SyncCenter = {
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                        <label class="sc-cleardata-toggle" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; height: 38px; box-sizing: border-box; padding: 0 14px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.15); font-size: 12.5px; font-weight: 600; color: #cbd5e1; user-select: none; transition: all 0.2s; white-space: nowrap; text-transform: none; letter-spacing: normal; margin: 0;" title="Bật nếu muốn quét và đồng bộ các file tính năng xoá dữ liệu Demo (ClearDataController...)">
-                            <input type="checkbox" id="sc-check-cleardata-toolbar" ${this.includeClearData ? 'checked' : ''} onchange="SyncCenter.toggleClearData(this.checked)" style="accent-color: var(--primary, #00d2d3); width: 15px; height: 15px; cursor: pointer; margin: 0;">
-                            <span style="text-transform: none; letter-spacing: normal;">Đồng bộ ClearData</span>
+                        <label class="sc-cleardata-toggle" style="display: inline-flex; align-items: center; gap: 7px; cursor: pointer; height: 36px; box-sizing: border-box; padding: 0 12px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.15); font-size: 12px; font-weight: 600; color: #cbd5e1; user-select: none; transition: all 0.2s; white-space: nowrap; text-transform: none; margin: 0;" title="Bật nếu muốn quét và đồng bộ các file tính năng xoá dữ liệu Demo (ClearDataController...)">
+                            <input type="checkbox" id="sc-check-cleardata-toolbar" ${this.includeClearData ? 'checked' : ''} onchange="SyncCenter.toggleClearData(this.checked)" style="accent-color: var(--primary, #00d2d3); width: 14px; height: 14px; cursor: pointer; margin: 0;">
+                            <span>Đồng bộ ClearData</span>
                         </label>
-                        <input type="text" class="sc-search-box" placeholder="🔍 Lọc theo tên file/đường dẫn..." oninput="SyncCenter.setSearch(this.value)" value="${this.escapeHtml(this.searchQuery)}">
-                        <button class="btn btn-primary" onclick="SyncCenter.executeAll()" style="height: 38px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 0 18px; border-radius: 8px; box-shadow: 0 4px 14px var(--primary-glow, rgba(0,210,211,0.25));">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                            <span id="sc-btn-execute-text">THỰC THI ĐÃ CHỌN</span>
+                        <input type="text" class="sc-search-box" placeholder="🔍 Lọc file theo tên..." oninput="SyncCenter.setSearch(this.value)" value="${this.escapeHtml(this.searchQuery)}">
+                        <button class="btn btn-primary" onclick="SyncCenter.executeAll()" style="height: 36px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 0 16px; border-radius: 8px; box-shadow: 0 4px 14px var(--primary-glow, rgba(0,210,211,0.25)); font-size: 13px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <span id="sc-btn-execute-text">THỰC THI (${this.selectedPaths.size} FILE)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Scope & Security Toolbar (Row 2): Segregation between Admin, Web, and Duplicates -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: rgba(13, 17, 24, 0.85); padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.07);">
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-right: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                            <span>🛡️ PHÂN VÙNG:</span>
+                        </span>
+                        <button class="sc-scope-btn ${this.currentScope === 'all' ? 'active' : ''}" id="sc-scope-btn-all" onclick="SyncCenter.setScope('all')">
+                            Toàn bộ <span class="sc-badge-count">${total}</span>
+                        </button>
+                        <button class="sc-scope-btn sc-scope-admin ${this.currentScope === 'admin' ? 'active' : ''}" id="sc-scope-btn-admin" onclick="SyncCenter.setScope('admin')" title="Chỉ hiển thị các file thuộc khu vực Quản trị Admin">
+                            🛡️ Chỉ Admin <span class="sc-badge-count">${adminCount}</span>
+                        </button>
+                        <button class="sc-scope-btn sc-scope-web ${this.currentScope === 'web' ? 'active' : ''}" id="sc-scope-btn-web" onclick="SyncCenter.setScope('web')" title="Chỉ hiển thị các file thuộc giao diện Khách Web / Client">
+                            🌐 Chỉ Web/Client <span class="sc-badge-count">${webCount}</span>
+                        </button>
+                        <button class="sc-scope-btn sc-scope-model ${this.currentScope === 'model_other' ? 'active' : ''}" id="sc-scope-btn-model_other" onclick="SyncCenter.setScope('model_other')">
+                            📦 Model / Khác <span class="sc-badge-count">${modelOtherCount}</span>
+                        </button>
+                        ${duplicateStats.duplicateItemCount > 0 ? `
+                            <button class="sc-scope-btn sc-scope-dup ${this.currentScope === 'duplicates' ? 'active' : ''}" id="sc-scope-btn-duplicates" onclick="SyncCenter.setScope('duplicates')" title="Cảnh báo: Có ${duplicateStats.duplicateItemCount} file trùng tên nhau ở các thư mục khác nhau! Hãy kiểm tra để tránh sync nhầm.">
+                                ⚠️ File trùng tên <span class="sc-badge-count" style="background:rgba(245,158,11,0.25); color:#fbbf24;">${duplicateStats.duplicateItemCount}</span>
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    <!-- Quick Selection Helpers -->
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span style="font-size: 11.5px; color: #64748b; margin-right: 2px;">Chọn nhanh:</span>
+                        <button type="button" class="sc-quick-sel-btn" onclick="SyncCenter.selectScopeOnly('admin')" title="Chỉ tích chọn file Admin, tự động bỏ chọn file Web và các mục khác để an toàn">
+                            🛡️ Chỉ chọn Admin
+                        </button>
+                        <button type="button" class="sc-quick-sel-btn" onclick="SyncCenter.selectScopeOnly('web')" title="Chỉ tích chọn file Web, tự động bỏ chọn file Admin và các mục khác">
+                            🌐 Chỉ chọn Web
+                        </button>
+                        <button type="button" class="sc-quick-sel-btn" onclick="SyncCenter.selectScopeOnly('all')" title="Tích chọn toàn bộ các file">
+                            ✓ Tất cả
+                        </button>
+                        <button type="button" class="sc-quick-sel-btn sc-quick-sel-clear" onclick="SyncCenter.deselectAll()" title="Bỏ tích chọn toàn bộ để chọn lại thủ công">
+                            ✕ Bỏ chọn
                         </button>
                     </div>
                 </div>
@@ -2447,42 +2724,33 @@ const SyncCenter = {
         const container = document.getElementById('sc-table-container');
         if (!container) return;
 
-        let items = this.getAllItems();
-
-        // Apply filter
-        if (this.currentFilter === 'upload') {
-            items = items.filter(i => i.type === 'local_newer' || i.type === 'local_only');
-        } else if (this.currentFilter === 'download') {
-            items = items.filter(i => i.type === 'remote_newer' || i.type === 'remote_only');
-        } else if (this.currentFilter === 'conflict') {
-            items = items.filter(i => i.type === 'conflict');
-        }
-
-        // Apply search
-        if (this.searchQuery) {
-            items = items.filter(i => i.path.toLowerCase().includes(this.searchQuery));
-        }
+        const allItems = this.getAllItems();
+        const { duplicatesMap } = this.getDuplicateStats(allItems);
+        let items = this.getFilteredItems();
 
         if (items.length === 0) {
             container.innerHTML = `
-                <div style="padding: 40px; text-align: center; color: var(--text-muted, #94a3b8); font-size: 13px;">
+                <div style="padding: 40px; text-align: center; color: var(--text-muted, #94a3b8); font-size: 13px; background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.08); border-radius: 12px;">
                     Không tìm thấy file nào khớp với bộ lọc hiện tại.
                 </div>
             `;
+            this.updateExecuteBtnCount();
             return;
         }
 
         const envLabel = this.currentEnv === 'prod' ? 'Production' : 'Demo';
+        const allFilteredChecked = items.length > 0 && items.every(i => this.selectedPaths.has(i.path));
 
         let tableHtml = `
             <table class="sc-table">
                 <thead>
                     <tr>
                         <th style="width: 44px; text-align: center;">
-                            <input type="checkbox" class="sc-custom-cb" id="sync-check-all" checked onchange="document.querySelectorAll('.sync-cb').forEach(cb => cb.checked = this.checked); SyncCenter.updateExecuteBtnCount();">
+                            <input type="checkbox" class="sc-custom-cb" id="sync-check-all" ${allFilteredChecked ? 'checked' : ''} onchange="SyncCenter.toggleSelectAllFiltered(this.checked)">
                         </th>
+                        <th style="width: 135px; white-space: nowrap;">Phân vùng</th>
                         <th>Đường dẫn File</th>
-                        <th style="width: 170px; white-space: nowrap;">Trạng thái / Lý do</th>
+                        <th style="width: 160px; white-space: nowrap;">Trạng thái / Lý do</th>
                         <th style="width: 155px; white-space: nowrap;">Ngày Local</th>
                         <th style="width: 155px; white-space: nowrap;">Ngày ${envLabel}</th>
                         <th style="width: 170px; white-space: nowrap;">Hành động</th>
@@ -2494,25 +2762,37 @@ const SyncCenter = {
 
         items.forEach(item => {
             const path = this.escapeHtml(item.path);
-            const isUpload = item.defaultAction === 'upload';
+            const currentAction = this.customActions.get(item.path) || item.defaultAction;
+            const isUpload = currentAction === 'upload';
             const icon = this.getFileIcon(item.path);
+            const scope = this.getScopeMeta(item.path);
             
-            // Format nice path: split dir & filename
+            // Format path: split dir & filename
             const parts = item.path.split('/');
             const fileName = parts.pop();
             const dirName = parts.length > 0 ? parts.join('/') + '/' : '';
             const isClearData = item.path.toLowerCase().includes('cleardata') || item.path.toLowerCase() === 'src/routes/web.php';
 
+            const dupList = duplicatesMap.get(fileName.toLowerCase());
+            const isDuplicate = dupList && dupList.length > 1;
+            const isChecked = this.selectedPaths.has(item.path);
+
             tableHtml += `
-                <tr>
+                <tr style="${isDuplicate ? 'border-left: 3px solid #f59e0b;' : ''}">
                     <td style="text-align: center;">
-                        <input type="checkbox" class="sc-custom-cb sync-cb" value="${path}" checked onchange="SyncCenter.updateExecuteBtnCount();">
+                        <input type="checkbox" class="sc-custom-cb sync-cb" value="${path}" ${isChecked ? 'checked' : ''} onchange="SyncCenter.togglePathSelect('${path}', this.checked)">
+                    </td>
+                    <td style="white-space: nowrap;">
+                        <span class="sc-tag" style="background: ${scope.bg}; color: ${scope.color}; border: 1px solid ${scope.border}; font-weight: 700; font-size: 11px;">
+                            ${scope.icon} ${scope.label}
+                        </span>
                     </td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="SyncCenter.openDiff('${path}')" title="Nhấn để xem Diff so sánh nội dung">
                             ${icon}
                             <div style="font-family: var(--mono, monospace); font-size: 12.5px; line-height: 1.4; word-break: break-all;">
-                                <span style="color: #64748b; font-size: 11.5px;">${this.escapeHtml(dirName)}</span><span style="color: #f8fafc; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(255,255,255,0.2);">${this.escapeHtml(fileName)}</span>
+                                <span style="color: #94a3b8; font-size: 12px; font-weight: 500;">${this.escapeHtml(dirName)}</span><span style="color: #ffffff; font-weight: 700; font-size: 13px; text-decoration: underline; text-decoration-color: rgba(255,255,255,0.3);">${this.escapeHtml(fileName)}</span>
+                                ${isDuplicate ? `<span class="sc-tag" style="background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); font-weight: 700; font-size: 10.5px; margin-left: 6px;" title="Cảnh báo: Tên file '${this.escapeHtml(fileName)}' xuất hiện ở ${dupList.length} thư mục khác nhau! Hãy chú ý Scope Admin vs Web.">⚠️ Trùng tên (${dupList.length} vị trí)</span>` : ''}
                                 ${isClearData ? '<span class="sc-tag" style="background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.35); font-weight: 700; font-size: 10.5px; margin-left: 6px; padding: 1px 6px;">⚠️ ClearData (' + (item.path.toLowerCase().includes('routes') ? 'Router' : 'Controller') + ')</span>' : ''}
                             </div>
                         </div>
@@ -2532,7 +2812,7 @@ const SyncCenter = {
                         ${this.formatTime(item.remote_mtime)}
                     </td>
                     <td style="white-space: nowrap;">
-                        <select class="sc-select-action sync-action" data-path="${path}">
+                        <select class="sc-select-action sync-action" data-path="${path}" onchange="SyncCenter.changeAction('${path}', this.value)">
                             <option value="upload" ${isUpload ? 'selected' : ''}>↑ Đẩy lên ${envLabel}</option>
                             <option value="download" ${!isUpload ? 'selected' : ''}>↓ Kéo về Local</option>
                         </select>
@@ -2558,7 +2838,7 @@ const SyncCenter = {
     },
 
     updateExecuteBtnCount() {
-        const checkedCount = document.querySelectorAll('.sync-cb:checked').length;
+        const checkedCount = this.selectedPaths.size;
         const btnText = document.getElementById('sc-btn-execute-text');
         if (btnText) {
             btnText.innerText = `THỰC THI (${checkedCount} FILE)`;
@@ -2566,19 +2846,21 @@ const SyncCenter = {
     },
 
     executeSingle(btn, path) {
-        const row = btn.closest('tr');
-        const action = row.querySelector('.sync-action').value;
+        const currentAction = this.customActions.get(path) || (btn.closest('tr')?.querySelector('.sync-action')?.value) || 'upload';
         const actions = { upload: [], download: [] };
-        actions[action].push(path);
+        actions[currentAction].push(path);
+        const scope = this.getScopeMeta(path);
         
         btn.innerHTML = '<span class="loader" style="width:12px; height:12px; border-width:2px; display:inline-block;"></span>';
         btn.disabled = true;
 
         this.runExecuteApi(actions).then(res => {
             if (res.status === 'success') {
-                UI.showToast(`Đã ${action === 'upload' ? 'đẩy' : 'kéo'} file ${path.split('/').pop()} thành công (Đã tự động backup)!`, 'success');
-                row.style.opacity = '0.35';
-                const cb = row.querySelector('.sync-cb');
+                UI.showToast(`Đã ${currentAction === 'upload' ? 'đẩy' : 'kéo'} [${scope.label}] ${path} thành công (Đã tự động backup)!`, 'success');
+                const row = btn.closest('tr');
+                if (row) row.style.opacity = '0.35';
+                this.selectedPaths.delete(path);
+                const cb = row?.querySelector('.sync-cb');
                 if (cb) cb.checked = false;
                 btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
                 btn.style.borderColor = 'rgba(16,185,129,0.4)';
@@ -2594,36 +2876,149 @@ const SyncCenter = {
         });
     },
 
+    showExecutionConfirmationModal({ envLabel, uploadCount, downloadCount, adminSelected, webSelected, otherSelected }) {
+        return new Promise(resolve => {
+            let existing = document.getElementById('sc-exec-confirm-modal');
+            if (existing) existing.remove();
+
+            const total = uploadCount + downloadCount;
+
+            const modalHtml = `
+                <div class="modal-overlay" id="sc-exec-confirm-modal" style="display:flex; z-index:10050; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px);">
+                    <div class="modal-content" style="max-width:680px; width:94%; max-height:85vh; background:#0e131d; border-radius:14px; overflow:hidden; border:1px solid rgba(0,210,211,0.3); box-shadow:0 24px 70px rgba(0,0,0,0.9); display:flex; flex-direction:column;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; background:#141b29; border-bottom:1px solid rgba(255,255,255,0.08);">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span style="font-size:20px;">🛡️</span>
+                                <div>
+                                    <h3 style="margin:0; font-size:15px; font-weight:700; color:#fff;">Xác nhận danh sách tệp đồng bộ [${this.escapeHtml(envLabel)}]</h3>
+                                    <span style="font-size:12px; color:var(--text-muted, #94a3b8);">Tổng số: <b style="color:#00d2d3;">${total} file</b> (Đẩy: ${uploadCount} • Kéo: ${downloadCount})</span>
+                                </div>
+                            </div>
+                            <button type="button" id="sc-exec-modal-close" style="background:none; border:none; color:#71717a; font-size:22px; cursor:pointer; line-height:1; padding:4px 8px; border-radius:6px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#71717a'">×</button>
+                        </div>
+                        <div style="padding:16px 20px; overflow-y:auto; flex:1; background:#080c14;">
+                            <div style="background:rgba(16,185,129,0.08); border-left:3px solid #10b981; border-radius:4px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:#6ee7b7;">
+                                🛡️ <b>Cơ chế An toàn:</b> Hệ thống sẽ <b>tự động sao lưu (Backup snapshot)</b> các tệp đích trước khi tiến hành ghi đè. Bạn có thể khôi phục lại bất kỳ lúc nào tại tab Lịch sử Backup.
+                            </div>
+
+                            ${adminSelected.length > 0 ? `
+                                <div style="margin-bottom:12px;">
+                                    <div style="font-weight:700; font-size:12.5px; color:#f87171; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                                        <span>🛡️ Tệp thuộc Admin (${adminSelected.length}):</span>
+                                    </div>
+                                    <div style="background:#05070a; border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:8px 12px; font-family:var(--mono, monospace); font-size:11.5px; color:#cbd5e1; max-height:110px; overflow-y:auto; line-height:1.6;">
+                                        ${adminSelected.map(p => `<div>• ${this.escapeHtml(p)}</div>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            ${webSelected.length > 0 ? `
+                                <div style="margin-bottom:12px;">
+                                    <div style="font-weight:700; font-size:12.5px; color:#38bdf8; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                                        <span>🌐 Tệp thuộc Web / Client (${webSelected.length}):</span>
+                                    </div>
+                                    <div style="background:#05070a; border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:8px 12px; font-family:var(--mono, monospace); font-size:11.5px; color:#cbd5e1; max-height:110px; overflow-y:auto; line-height:1.6;">
+                                        ${webSelected.map(p => `<div>• ${this.escapeHtml(p)}</div>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            ${otherSelected.length > 0 ? `
+                                <div style="margin-bottom:12px;">
+                                    <div style="font-weight:700; font-size:12.5px; color:#c084fc; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                                        <span>📦 Tệp Model & Khác (${otherSelected.length}):</span>
+                                    </div>
+                                    <div style="background:#05070a; border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:8px 12px; font-family:var(--mono, monospace); font-size:11.5px; color:#cbd5e1; max-height:90px; overflow-y:auto; line-height:1.6;">
+                                        ${otherSelected.map(p => `<div>• ${this.escapeHtml(p)}</div>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div style="padding:14px 20px; background:#121722; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:flex-end; gap:10px;">
+                            <button type="button" class="btn btn-ghost" id="sc-exec-modal-cancel" style="padding:8px 16px; font-size:13px; border:1px solid rgba(255,255,255,0.12); border-radius:8px; color:#cbd5e1;">
+                                Hủy bỏ
+                            </button>
+                            <button type="button" class="btn btn-primary" id="sc-exec-modal-confirm" style="padding:8px 20px; font-size:13px; font-weight:700; border-radius:8px; background:linear-gradient(135deg, #00d2d3, #0984e3); border:none; color:#fff; display:flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(0,210,211,0.35);">
+                                <span>✓ Đồng ý Đồng Bộ</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            const cleanup = (confirmed) => {
+                const el = document.getElementById('sc-exec-confirm-modal');
+                if (el) el.remove();
+                resolve(confirmed);
+            };
+
+            document.getElementById('sc-exec-modal-close')?.addEventListener('click', () => cleanup(false));
+            document.getElementById('sc-exec-modal-cancel')?.addEventListener('click', () => cleanup(false));
+            document.getElementById('sc-exec-modal-confirm')?.addEventListener('click', () => cleanup(true));
+        });
+    },
+
     async executeAll() {
-        let actions = { upload: [], download: [] };
         const envLabel = this.currentEnv === 'prod' ? 'Production' : 'Demo';
-        
-        document.querySelectorAll('.sc-table tbody tr').forEach(row => {
-            const cb = row.querySelector('.sync-cb');
-            const select = row.querySelector('.sync-action');
-            if (cb && cb.checked && select) {
-                const action = select.value;
-                const path = cb.value;
-                if (actions[action]) {
-                    actions[action].push(path);
-                }
+        const allItems = this.getAllItems();
+        const itemMap = new Map();
+        allItems.forEach(i => itemMap.set(i.path, i));
+
+        const selectedItems = [];
+        this.selectedPaths.forEach(p => {
+            if (itemMap.has(p)) {
+                selectedItems.push(itemMap.get(p));
             }
         });
-        
+
+        if (selectedItems.length === 0) {
+            UI.showToast('Chưa chọn file nào để đồng bộ. Vui lòng tích chọn ít nhất 1 file!', 'warning');
+            return;
+        }
+
+        // Rebuild actions based on final selectedPaths
+        let actions = { upload: [], download: [] };
+        const adminSelected = [];
+        const webSelected = [];
+        const otherSelected = [];
+
+        this.selectedPaths.forEach(p => {
+            const it = itemMap.get(p);
+            if (it) {
+                const act = this.customActions.get(p) || it.defaultAction;
+                if (actions[act]) actions[act].push(p);
+
+                const scopeKey = this.getScopeMeta(p).key;
+                if (scopeKey === 'admin') adminSelected.push(p);
+                else if (scopeKey === 'web') webSelected.push(p);
+                else otherSelected.push(p);
+            }
+        });
+
         const totalSelected = actions.upload.length + actions.download.length;
         if (totalSelected === 0) {
             UI.showToast('Chưa chọn file nào để đồng bộ', 'warning');
             return;
         }
-        
-        if (!await UI.confirm(`Xác nhận đồng bộ [Môi trường ${envLabel}]?\n- Đẩy lên ${envLabel}: ${actions.upload.length} files\n- Kéo về Local: ${actions.download.length} files\n\n🛡️ Hệ thống sẽ TỰ ĐỘNG BACKUP file cũ trước khi ghi đè.`)) return;
-        
+
+        // 2. High-clarity Confirmation Modal
+        const confirmed = await this.showExecutionConfirmationModal({
+            envLabel,
+            uploadCount: actions.upload.length,
+            downloadCount: actions.download.length,
+            adminSelected,
+            webSelected,
+            otherSelected
+        });
+        if (!confirmed) return;
+
         UI.showLoading('Đang đồng bộ các file & tạo bản sao lưu an toàn...');
-        
+
         const btnText = document.getElementById('sc-btn-execute-text');
         const oldText = btnText ? btnText.innerText : 'THỰC THI';
         if (btnText) btnText.innerHTML = '<span class="loader" style="width:12px; height:12px; border-width:2px; display:inline-block; margin-right:6px;"></span> ĐANG ĐỒNG BỘ...';
-        
+
         this.runExecuteApi(actions).then(res => {
             UI.hideLoading();
             if (res.status === 'success') {
@@ -3002,8 +3397,13 @@ const SyncCenter = {
                     <div style="display:flex; align-items:center; gap:10px; min-width:0;">
                         <span style="font-size:18px;">🔍</span>
                         <div>
-                            <div style="font-size:14px; font-weight:700; color:#fff; font-family:var(--mono, monospace); word-break:break-all;">
-                                ${this.escapeHtml(path)}
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:3px; flex-wrap:wrap;">
+                                <span class="sc-tag" style="background:${this.getScopeMeta(path).bg}; color:${this.getScopeMeta(path).color}; border:1px solid ${this.getScopeMeta(path).border}; font-weight:700; font-size:11px;">
+                                    ${this.getScopeMeta(path).icon} ${this.getScopeMeta(path).label}
+                                </span>
+                                <span style="font-size:14px; font-weight:700; color:#fff; font-family:var(--mono, monospace); word-break:break-all;">
+                                    ${this.escapeHtml(path)}
+                                </span>
                             </div>
                             <div style="font-size:11.5px; color:#94a3b8; display:flex; align-items:center; gap:12px; margin-top:2px;">
                                 <span><b style="color:#34d399;">+${countAdded}</b> thêm mới</span>

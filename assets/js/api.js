@@ -91,5 +91,21 @@ const Api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, category, env })
         });
+    },
+
+    async setProjectDemoConfig(data) {
+        return this.fetch('setProjectDemoConfig', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+    },
+
+    async testDemoConnection(data) {
+        return this.fetch('testDemoConnection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
     }
 };

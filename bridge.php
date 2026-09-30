@@ -1377,6 +1377,7 @@ class RamboWoonBridge
         $includeClearData = !empty($input['include_cleardata']);
         
         $defaultExcludes = [
+            'backup', 'backups', 'old', 'olds',
             'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', 'watermark', 'logs',
             '.agents', '.git', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
             'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
@@ -1389,8 +1390,17 @@ class RamboWoonBridge
         $isPathExcluded = function($relPath) use ($defaultExcludes) {
             $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
             if ($clean === '') return false;
-            if (substr($clean, -4) === '.sql') return true;
-            $firstPart = explode('/', $clean)[0];
+            if (substr($clean, -4) === '.sql' || substr($clean, -4) === '.bak') return true;
+
+            // Loại trừ toàn bộ thư mục & tệp dạng backup, old ở mọi cấp
+            $segments = explode('/', $clean);
+            foreach ($segments as $segment) {
+                if (preg_match('/(^|[_\-.0-9])(backup|backups|back_up|old|olds)([_\-.0-9]|$)/i', $segment)) {
+                    return true;
+                }
+            }
+
+            $firstPart = $segments[0];
             
             foreach ($defaultExcludes as $ex) {
                 $exNorm = strtolower(trim(str_replace('\\', '/', $ex), '/'));

@@ -3163,6 +3163,313 @@ const App = {
 			);
 		}
 	},
+
+	async showSetDemoAccountModal(name, category = "") {
+		const projName = name || this.currentProjectName;
+		const cat = category || this.currentCategory || "";
+		if (!projName) {
+			UI.notify("Không tìm thấy thông tin dự án!", "error");
+			return;
+		}
+
+		document.getElementById("set_demo_project_name").value = projName;
+		document.getElementById("set_demo_category").value = cat;
+		document.getElementById("set_demo_badge_name").innerText = `${cat ? cat + "/" : ""}${projName}`;
+
+		// Clear test result
+		const resBox = document.getElementById("set-demo-test-result");
+		if (resBox) {
+			resBox.style.display = "none";
+			resBox.innerHTML = "";
+		}
+
+		// Ensure globalData is loaded for demo_list
+		if (!this.globalData || !this.globalData.demo_list) {
+			try {
+				const gRes = await (await fetch("api.php?action=getGlobalConfig")).json();
+				if (gRes.status === "success") {
+					this.globalData = gRes.data;
+				}
+			} catch (e) {
+				console.error("Lỗi tải demo_config:", e);
+			}
+		}
+
+		// Populate demo server select
+		const demoSelect = document.getElementById("set_demo_server_id");
+		if (demoSelect && this.globalData && this.globalData.demo_list) {
+			demoSelect.innerHTML = "";
+			const defaultId = this.globalData.default_demo_id || "legacy";
+			this.globalData.demo_list.forEach((demo) => {
+				const option = document.createElement("option");
+				option.value = demo.id;
+				option.innerText = `${demo.name} (${demo.web_domain})${demo.id === defaultId ? " ⭐" : ""}`;
+				demoSelect.appendChild(option);
+			});
+		}
+
+		// Fetch fresh project config directly from server
+		let pConfig = null;
+		try {
+			const cRes = await (await fetch(`api.php?action=getProjectConfig&name=${encodeURIComponent(projName)}&category=${encodeURIComponent(cat)}`)).json();
+			if (cRes && cRes.status === "success" && cRes.data) {
+				pConfig = cRes.data;
+			}
+		} catch (e) {
+			console.error("Lỗi lấy project config:", e);
+		}
+
+		if (!pConfig) {
+			pConfig = (this.currentProjectName === projName && this.currentProjectConfig)
+				? this.currentProjectConfig
+				: ((this.projects && this.projects.find(p => p.name === projName)?.config) || {});
+		}
+
+		const demoInfo = (pConfig && pConfig.deployed && pConfig.deployed.demo) ? pConfig.deployed.demo : {};
+		const hasDemo = !!(demoInfo && (demoInfo.deploy_time || demoInfo.url || demoInfo.demo_server_id || demoInfo.server_id || demoInfo.matched_folder || demoInfo.db_name));
+
+		// Set status badge & unlink button
+		const statusBadge = document.getElementById("set_demo_status_badge");
+		const unlinkBtn = document.getElementById("btn-unlink-demo");
+		if (statusBadge) {
+			statusBadge.className = hasDemo ? "badge badge-ok" : "badge badge-pending";
+			statusBadge.innerText = hasDemo ? "✓ Đã liên kết Demo" : "Chưa liên kết Demo";
+		}
+		if (unlinkBtn) {
+			unlinkBtn.style.display = hasDemo ? "inline-block" : "none";
+		}
+
+		// Select demo server: match by demo_server_id, or match by URL domain
+		let targetServerId = demoInfo.demo_server_id || demoInfo.server_id;
+		if (!targetServerId && demoInfo.url && this.globalData && this.globalData.demo_list) {
+			const matched = this.globalData.demo_list.find(d => d.web_domain && demoInfo.url.includes(d.web_domain));
+			if (matched) {
+				targetServerId = matched.id;
+			}
+		}
+		if (!targetServerId && this.globalData) {
+			targetServerId = this.globalData.default_demo_id || "legacy";
+		}
+		if (demoSelect && targetServerId) {
+			demoSelect.value = targetServerId;
+		}
+
+		// Set folder: default to category/projName or projName
+		const defaultFolder = cat ? `${cat}/${projName}` : projName;
+		const folderInput = document.getElementById("set_demo_folder");
+		if (folderInput) {
+			let currentFolder = demoInfo.matched_folder || defaultFolder;
+			if (cat && currentFolder !== cat && !currentFolder.startsWith(cat + "/")) {
+				currentFolder = `${cat}/${currentFolder}`;
+			}
+			folderInput.value = currentFolder;
+		}
+
+		// Set URL
+		const urlInput = document.getElementById("set_demo_url");
+		if (urlInput) {
+			let currentUrl = demoInfo.url || "";
+			if (cat && currentUrl && !currentUrl.includes("/" + cat + "/")) {
+				this.onSetDemoServerOrFolderChange();
+			} else {
+				urlInput.value = currentUrl;
+				if (!urlInput.value) {
+					this.onSetDemoServerOrFolderChange();
+				}
+			}
+		}
+
+		// Advanced fields
+		const customDomainInput = document.getElementById("set_demo_custom_domain");
+		if (customDomainInput) customDomainInput.value = demoInfo.custom_domain || "";
+
+		const dbNameInput = document.getElementById("set_demo_db_name");
+		if (dbNameInput) dbNameInput.value = demoInfo.db_name || "";
+
+		const dbUserInput = document.getElementById("set_demo_db_user");
+		if (dbUserInput) dbUserInput.value = demoInfo.db_user || "";
+
+		const dbPassInput = document.getElementById("set_demo_db_pass");
+		if (dbPassInput) dbPassInput.value = demoInfo.db_pass || "";
+
+		// Tự động mở accordion tùy chọn nâng cao nếu có dữ liệu database hoặc custom domain
+		const advDetails = document.getElementById("set_demo_advanced_details");
+		if (advDetails) {
+			advDetails.open = !!(demoInfo.db_name || demoInfo.custom_domain || demoInfo.db_pass || demoInfo.db_user);
+		}
+
+		UI.showModal("set-demo-modal");
+	},
+
+	onSetDemoServerOrFolderChange() {
+		const demoSelect = document.getElementById("set_demo_server_id");
+		const folderInput = document.getElementById("set_demo_folder");
+		const urlInput = document.getElementById("set_demo_url");
+		if (!demoSelect || !folderInput || !urlInput) return;
+
+		const sId = demoSelect.value;
+		const folder = folderInput.value.trim().replace(/^\/+|\/+$/g, "");
+		const server = (this.globalData && this.globalData.demo_list)
+			? this.globalData.demo_list.find(s => s.id === sId)
+			: null;
+
+		if (server && server.web_domain && folder) {
+			const cleanDomain = server.web_domain.replace(/^https?:\/\//i, "").replace(/\/+$/g, "");
+			const protocol = server.ssl ? "https://" : "http://";
+			urlInput.value = `${protocol}${cleanDomain}/${folder}/`;
+		}
+	},
+
+	async testDemoConnection() {
+		const demoServerId = document.getElementById("set_demo_server_id").value;
+		const matchedFolder = document.getElementById("set_demo_folder").value.trim();
+		const customDomain = document.getElementById("set_demo_custom_domain").value.trim();
+		const resBox = document.getElementById("set-demo-test-result");
+		const spinner = document.getElementById("test-demo-spinner");
+		const testBtn = document.getElementById("btn-test-demo-conn");
+
+		if (!matchedFolder) {
+			UI.notify("Vui lòng nhập thư mục trên Hosting Demo!", "warning");
+			return;
+		}
+
+		if (spinner) spinner.style.display = "inline";
+		if (testBtn) testBtn.disabled = true;
+		if (resBox) {
+			resBox.style.display = "block";
+			resBox.style.background = "rgba(255,255,255,0.05)";
+			resBox.style.border = "1px solid rgba(255,255,255,0.1)";
+			resBox.style.color = "var(--text-secondary)";
+			resBox.innerHTML = "⏳ Đang kết nối FTP và kiểm tra thư mục trên hosting...";
+		}
+
+		try {
+			const res = await Api.testDemoConnection({
+				demo_server_id: demoServerId,
+				matched_folder: matchedFolder,
+				custom_domain: customDomain
+			});
+
+			if (resBox) {
+				if (res && res.status === "success") {
+					if (res.folder_exists) {
+						resBox.style.background = "rgba(95, 240, 190, 0.1)";
+						resBox.style.border = "1px solid rgba(95, 240, 190, 0.3)";
+						resBox.style.color = "#5FF0BE";
+						resBox.innerHTML = `<strong>✓ KẾT NỐI THÀNH CÔNG:</strong> ${res.message}<br><small style="color:var(--text-muted);">Đường dẫn: <code>${res.target_path}</code></small>`;
+					} else {
+						resBox.style.background = "rgba(255, 183, 77, 0.1)";
+						resBox.style.border = "1px solid rgba(255, 183, 77, 0.3)";
+						resBox.style.color = "#FFCB7A";
+						resBox.innerHTML = `<strong>⚠️ KẾT NỐI SERVER OK:</strong> ${res.message}<br><small style="color:var(--text-muted);">Đường dẫn: <code>${res.target_path}</code></small>`;
+					}
+				} else {
+					resBox.style.background = "rgba(255, 94, 143, 0.1)";
+					resBox.style.border = "1px solid rgba(255, 94, 143, 0.3)";
+					resBox.style.color = "#ff5e8f";
+					resBox.innerHTML = `<strong>✗ LỖI KẾT NỐI:</strong> ${res.message || "Không thể kết nối tới server Demo!"}`;
+				}
+			}
+		} catch (err) {
+			if (resBox) {
+				resBox.style.background = "rgba(255, 94, 143, 0.1)";
+				resBox.style.border = "1px solid rgba(255, 94, 143, 0.3)";
+				resBox.style.color = "#ff5e8f";
+				resBox.innerHTML = `<strong>✗ LỖI KẾT NỐI:</strong> ${err.message || err}`;
+			}
+		} finally {
+			if (spinner) spinner.style.display = "none";
+			if (testBtn) testBtn.disabled = false;
+		}
+	},
+
+	async saveSetDemoAccount() {
+		const name = document.getElementById("set_demo_project_name").value;
+		const category = document.getElementById("set_demo_category").value;
+		const demoServerId = document.getElementById("set_demo_server_id").value;
+		const matchedFolder = document.getElementById("set_demo_folder").value.trim();
+		const url = document.getElementById("set_demo_url").value.trim();
+		const customDomain = document.getElementById("set_demo_custom_domain").value.trim();
+		const dbName = document.getElementById("set_demo_db_name").value.trim();
+		const dbUser = document.getElementById("set_demo_db_user").value.trim();
+		const dbPass = document.getElementById("set_demo_db_pass").value.trim();
+		const saveBtn = document.getElementById("btn-save-set-demo");
+
+		if (!name) {
+			UI.notify("Thiếu tên dự án!", "error");
+			return;
+		}
+		if (!matchedFolder) {
+			UI.notify("Vui lòng nhập thư mục trên Hosting Demo!", "warning");
+			return;
+		}
+
+		if (saveBtn) saveBtn.disabled = true;
+		try {
+			const res = await Api.setProjectDemoConfig({
+				name,
+				category,
+				demo_server_id: demoServerId,
+				matched_folder: matchedFolder,
+				url,
+				custom_domain: customDomain,
+				db_name: dbName,
+				db_user: dbUser,
+				db_pass: dbPass
+			});
+
+			if (res && res.status === "success") {
+				UI.notify(res.message || "Đã lưu cấu hình tài khoản Demo thành công!", "success");
+				UI.hideModal("set-demo-modal");
+
+				// Refresh state & UI
+				if (this.currentProjectName === name) {
+					await this.openConfig(name, category);
+				} else {
+					await this.loadProjects(this.currentCategory || category);
+				}
+			} else {
+				UI.notify(res.message || "Không thể lưu cấu hình Demo!", "error");
+			}
+		} catch (err) {
+			UI.notify("Lỗi: " + (err.message || err), "error");
+		} finally {
+			if (saveBtn) saveBtn.disabled = false;
+		}
+	},
+
+	async unlinkDemoAccount() {
+		const name = document.getElementById("set_demo_project_name").value;
+		const category = document.getElementById("set_demo_category").value;
+
+		if (!name) return;
+		if (!confirm(`Bạn có chắc chắn muốn gỡ liên kết Demo của dự án "${name}" không?\n\n(Lưu ý: Dữ liệu và file trên hosting sẽ không bị xóa, hệ thống chỉ gỡ thông tin kết nối trong RBWManager)`)) {
+			return;
+		}
+
+		try {
+			const res = await Api.setProjectDemoConfig({
+				name,
+				category,
+				unlink: true
+			});
+
+			if (res && res.status === "success") {
+				UI.notify(res.message || "Đã gỡ liên kết Demo!", "success");
+				UI.hideModal("set-demo-modal");
+
+				if (this.currentProjectName === name) {
+					await this.openConfig(name, category);
+				} else {
+					await this.loadProjects(this.currentCategory || category);
+				}
+			} else {
+				UI.notify(res.message || "Không thể gỡ liên kết Demo!", "error");
+			}
+		} catch (err) {
+			UI.notify("Lỗi: " + (err.message || err), "error");
+		}
+	},
 };
 
 document.addEventListener("DOMContentLoaded", () => App.init());

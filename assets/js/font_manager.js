@@ -84,7 +84,7 @@ const FontManager = {
                 card.innerHTML = `
                     <div class="font-card-header">
                         <div class="font-card-header-left">
-                            <div class="font-family-title">${displayFamily}</div>
+                            <div class="font-family-title" style="font-family: '${displayFamily}', sans-serif;">${displayFamily}</div>
                             <div class="font-path-badge">${isGoogle ? '☁️ Google Web Fonts' : '📁 ' + font.family}</div>
                         </div>
                         <div class="font-source-tag ${isGoogle ? 'google' : 'local'}">
@@ -102,28 +102,39 @@ const FontManager = {
                             ${(font.variants || []).map(v => `
                                 <label class="font-variant-chip">
                                     <input type="checkbox" class="font-variant-checkbox" data-font="${font.id}" data-variant="${v}">
-                                    <span>${String(v).replace('i', ' Italic')}</span>
+                                    <span>${String(v).replace(/italic/gi, 'I').replace(/i$/i, 'I').replace(/\s+/g, '')}</span>
                                 </label>
                             `).join('')}
                         </div>
                     </div>
                     ` : `
                     <div class="font-variants-wrap">
-                        <div class="font-variants-title">BIẾN THỂ (${(font.variants || []).length})</div>
-                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                            ${(font.variants || []).slice(0, 12).map(v => `<span style="font-size:0.68rem; color:#cbd5e1; background:rgba(255,255,255,0.06); padding:3px 9px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">${v}</span>`).join('')}
-                            ${font.variants.length > 12 ? `<span style="font-size:0.68rem; color:var(--muted); padding:3px 6px;">+${font.variants.length - 12}</span>` : ''}
+                        <div class="font-variants-header">
+                            <span class="font-variants-title">CHỌN BIẾN THỂ CẦN DÙNG (${(font.variants || []).length})</span>
+                            <button class="btn btn-ghost" style="font-size:0.68rem; padding:2px 8px; height:auto; color:#22d3ee;" onclick="FontManager.toggleAllGoogle('${font.family}')">Chọn tất cả</button>
+                        </div>
+                        <div class="font-variants-box" id="gvars-${font.family.replace(/[^a-z0-9]/gi, '')}">
+                            ${(font.variants || []).map(v => {
+                                const vStr = String(v);
+                                const isDefault = ['400', '700', 'regular'].includes(vStr.toLowerCase());
+                                const label = vStr.toLowerCase() === 'regular' ? '400' : (vStr.toLowerCase() === 'italic' ? '400I' : vStr.replace(/italic/gi, 'I').replace(/i$/i, 'I').replace(/\s+/g, ''));
+                                return `
+                                <label class="font-variant-chip">
+                                    <input type="checkbox" class="font-google-variant-checkbox" data-family="${font.family}" data-variant="${vStr}" ${isDefault ? 'checked' : ''}>
+                                    <span>${label}</span>
+                                </label>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                     `}
 
-                    <div class="font-preview-box-premium" style="font-family: '${displayFamily}', sans-serif;">
-                        The quick brown fox jumps over the lazy dog.
-                    </div>
-
                     <div>
                         ${isGoogle ? 
-                            `<button class="font-action-btn-google" onclick="FontManager.quickAddGoogle('${font.family}', ${JSON.stringify(font.variants).replace(/"/g, '&quot;')})">⚡ Add via Google @import</button>` :
+                            `<div style="display:flex; flex-direction:column; gap:8px;">
+                                <button class="font-action-btn-local" style="width:100%; background:linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 12px rgba(16,185,129,0.25);" onclick="FontManager.downloadGoogle('${font.family}')" title="Tải các biến thể font đã chọn về lưu trữ trực tiếp trong assets/fonts/ và tạo @font-face local">📥 Tải font về Website</button>
+                                <button class="font-action-btn-google" style="width:100%; background:linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 4px 12px rgba(99,102,241,0.25); border:none;" onclick="FontManager.quickAddGoogle('${font.family}')" title="Chèn dòng @import Google Fonts online vào fonts.css">⚡ Nhúng @import Online</button>
+                            </div>` :
                             `<button class="font-action-btn-local" onclick="FontManager.install('${font.id}', '${font.family}')">💾 Install Local Font</button>`
                         }
                     </div>
@@ -161,7 +172,7 @@ const FontManager = {
                 card.innerHTML = `
                     <div class="font-card-header">
                         <div class="font-card-header-left">
-                            <div class="font-family-title">${displayFamily}</div>
+                            <div class="font-family-title" style="font-family: '${displayFamily}', sans-serif;">${displayFamily}</div>
                             <div class="font-path-badge">📁 ${font.family}</div>
                         </div>
                         <div class="font-source-tag convertible">
@@ -178,14 +189,10 @@ const FontManager = {
                             ${(font.convert_variants || []).map(cv => `
                                 <label class="font-variant-chip">
                                     <input type="checkbox" class="font-convert-checkbox" data-font="${font.id}" data-variant="${cv.variant}" data-ext="${cv.ext}" data-filename="${cv.filename}">
-                                    <span>${String(cv.variant).replace('i', ' Italic')} (${cv.ext.toUpperCase()})</span>
+                                    <span>${String(cv.variant).replace(/italic/gi, 'I').replace(/i$/i, 'I').replace(/\s+/g, '')} (${cv.ext.toUpperCase()})</span>
                                 </label>
                             `).join('')}
                         </div>
-                    </div>
-
-                    <div class="font-preview-box-premium">
-                        The quick brown fox jumps over the lazy dog.
                     </div>
 
                     <div>
@@ -198,38 +205,105 @@ const FontManager = {
         }
     },
 
+    toggleAllGoogle(family) {
+        const checkboxes = document.querySelectorAll(`.font-google-variant-checkbox[data-family="${family}"]`);
+        if (checkboxes.length === 0) return;
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !allChecked);
+    },
+
+    async downloadGoogle(family) {
+        const projectName = document.getElementById('d_current-project')?.value || document.getElementById('current-project')?.value;
+        if (!projectName) return UI.notify('Vui lòng mở một dự án trước khi tải font!', 'error');
+
+        // Lấy danh sách biến thể đã chọn qua checkbox
+        const checkedBoxes = document.querySelectorAll(`.font-google-variant-checkbox[data-family="${family}"]:checked`);
+        if (checkedBoxes.length === 0) {
+            return UI.notify(`Vui lòng chọn ít nhất một biến thể cho font "${family}" để tải về!`, 'warning');
+        }
+
+        const selectedVariants = Array.from(checkedBoxes).map(cb => cb.dataset.variant);
+
+        if (!await UI.confirm(`Bạn có chắc muốn tải ${selectedVariants.length} biến thể của Google Font "${family}" về lưu trữ trực tiếp trên website (Local self-hosted) của dự án "${projectName}" không?\n\n(Hệ thống sẽ tải tệp woff2 về assets/fonts/ và tạo @font-face tối ưu trong fonts.css)`)) {
+            return;
+        }
+
+        UI.showModal('deploy-modal');
+        UI.updateDeployStatus('Đang tải...', 20, `Đang kết nối Google Fonts và tải các biến thể woff2 cho "${family}"...`);
+
+        try {
+            const res = await (await fetch(`api.php?action=downloadGoogleFont`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: projectName,
+                    category: App.currentCategory,
+                    family: family,
+                    variants: selectedVariants
+                })
+            })).json();
+
+            if (res.status === 'success') {
+                UI.updateDeployStatus('Hoàn tất!', 100, res.message);
+                UI.notify(res.message || `Đã tải font ${family} về website thành công!`, 'success');
+                if (typeof confetti === 'function') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                this.loadCssPreview();
+            } else {
+                UI.updateDeployStatus('Lỗi!', 50, `<span style="color:var(--danger)">${res.message}</span>`);
+                UI.notify(res.message || 'Không thể tải font về website!', 'error');
+            }
+            const deployFooter = document.getElementById('deploy-footer');
+            if (deployFooter) deployFooter.style.display = 'flex';
+        } catch (err) {
+            UI.updateDeployStatus('Lỗi kết nối!', 0, 'Không thể kết nối tới máy chủ API.');
+            const deployFooter = document.getElementById('deploy-footer');
+            if (deployFooter) deployFooter.style.display = 'flex';
+        }
+    },
+
     async quickAddGoogle(family, variants = []) {
-        if (!await UI.confirm(`Bạn có chắc chắn muốn thêm Google Font "${family}" qua @import vào dự án không?`)) return;
-        // Construct a precise Google Fonts v2 URL
-        // Format: ital,wght@0,100;0,400;1,100;1,400
+        // Ưu tiên đọc biến thể được check trong UI, nếu không có mới dùng mảng variants truyền vào
+        let selected = [];
+        const checkedBoxes = document.querySelectorAll(`.font-google-variant-checkbox[data-family="${family}"]:checked`);
+        if (checkedBoxes.length > 0) {
+            selected = Array.from(checkedBoxes).map(cb => cb.dataset.variant);
+        } else if (Array.isArray(variants) && variants.length > 0) {
+            selected = variants;
+        }
+
+        const countText = selected.length > 0 ? `${selected.length} biến thể` : 'tất cả biến thể';
+        if (!await UI.confirm(`Bạn có chắc chắn muốn thêm Google Font "${family}" (${countText}) qua @import vào dự án không?`)) return;
         
         let urlParams = "";
-        if (variants && variants.length > 0) {
+        if (selected && selected.length > 0) {
             const normalWeights = [];
             const italicWeights = [];
             
-            variants.forEach(v => {
-                const variantStr = String(v);
-                if (variantStr.endsWith('i')) {
-                    italicWeights.push(variantStr.replace('i', ''));
+            selected.forEach(v => {
+                const variantStr = String(v).toLowerCase();
+                const isItalic = (variantStr.endsWith('i') || variantStr.includes('italic'));
+                const w = variantStr.replace(/[^0-9]/g, '') || '400';
+                if (isItalic) {
+                    italicWeights.push(w);
                 } else {
-                    normalWeights.push(variantStr || '400');
+                    normalWeights.push(w);
                 }
             });
 
-            // Sort weights numerically
-            normalWeights.sort((a, b) => parseInt(a) - parseInt(b));
-            italicWeights.sort((a, b) => parseInt(a) - parseInt(b));
+            const uniqueNormals = [...new Set(normalWeights)].sort((a, b) => parseInt(a) - parseInt(b));
+            const uniqueItalics = [...new Set(italicWeights)].sort((a, b) => parseInt(a) - parseInt(b));
 
-            if (italicWeights.length > 0) {
-                // If we have italics, we use the ital,wght syntax
+            if (uniqueItalics.length > 0 && uniqueNormals.length > 0) {
                 const pairs = [];
-                normalWeights.forEach(w => pairs.push(`0,${w}`));
-                italicWeights.forEach(w => pairs.push(`1,${w}`));
+                uniqueNormals.forEach(w => pairs.push(`0,${w}`));
+                uniqueItalics.forEach(w => pairs.push(`1,${w}`));
                 urlParams = `:ital,wght@${pairs.join(';')}`;
-            } else {
-                // Only normal weights
-                urlParams = `:wght@${normalWeights.join(';')}`;
+            } else if (uniqueItalics.length > 0) {
+                const pairs = [];
+                uniqueItalics.forEach(w => pairs.push(`1,${w}`));
+                urlParams = `:ital,wght@${pairs.join(';')}`;
+            } else if (uniqueNormals.length > 0) {
+                urlParams = `:wght@${uniqueNormals.join(';')}`;
             }
         }
 
@@ -238,7 +312,7 @@ const FontManager = {
     },
 
     async executeAddGoogle(family, importUrl) {
-        const projectName = document.getElementById('d_current-project')?.value;
+        const projectName = document.getElementById('d_current-project')?.value || document.getElementById('current-project')?.value;
         if (!projectName) return UI.notify('Vui lòng mở một dự án trước!', 'error');
 
         try {

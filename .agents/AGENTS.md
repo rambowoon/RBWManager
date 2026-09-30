@@ -4,13 +4,16 @@
 - **Tác vụ đơn giản / UI / File đơn lẻ (HTML, CSS, text, chỉnh sửa nhỏ)**: Thực thi chỉnh sửa trực tiếp ngay lập tức, phản hồi ngắn gọn, không giải thích dông dài, không cần lập kế hoạch rườm rà.
 - **Tác vụ phức tạp / Logic hệ thống (Deploy, Database, Refactor đa file, Debug)**: Cho phép suy luận kỹ lưỡng, kiểm tra an toàn dữ liệu trước khi thực thi để đảm bảo độ chính xác tuyệt đối.
 
-## 2. Ưu tiên sử dụng MCP Tools
-- **Luôn ưu tiên tận dụng các công cụ MCP khả dụng** để xử lý tác vụ:
-  - Sử dụng `codebase-memory` (`detect_changes` / `index_repository` / `search_graph`): Luôn tự động đồng bộ và truy xuất kiến trúc/quan hệ hàm, class trong toàn bộ dự án.
-  - Sử dụng `sequential-thinking` cho các bài toán phân tích logic phức tạp, debug sâu.
-  - Sử dụng `memory` để ghi nhớ các ngữ cảnh đặc thù của dự án.
-  - Sử dụng `figma` để đọc design/tokens khi làm việc với giao diện Figma.
-  - Sử dụng `firecrawl` khi cần cào dữ liệu, tra cứu tài liệu web hoặc tài liệu kỹ thuật bên ngoài.
+## 2. Bắt buộc sử dụng MCP Tools (Ràng buộc cứng)
+- **BẮT BUỘC dùng MCP `codebase-memory` cho mọi thao tác tra cứu kiến trúc/mã nguồn**:
+  - **CẤM** dùng `grep_search` hoặc chạy terminal (`Select-String`, `grep`) hoặc dùng `view_file` đọc hàng trăm dòng file lớn để mò code.
+  - **BẮT BUỘC** gọi MCP `codebase-memory` (`search_graph`, `search_code`, `query_graph`) để định vị hàm, class, route, biến.
+  - Tự động gọi `detect_changes` để đồng bộ chỉ mục sau khi sửa đổi file quan trọng.
+- **Sử dụng MCP chuyên biệt**:
+  - `sequential-thinking`: Phân tích logic phức tạp, debug sâu trước khi sửa.
+  - `memory`: Ghi nhớ các quy chuẩn, cấu trúc đặc thù và context dự án.
+  - `figma`: Đọc tokens/design khi làm giao diện.
+  - `firecrawl`: Cào dữ liệu, tra cứu docs bên ngoài.
 
 ## 3. Quy chuẩn thực thi Code & Terminal
 - Thao tác trực tiếp lên file, ưu tiên code hoàn chỉnh, không dùng placeholder (TODO/...).

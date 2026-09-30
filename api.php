@@ -46,6 +46,23 @@ function getProjectTargetHostConfig($projectConfig, $env = 'demo')
     return ['env' => 'demo', 'config' => $demo];
 }
 
+function getProjectDemoSubPath($projectConfig, $category, $projectName, $project = null)
+{
+    $rawFolder = !empty($projectConfig['deployed']['demo']['matched_folder'])
+        ? trim($projectConfig['deployed']['demo']['matched_folder'], '/\\')
+        : '';
+    if (empty($rawFolder)) {
+        return $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ((!empty($category) ? trim($category, '/\\') . '/' : '') . $projectName);
+    }
+    if (!empty($category)) {
+        $catClean = trim($category, '/\\');
+        if ($rawFolder !== $catClean && strpos($rawFolder, $catClean . '/') !== 0) {
+            $rawFolder = $catClean . '/' . $rawFolder;
+        }
+    }
+    return str_replace('\\', '/', $rawFolder);
+}
+
 function autoCleanOldCacheFiles($days = 7)
 {
     $cacheBase = __DIR__ . '/cache/remote_edit';
@@ -119,6 +136,137 @@ function saveSyncAutoBackup($projectName, $category, $subFolder, $cleanPath, $co
         'size' => strlen($content),
         'backup_file' => "{$envKey}/{$dateFolder}/{$subFolder}/" . dirname($cleanPath) . "/[{$timePrefix}]_{$fileName}"
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+
+function stripVietnameseAccents($str)
+{
+    $chars = [
+        'a' => 'á|à|ả|ã|ạ|ă|ắ|ặ|ằ|ẳ|ẵ|â|ấ|ầ|ẩ|ẫ|ậ|A|Á|À|Ả|Ã|Ạ|Ă|Ắ|Ặ|Ằ|Ẳ|Ẵ|Â|Ấ|Ầ|Ẩ|Ẫ|Ậ',
+        'd' => 'đ|Đ|D',
+        'e' => 'é|è|ẻ|ẽ|ẹ|ê|ế|ề|ể|ễ|ệ|E|É|È|Ẻ|Ẽ|Ẹ|Ê|Ế|Ề|Ể|Ễ|Ệ',
+        'i' => 'í|ì|ỉ|ĩ|ị|I|Í|Ì|Ỉ|Ĩ|Ị',
+        'o' => 'ó|ò|ỏ|õ|ọ|ô|ố|ồ|ổ|ỗ|ộ|ơ|ớ|ờ|ở|ỡ|ợ|O|Ó|Ò|Ỏ|Õ|Ọ|Ô|Ố|Ồ|Ổ|Ỗ|Ộ|Ơ|Ớ|Ờ|Ở|Ỡ|Ợ',
+        'u' => 'ú|ù|ủ|ũ|ụ|ư|ứ|ừ|ử|ữ|ự|U|Ú|Ù|Ủ|Ũ|Ụ|Ư|Ứ|Ừ|Ử|Ữ|Ự',
+        'y' => 'ý|ỳ|ỷ|ỹ|ỵ|Y|Ý|Ỳ|Ỷ|Ỹ|Ỵ',
+    ];
+    foreach ($chars as $replacement => $pattern) {
+        $str = preg_replace("/($pattern)/i", $replacement, $str);
+    }
+    return strtolower($str);
+}
+
+function getNasaniProjectsList()
+{
+    $file = __DIR__ . '/data/nasani_projects.json';
+    if (!file_exists($file)) return [];
+    $data = json_decode(file_get_contents($file), true);
+    return is_array($data) ? ($data['projects'] ?? $data) : [];
+}
+
+function formatNasaniInfoOutput($item)
+{
+    $now = time();
+    $deadlineStr = trim($item['deadline'] ?? '');
+    $completedAt = trim($item['completed_at'] ?? '');
+    $statusText = mb_strtolower(trim($item['status_text'] ?? ''), 'UTF-8');
+
+    // Nhận diện dự án đã xong dựa trên nút trạng thái
+    $isDoneStatus = (strpos($statusText, 'link hoàn thành') !== false ||
+                     strpos($statusText, 'web đã bg') !== false ||
+                     strpos($statusText, 'đã up source') !== false ||
+                     strpos($statusText, 'đã hoàn thành') !== false);
+
+    // QUY TẮC CỐT LÕI: Chỉ dự án có "Dự kiến hoàn thành" mới là ĐANG LÀM.
+    // Tất cả dự án còn lại đều là ĐÃ HOÀN THÀNH.
+    $isExplicitlyActive = !empty($item['is_active']) && empty($item['is_completed']) && !$isDoneStatus;
+    $isActive = ($isExplicitlyActive && !empty($deadlineStr));
+    $isCompleted = !$isActive;
+
+    if ($isCompleted) {
+        if (empty($completedAt) && !empty($deadlineStr)) {
+            $completedAt = $deadlineStr;
+        }
+        $deadlineStr = '';
+    }
+
+    $deadlineTs = 0;
+    $daysLeft = null;
+    $hoursLeft = null;
+    $statusType = 'completed';
+
+    if ($isActive) {
+        $deadlineTs = strtotime($deadlineStr);
+        if ($deadlineTs > 0) {
+            $diffSeconds = $deadlineTs - $now;
+            $hoursLeft = round($diffSeconds / 3600, 1);
+            $daysLeft = round($diffSeconds / 86400, 1);
+
+            if ($diffSeconds < 0) {
+                $statusType = 'overdue';
+            } elseif ($diffSeconds <= 86400) { // <= 24 hours
+                $statusType = 'urgent';
+            } else {
+                $statusType = 'normal';
+            }
+        }
+    }
+
+    return [
+        'id' => $item['id'] ?? '',
+        'contract_code' => $item['contract_code'] ?? '',
+        'contract_name' => $item['contract_name'] ?? '',
+        'design_url' => $item['design_url'] ?? '',
+        'design_folder' => $item['design_folder'] ?? '',
+        'nvkd' => $item['nvkd'] ?? '',
+        'manager' => $item['manager'] ?? '',
+        'area' => $item['area'] ?? '',
+        'dev_name' => $item['dev_name'] ?? '',
+        'sent_kt_date' => $item['sent_kt_date'] ?? '',
+        'lt_hours' => $item['lt_hours'] ?? '',
+        'deadline' => $deadlineStr,
+        'deadline_timestamp' => $deadlineTs,
+        'is_active' => $isActive,
+        'is_completed' => $isCompleted,
+        'completed_at' => $completedAt,
+        'leader_deadline' => $item['leader_deadline'] ?? '',
+        'status_text' => $item['status_text'] ?? '',
+        'status_type' => $statusType,
+        'hours_left' => $hoursLeft,
+        'days_left' => $daysLeft
+    ];
+}
+
+function matchNasaniProjectInfo($projectName, $nasaniList = [])
+{
+    if (empty($nasaniList) || empty($projectName)) return null;
+    $pRaw = strtolower(trim($projectName));
+
+    foreach ($nasaniList as $item) {
+        $code = trim($item['contract_code'] ?? '');
+        $codeLower = strtolower($code);
+        $folder = strtolower(trim($item['design_folder'] ?? ''));
+        $name = strtolower(trim($item['contract_name'] ?? ''));
+
+        // 1. Match by Contract Code (e.g. 1608726 in phanmem_traiheo_1608726_t8, 25238725 in phuonglam_25238725w)
+        if ($codeLower !== '' && strpos($pRaw, $codeLower) !== false) {
+            return formatNasaniInfoOutput($item);
+        }
+
+        // 2. Match by Design Folder
+        if ($folder !== '' && ($pRaw === $folder || strpos($pRaw, $folder) !== false || strpos($folder, $pRaw) !== false)) {
+            return formatNasaniInfoOutput($item);
+        }
+
+        // 3. Match by Customer Name slug (strip vietnamese accents)
+        if ($name !== '') {
+            $nameSlug = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '', stripVietnameseAccents($name))));
+            $projSlug = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '', stripVietnameseAccents($projectName))));
+            if (strlen($nameSlug) >= 6 && (strpos($projSlug, $nameSlug) !== false || strpos($nameSlug, $projSlug) !== false)) {
+                return formatNasaniInfoOutput($item);
+            }
+        }
+    }
+    return null;
 }
 
 function getProjectDbConfig($projectPath)
@@ -850,9 +998,54 @@ $projectDeployer = new ProjectDeployer($baseDir);
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $jobId = $_POST['jobId'] ?? $_GET['jobId'] ?? null;
 
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
 header('Content-Type: application/json');
 
 switch ($action) {
+    case 'syncNasaniData':
+        $data = readJsonInput();
+        if (!$data) $data = $_POST;
+        $projects = $data['projects'] ?? [];
+        if (!is_array($projects)) {
+            echo json_encode(['status' => 'error', 'message' => 'Dữ liệu dự án không hợp lệ']);
+            break;
+        }
+
+        $filePath = __DIR__ . '/data/nasani_projects.json';
+        $payload = [
+            'synced_at' => time(),
+            'synced_at_formatted' => date('d/m/Y H:i:s'),
+            'total' => count($projects),
+            'projects' => $projects
+        ];
+
+        @file_put_contents($filePath, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Đã đồng bộ thành công ' . count($projects) . ' dự án từ Nasani',
+            'synced_count' => count($projects),
+            'synced_at' => time()
+        ]);
+        break;
+
+    case 'getNasaniData':
+        $filePath = __DIR__ . '/data/nasani_projects.json';
+        if (file_exists($filePath)) {
+            $data = json_decode(file_get_contents($filePath), true);
+            echo json_encode(['status' => 'success', 'data' => $data]);
+        } else {
+            echo json_encode(['status' => 'success', 'data' => ['total' => 0, 'projects' => []]]);
+        }
+        break;
+
     case 'getLogs':
         if (!$jobId) die(json_encode(['status' => 'error', 'message' => 'Missing jobId']));
         $logFile = __DIR__ . "/logs/{$jobId}.log";
@@ -892,9 +1085,11 @@ switch ($action) {
         $projects = $scanner->getProjects($category, $refresh);
         $sitesConfig = $scanner->getPhpSitesConfig();
         $systemPhp = $scanner->getSystemPhpVersion();
+        $nasaniList = getNasaniProjectsList();
 
         $categoryTotalSize = 0;
         foreach ($projects as &$p) {
+            $p['nasani_info'] = matchNasaniProjectInfo($p['name'], $nasaniList);
             $p['config'] = $configManager->getForProject($p['name'], $p['category'] ?? null);
             $p['screenshot'] = $screenshotService->getScreenshotUrl($p['category'] ?? '', $p['name']);
 
@@ -1198,7 +1393,8 @@ switch ($action) {
                     $protocol = (!empty($detectedServer['ssl']) ? 'https://' : 'http://');
                     $pConfig['deployed']['demo']['url'] = $protocol . $domain . '/' . $category . '/' . $pName . '/';
                 }
-                $pConfig['deployed']['demo']['matched_folder'] = $matchedFolder;
+                $fullMatchedFolder = (!empty($category) ? trim($category, '/\\') . '/' : '') . $matchedFolder;
+                $pConfig['deployed']['demo']['matched_folder'] = $fullMatchedFolder;
                 $updated = true;
             } else {
                 $counts['local']++;
@@ -1230,6 +1426,188 @@ switch ($action) {
         $data = json_decode(file_get_contents('php://input'), true);
         $category = $data['category'] ?? null;
         echo json_encode($configManager->save($data['name'], $data['config'], $category) ? ['status' => 'success'] : ['status' => 'error']);
+        break;
+
+    case 'setProjectDemoConfig':
+        $data = json_decode(file_get_contents('php://input'), true) ?? [];
+        $projectName = trim($data['name'] ?? '');
+        $category = trim($data['category'] ?? '');
+        $unlink = !empty($data['unlink']);
+
+        if (empty($projectName)) {
+            echo json_encode(['status' => 'error', 'message' => 'Thiếu tên dự án.']);
+            break;
+        }
+
+        $projectConfig = $configManager->getForProject($projectName, $category) ?: [];
+        if (!isset($projectConfig['deployed'])) {
+            $projectConfig['deployed'] = [];
+        }
+
+        if ($unlink) {
+            unset($projectConfig['deployed']['demo']);
+            $configManager->save($projectName, $projectConfig, $category);
+            $configManager->addHistory($projectName, 'Gỡ liên kết Demo', 'Đã gỡ thông tin tài khoản Demo khỏi dự án.', $category);
+            echo json_encode(['status' => 'success', 'message' => 'Đã gỡ liên kết Demo thành công!']);
+            break;
+        }
+
+        $demoServerId = trim($data['demo_server_id'] ?? '');
+        $matchedFolder = trim($data['matched_folder'] ?? '');
+        $customDomain = trim($data['custom_domain'] ?? '');
+        $url = trim($data['url'] ?? '');
+        $dbName = trim($data['db_name'] ?? '');
+        $dbUser = trim($data['db_user'] ?? '');
+        $dbPass = trim($data['db_pass'] ?? '');
+
+        // Load demo servers to match info
+        $globalPath = __DIR__ . '/data/demo_config.json';
+        $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
+        $demoList = $gConfig['demo_list'] ?? [];
+        $matchedServer = null;
+
+        if (!empty($demoList)) {
+            foreach ($demoList as $srv) {
+                if ($srv['id'] === $demoServerId) {
+                    $matchedServer = $srv;
+                    break;
+                }
+            }
+        }
+        if (!$matchedServer && !empty($demoList)) {
+            $matchedServer = $demoList[0];
+            $demoServerId = $matchedServer['id'];
+        }
+
+        if (empty($matchedFolder)) {
+            $matchedFolder = ($category ? trim($category, '/\\') . '/' : '') . $projectName;
+        } else {
+            if (!empty($category)) {
+                $catClean = trim($category, '/\\');
+                if ($matchedFolder !== $catClean && strpos($matchedFolder, $catClean . '/') !== 0) {
+                    $matchedFolder = $catClean . '/' . $matchedFolder;
+                }
+            }
+        }
+
+        // Auto compute URL if not provided
+        if (empty($url)) {
+            if (!empty($customDomain)) {
+                $cleanCustom = preg_replace('#^https?://#i', '', rtrim($customDomain, '/'));
+                $url = 'http://' . $cleanCustom . '/';
+            } else if ($matchedServer) {
+                $webDomain = str_replace(['https://', 'http://', '/'], '', $matchedServer['web_domain']);
+                $protocol = !empty($matchedServer['ssl']) ? 'https://' : 'http://';
+                $url = $protocol . $webDomain . '/' . trim($matchedFolder, '/') . '/';
+            }
+        }
+
+        $demoDeployInfo = [
+            'demo_server_id' => $demoServerId,
+            'server_name' => $matchedServer['name'] ?? 'Demo Server',
+            'server_id' => $demoServerId,
+            'matched_folder' => $matchedFolder,
+            'url' => $url,
+            'custom_domain' => $customDomain,
+            'db_name' => $dbName,
+            'db_user' => $dbUser ?: ($matchedServer['ftp_user'] ?? ''),
+            'db_pass' => $dbPass,
+            'deploy_time' => $projectConfig['deployed']['demo']['deploy_time'] ?? date('Y-m-d H:i:s'),
+            'is_manual_set' => true
+        ];
+
+        $projectConfig['deployed']['demo'] = $demoDeployInfo;
+        $saved = $configManager->save($projectName, $projectConfig, $category);
+        if ($saved) {
+            $configManager->addHistory($projectName, 'Set tài khoản Demo', "Đã gán tài khoản Demo: {$demoDeployInfo['server_name']} (Folder: $matchedFolder)", $category);
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Đã lưu cấu hình tài khoản Demo thành công!',
+                'data' => $demoDeployInfo
+            ]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Không thể lưu cấu hình dự án.']);
+        }
+        break;
+
+    case 'testDemoConnection':
+        $data = json_decode(file_get_contents('php://input'), true) ?? [];
+        $demoServerId = trim($data['demo_server_id'] ?? '');
+        $matchedFolder = trim($data['matched_folder'] ?? '');
+        $customDomain = trim($data['custom_domain'] ?? '');
+
+        $globalPath = __DIR__ . '/data/demo_config.json';
+        $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
+        $demoList = $gConfig['demo_list'] ?? [];
+        $matchedServer = null;
+
+        if (!empty($demoList)) {
+            foreach ($demoList as $srv) {
+                if ($srv['id'] === $demoServerId) {
+                    $matchedServer = $srv;
+                    break;
+                }
+            }
+        }
+        if (!$matchedServer) {
+            echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy cấu hình server Demo đã chọn']);
+            break;
+        }
+
+        $host = $matchedServer['ftp_host'];
+        $user = $matchedServer['ftp_user'];
+        $pass = $matchedServer['ftp_pass'];
+        $userPwd = "$user:$pass";
+
+        $baseFtpRoot = !empty($matchedServer['ftp_root']) ? $matchedServer['ftp_root'] : '/public_html';
+        if (!empty($customDomain)) {
+            $cleanDomain = preg_replace('#^https?://#i', '', rtrim($customDomain, '/'));
+            $ftpRoot = '/domains/' . $cleanDomain . '/public_html';
+        } else {
+            $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/') . '/' . trim($matchedFolder, '/\\');
+        }
+
+        // Test root connection first
+        $rootUrl = "ftp://$host/";
+        $rootCheck = RemoteClient::listFtpDirectory($rootUrl, $userPwd);
+        if ($rootCheck === false || (is_string($rootCheck) && strpos($rootCheck, 'FTP Error') !== false)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => "Không thể kết nối FTP tới {$matchedServer['name']} ($host). Vui lòng kiểm tra thông tin FTP của server."
+            ]);
+            break;
+        }
+
+        // Test target directory
+        $targetUrl = "ftp://$host" . rtrim($ftpRoot, '/') . '/';
+        $files = RemoteClient::listFtpDirectoryDetailed($targetUrl, $userPwd);
+
+        if (is_array($files) && count($files) > 0) {
+            $dirCount = 0;
+            $fileCount = 0;
+            foreach ($files as $f) {
+                if (!empty($f['is_dir'])) $dirCount++;
+                else $fileCount++;
+            }
+            echo json_encode([
+                'status' => 'success',
+                'folder_exists' => true,
+                'file_count' => count($files),
+                'dir_count' => $dirCount,
+                'target_path' => $ftpRoot,
+                'server_name' => $matchedServer['name'],
+                'message' => "Kết nối FTP thành công! Đã tìm thấy thư mục trên hosting (gồm $fileCount tệp tin và $dirCount thư mục con)."
+            ]);
+        } else {
+            echo json_encode([
+                'status' => 'success',
+                'folder_exists' => false,
+                'file_count' => 0,
+                'target_path' => $ftpRoot,
+                'server_name' => $matchedServer['name'],
+                'message' => "Kết nối FTP tới server {$matchedServer['name']} thành công, nhưng chưa tìm thấy thư mục '$ftpRoot' (hoặc thư mục rỗng). Bạn vẫn có thể lưu cấu hình này."
+            ]);
+        }
         break;
 
     case 'saveGlobalConfig':
@@ -1271,6 +1649,7 @@ switch ($action) {
         echo json_encode($configManager->delete($data['name'], $category) ? ['status' => 'success'] : ['status' => 'error']);
         break;
 
+    case 'getConfig':
     case 'getProjectConfig':
         $name = $_GET['name'] ?? '';
         $category = $_GET['category'] ?? null;
@@ -1288,6 +1667,7 @@ switch ($action) {
             $config['size'] = $project['size'] ?? ($projectPath ? $scanner->getDirectorySize($projectPath) : 0);
             $config['size_formatted'] = \RamboWoon\ProjectScanner::formatBytes($config['size']);
         }
+        $config['nasani_info'] = matchNasaniProjectInfo($name, getNasaniProjectsList());
         echo json_encode(['status' => 'success', 'data' => $config]);
         break;
 
@@ -1505,14 +1885,17 @@ switch ($action) {
             $remoteBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$cleanHost";
         } else {
             $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
+            $folderName = getProjectDemoSubPath($projectConfig, $category, $projectName, $project);
+            $webDomain = str_replace(['https://', 'http://', '/'], '', $config['web_domain'] ?? '');
             if (empty($customDomain)) {
-                $webDomain = str_replace(['https://', 'http://', '/'], '', $config['web_domain']);
-                $folderName = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
-                $ftpRoot = '/domains/' . $webDomain . '/public_html/' . $folderName;
-                $remoteBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$webDomain/$folderName";
+                $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
+                $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/') . '/' . trim($folderName, '/');
+                $protocol = !empty($config['ssl']) ? 'https://' : 'http://';
+                $remoteBaseUrl = "$protocol$webDomain/$folderName";
             } else {
                 $ftpRoot = '/domains/' . $customDomain . '/public_html';
-                $remoteBaseUrl = "http" . (!empty($config['ssl']) ? 's' : '') . "://$customDomain";
+                $protocol = !empty($config['ssl']) ? 'https://' : 'http://';
+                $remoteBaseUrl = "$protocol$customDomain";
             }
         }
 
@@ -1524,7 +1907,7 @@ switch ($action) {
         if ($action === 'fmList') {
             $files = RemoteClient::listFtpDirectoryDetailed($url, $userPwd);
             if (empty($files) && $currentEnv === 'demo' && $cleanPath === '') {
-                $deploySubPath = $project['relPath'] ?? '';
+                $deploySubPath = getProjectDemoSubPath($projectConfig, $category, $projectName, $project);
                 if ($deploySubPath && !$deployService->remoteDirExists($config, $deploySubPath)) {
                     echo json_encode([
                         'status' => 'error',
@@ -2046,6 +2429,10 @@ switch ($action) {
             $allowUploadBridge = !empty($data['allow_upload_bridge']);
             $customExcludes = $data['excludes'] ?? [];
             $defaultExcludes = [
+                'backup',
+                'backups',
+                'old',
+                'olds',
                 'bootstrap',
                 'caches',
                 'compiled',
@@ -2078,8 +2465,17 @@ switch ($action) {
             $isPathExcluded = function ($relPath) use ($defaultExcludes) {
                 $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
                 if ($clean === '') return false;
-                if (substr($clean, -4) === '.sql') return true;
-                $firstPart = explode('/', $clean)[0];
+                if (substr($clean, -4) === '.sql' || substr($clean, -4) === '.bak') return true;
+
+                // Loại trừ toàn bộ thư mục & tệp dạng backup, old ở mọi cấp
+                $segments = explode('/', $clean);
+                foreach ($segments as $segment) {
+                    if (preg_match('/(^|[_\-.0-9])(backup|backups|back_up|old|olds)([_\-.0-9]|$)/i', $segment)) {
+                        return true;
+                    }
+                }
+
+                $firstPart = $segments[0];
 
                 foreach ($defaultExcludes as $ex) {
                     $exNorm = strtolower(trim(str_replace('\\', '/', $ex), '/'));
@@ -2510,6 +2906,10 @@ switch ($action) {
             $actions = $data['actions'] ?? []; // ['upload' => [...paths], 'download' => [...paths]]
             $includeClearData = !empty($data['include_cleardata']);
             $defaultExcludes = [
+                'backup',
+                'backups',
+                'old',
+                'olds',
                 'bootstrap',
                 'caches',
                 'compiled',
@@ -2538,8 +2938,17 @@ switch ($action) {
             $isPathExcluded = function ($relPath) use ($defaultExcludes) {
                 $clean = strtolower(trim(str_replace('\\', '/', $relPath), '/'));
                 if ($clean === '') return false;
-                if (substr($clean, -4) === '.sql') return true;
-                $firstPart = explode('/', $clean)[0];
+                if (substr($clean, -4) === '.sql' || substr($clean, -4) === '.bak') return true;
+
+                // Loại trừ toàn bộ thư mục & tệp dạng backup, old ở mọi cấp
+                $segments = explode('/', $clean);
+                foreach ($segments as $segment) {
+                    if (preg_match('/(^|[_\-.0-9])(backup|backups|back_up|old|olds)([_\-.0-9]|$)/i', $segment)) {
+                        return true;
+                    }
+                }
+
+                $firstPart = $segments[0];
 
                 foreach ($defaultExcludes as $ex) {
                     $exNorm = strtolower(trim(str_replace('\\', '/', $ex), '/'));
@@ -2629,7 +3038,7 @@ switch ($action) {
                 $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/');
             } else {
                 $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
-                $subPath = $project ? str_replace('\\', '/', trim($project['relPath'], '/\\')) : ($category . '/' . $projectName);
+                $subPath = getProjectDemoSubPath($projectConfig, $category, $projectName, $project);
                 $customDomain = $projectConfig['deployed']['demo']['custom_domain'] ?? '';
                 if (!empty($customDomain)) {
                     $ftpRoot = '/domains/' . $customDomain . '/public_html';
@@ -4329,12 +4738,9 @@ switch ($action) {
                 $normalizedFamily = str_replace(['_', '-', ' '], '', strtolower($cleanFamily));
 
                 if ($query === '' || strpos($normalizedFamily, $normalizedQuery) !== false) {
-                    $familyLower = strtolower($cleanFamily);
-                    $queryLower = strtolower($cleanQuery);
-
-                    if ($familyLower === $queryLower) {
+                    if ($normalizedFamily === $normalizedQuery) {
                         $score = 3000;
-                    } elseif (strpos($familyLower, $queryLower) === 0) {
+                    } elseif (strpos($normalizedFamily, $normalizedQuery) === 0) {
                         $score = 2000 - strlen($font['family']);
                     } else {
                         $score = 1000 - strlen($font['family']);
@@ -4472,15 +4878,17 @@ switch ($action) {
 
             if (!empty($googleFonts)) {
                 $cleanQuery = removeVietnameseDiacritics($query);
-                $queryLower = strtolower($cleanQuery);
+                $normalizedQuery = str_replace(['_', '-', ' '], '', strtolower($cleanQuery));
                 $count = 0;
                 foreach ($googleFonts as $font) {
-                    $familyLower = strtolower($font['family']);
-                    if ($queryLower === '' || strpos($familyLower, $queryLower) !== false) {
+                    $cleanFamily = removeVietnameseDiacritics($font['family']);
+                    $normalizedFamily = str_replace(['_', '-', ' '], '', strtolower($cleanFamily));
+
+                    if ($normalizedQuery === '' || strpos($normalizedFamily, $normalizedQuery) !== false) {
                         $score = 0;
-                        if ($familyLower === $queryLower) {
+                        if ($normalizedFamily === $normalizedQuery) {
                             $score = 2500;
-                        } elseif (strpos($familyLower, $queryLower) === 0) {
+                        } elseif (strpos($normalizedFamily, $normalizedQuery) === 0) {
                             $score = 1500 - strlen($font['family']);
                         } else {
                             $score = 500 - strlen($font['family']);
@@ -4489,8 +4897,8 @@ switch ($action) {
                         $results[] = [
                             'id' => $font['family'],
                             'family' => $font['family'],
-                            'category' => $font['category'],
-                            'variants' => $font['variants'],
+                            'category' => $font['category'] ?? 'Google Fonts',
+                            'variants' => $font['variants'] ?? [],
                             'convert_variants' => [],
                             'source' => 'google',
                             'score' => $score
@@ -4764,6 +5172,191 @@ switch ($action) {
         file_put_contents($globalCssPath, $cssContent);
 
         echo json_encode(['status' => 'success', 'message' => "Đã thêm Google Font vào assets/css/fonts.css"]);
+        break;
+
+    case 'downloadGoogleFont':
+        $data = json_decode(file_get_contents('php://input'), true) ?? [];
+        $category = $data['category'] ?? '';
+        $projectName = $data['name'] ?? '';
+        $family = trim($data['family'] ?? '');
+        $selectedVariants = $data['variants'] ?? [];
+
+        if (empty($family) || empty($projectName)) {
+            echo json_encode(['status' => 'error', 'message' => 'Thiếu tên font hoặc dự án']);
+            break;
+        }
+
+        $project = $scanner->getProjectByName($projectName, $category ?? null);
+        if (!$project) {
+            echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy dự án']);
+            break;
+        }
+
+        // Normalize selected variants into weights & styles
+        $normalWeights = [];
+        $italicWeights = [];
+
+        if (empty($selectedVariants)) {
+            $normalWeights = [400, 700];
+        } else {
+            foreach ($selectedVariants as $v) {
+                $vStr = strtolower(trim((string)$v));
+                if ($vStr === 'regular') $vStr = '400';
+                $isItalic = (substr($vStr, -1) === 'i' || strpos($vStr, 'italic') !== false);
+                $w = preg_replace('/[^0-9]/', '', $vStr) ?: '400';
+                if ($isItalic) {
+                    $italicWeights[] = (int)$w;
+                } else {
+                    $normalWeights[] = (int)$w;
+                }
+            }
+        }
+
+        $normalWeights = array_values(array_unique($normalWeights));
+        $italicWeights = array_values(array_unique($italicWeights));
+        sort($normalWeights);
+        sort($italicWeights);
+
+        $urlParams = '';
+        if (!empty($italicWeights) && !empty($normalWeights)) {
+            $pairs = [];
+            foreach ($normalWeights as $w) $pairs[] = "0,$w";
+            foreach ($italicWeights as $w) $pairs[] = "1,$w";
+            $urlParams = ":ital,wght@" . implode(';', $pairs);
+        } elseif (!empty($italicWeights)) {
+            $pairs = [];
+            foreach ($italicWeights as $w) $pairs[] = "1,$w";
+            $urlParams = ":ital,wght@" . implode(';', $pairs);
+        } elseif (!empty($normalWeights)) {
+            $urlParams = ":wght@" . implode(';', $normalWeights);
+        }
+
+        $encodedFamily = str_replace(' ', '+', $family);
+        $cssUrl = "https://fonts.googleapis.com/css2?family={$encodedFamily}{$urlParams}&display=swap";
+
+        $ch = curl_init($cssUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        $cssData = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if (!$cssData || $httpCode >= 400) {
+            echo json_encode(['status' => 'error', 'message' => "Không thể kết nối tới Google Fonts để tải font '{$family}'."]);
+            break;
+        }
+
+        $cleanFolderName = removeVietnameseDiacritics($family);
+        $destDir = $project['path'] . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'fonts' . DIRECTORY_SEPARATOR . $cleanFolderName;
+        if (!is_dir($destDir)) {
+            @mkdir($destDir, 0777, true);
+        }
+
+        // Parse @font-face blocks with optional subset comments
+        preg_match_all('/(?:\/\*\s*([^*]+)\s*\*\/)?\s*@font-face\s*\{([^}]+)\}/s', $cssData, $matches, PREG_SET_ORDER);
+        if (empty($matches)) {
+            echo json_encode(['status' => 'error', 'message' => "Không tìm thấy định nghĩa font trong phản hồi của Google Fonts."]);
+            break;
+        }
+
+        $downloadedFiles = [];
+        $localCssBlocks = [];
+
+        foreach ($matches as $match) {
+            $subsetComment = trim($match[1] ?? '');
+            $blockBody = $match[2];
+
+            // Extract properties
+            preg_match('/font-style\s*:\s*([^;]+);/i', $blockBody, $mStyle);
+            preg_match('/font-weight\s*:\s*([^;]+);/i', $blockBody, $mWeight);
+            preg_match('/unicode-range\s*:\s*([^;]+);/i', $blockBody, $mUnicode);
+            preg_match('/src\s*:\s*url\s*\(\s*([^\)]+)\s*\)\s*format\s*\(\s*[\'"]?([^\'"\)]+)[\'"]?\s*\)/i', $blockBody, $mSrc);
+
+            if (empty($mSrc[1])) continue;
+
+            $fontUrl = trim($mSrc[1], " '\"");
+            $format = trim($mSrc[2] ?? 'woff2');
+            $style = trim($mStyle[1] ?? 'normal');
+            $weight = trim($mWeight[1] ?? '400');
+            $unicodeRange = isset($mUnicode[1]) ? trim($mUnicode[1]) : '';
+
+            $cleanSubset = preg_replace('/[^a-zA-Z0-9_\-]/', '', str_replace(' ', '-', $subsetComment)) ?: 'subset';
+            $fileName = $cleanFolderName . '-' . $weight . ($style === 'italic' ? 'i' : '') . '-' . $cleanSubset . '.' . $format;
+            $localFilePath = $destDir . DIRECTORY_SEPARATOR . $fileName;
+
+            if (!isset($downloadedFiles[$fontUrl])) {
+                $fch = curl_init($fontUrl);
+                curl_setopt($fch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($fch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($fch, CURLOPT_TIMEOUT, 60);
+                curl_setopt($fch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+                $fontBytes = curl_exec($fch);
+                $fCode = curl_getinfo($fch, CURLINFO_HTTP_CODE);
+                curl_close($fch);
+
+                if ($fontBytes && $fCode < 400) {
+                    file_put_contents($localFilePath, $fontBytes);
+                    $downloadedFiles[$fontUrl] = $fileName;
+                } else {
+                    continue;
+                }
+            } else {
+                $fileName = $downloadedFiles[$fontUrl];
+            }
+
+            $blockCss = "";
+            if ($subsetComment) {
+                $blockCss .= "/* {$subsetComment} */\n";
+            }
+            $blockCss .= "@font-face {\n";
+            $blockCss .= "  font-family: '{$family}';\n";
+            $blockCss .= "  font-style: {$style};\n";
+            $blockCss .= "  font-weight: {$weight};\n";
+            $blockCss .= "  font-display: swap;\n";
+            $blockCss .= "  src: url('../fonts/{$cleanFolderName}/{$fileName}') format('{$format}');\n";
+            if (!empty($unicodeRange)) {
+                $blockCss .= "  unicode-range: {$unicodeRange};\n";
+            }
+            $blockCss .= "}\n";
+
+            $localCssBlocks[] = $blockCss;
+        }
+
+        if (empty($downloadedFiles)) {
+            echo json_encode(['status' => 'error', 'message' => "Không thể tải các tệp font từ máy chủ Google."]);
+            break;
+        }
+
+        // Update assets/css/fonts.css
+        $globalCssPath = $project['path'] . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'css' . DIRECTORY_SEPARATOR . 'fonts.css';
+        $globalCssDir = dirname($globalCssPath);
+        if (!is_dir($globalCssDir)) @mkdir($globalCssDir, 0777, true);
+
+        $existingContent = file_exists($globalCssPath) ? file_get_contents($globalCssPath) : '';
+
+        // 1. Remove old @import for this family if any
+        $escapedFamily = preg_quote(str_replace(' ', '+', $family), '/');
+        $escapedFamilyRaw = preg_quote($family, '/');
+        $existingContent = preg_replace('/@import\s+url\([^)]*(?:family=' . $escapedFamily . '|family=' . $escapedFamilyRaw . ')[^)]*\)\s*;\s*\n?/i', '', $existingContent);
+
+        // 2. Remove old @font-face for this family if any
+        $pattern = '/(?:\/\*[^*]+\*\/\s*)?@font-face\s*\{[^}]*font-family\s*:\s*[\'"]?' . $escapedFamilyRaw . '[\'"]?[^}]*\}\s*/is';
+        $existingContent = preg_replace($pattern, '', $existingContent);
+
+        // 3. Append new local @font-face
+        $newCss = trim(implode("\n", $localCssBlocks));
+        $finalCss = (trim($existingContent) ? trim($existingContent) . "\n\n" : "") . $newCss . "\n";
+        file_put_contents($globalCssPath, $finalCss);
+
+        $downloadCount = count($downloadedFiles);
+        echo json_encode([
+            'status' => 'success',
+            'message' => "Đã tải {$downloadCount} tệp font '{$family}' về thư mục assets/fonts/{$cleanFolderName}/ và cấu hình vào fonts.css thành công!",
+            'family' => $family,
+            'files_count' => $downloadCount
+        ]);
         break;
 
     case 'getFontFile':
@@ -5866,8 +6459,7 @@ switch ($action) {
                 $fullWebPath = '';
             } else {
                 // Môi trường Demo
-                $folderName = $projectConfig['deployed']['demo']['matched_folder'] ?? ($projectConfig['deployed']['production']['matched_folder'] ?? $project['name']);
-                $deploySubPath = !empty($category) ? (trim($category, '/') . '/' . $folderName) : $folderName;
+                $deploySubPath = getProjectDemoSubPath($projectConfig, $category, $projectName, $project);
                 $webSub = $deployService->getWebSubPath($config['ftp_root'] ?? '');
                 $fullWebPath = rtrim($webSub, '/') . '/' . trim($deploySubPath, '/');
                 $fullWebPath = trim($fullWebPath, '/');

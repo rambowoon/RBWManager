@@ -115,8 +115,7 @@ to { opacity: 1; transform: translateY(0); }
 .item-card-main { display: flex; flex-direction: column; min-width: 0; }
 .item-card-title { font-weight: 700; font-size: 0.95rem; color: #fff; font-family: var(--mono); letter-spacing: -0.01em; }
 .item-card-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
-.item-card-date { display: flex; align-items: center; gap: 4px; font-size: 0.72rem; color: var(--text-muted); font-family: var(--mono); margin-top: 4px; opacity: 0.85; width: 100%; }
-.item-card-footer { margin-top: 0px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.item-card-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 /* ===== LIST MODE OVERRIDES ===== */
 .grid-container.list-mode { display: flex !important; flex-direction: column !important; gap: 8px !important; }
 .grid-container.list-mode .item-card { padding: 10px 16px !important; border-radius: 10px !important; }
@@ -703,8 +702,8 @@ padding-left: 15px; border-left: 2px solid rgba(99, 102, 241, 0.2); margin-top: 
 .font-variants-wrap { display: flex; flex-direction: column; gap: 8px; }
 .font-variants-header { display: flex; justify-content: space-between; align-items: center; }
 .font-variants-title { font-size: 0.68rem; color: #94a3b8; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
-.font-variants-box { display: flex; gap: 6px; flex-wrap: wrap; background: rgba(0, 0, 0, 0.2); padding: 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.04); }
-.font-variant-chip { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.75rem; color: #e2e8f0; background: rgba(255, 255, 255, 0.05); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08); transition: all 0.2s ease; user-select: none; }
+.font-variants-box { display: flex; gap: 6px; flex-wrap: wrap; background: rgba(0, 0, 0, 0.2); padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.04); }
+.font-variant-chip { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.72rem; font-weight: 600; color: #e2e8f0; background: rgba(255, 255, 255, 0.05); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08); transition: all 0.2s ease; user-select: none; }
 .font-variant-chip:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
 .font-variant-chip input[viewBox='0 0 24 24'] { accent-color: var(--primary); margin: 0; cursor: pointer; }
 .font-action-btn-local { background: linear-gradient(135deg, #0284c7, #2563eb); border: none; color: #ffffff; font-weight: 700; padding: 10px 18px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; width: 100%; }
@@ -941,3 +940,156 @@ header { padding: 0 14px; }
 }
 .setting-group-card { transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease; }
 .setting-group-card:hover { border-color: rgba(255, 255, 255, 0.18) !important; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28) !important; }
+
+/* Nasani Deadline & Design Row */
+.item-card-deadline-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 4px 0 12px 0;
+    min-height: 26px;
+}
+
+.item-card-deadline-row.is-empty {
+    min-height: 26px;
+    margin: 4px 0 12px 0;
+}
+
+.card-dl-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3.5px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.25;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    user-select: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.card-dl-badge .dl-icon {
+    font-size: 11px;
+    line-height: 1;
+}
+
+.card-dl-badge .dl-text {
+    white-space: nowrap;
+}
+
+/* Nút Design hiện đại dạng icon tròn */
+.card-dl-design-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 50%;
+    color: #cbd5e1;
+    font-size: 13px;
+    line-height: 1;
+    text-decoration: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.card-dl-design-btn:hover {
+    background: rgba(6, 182, 212, 0.2);
+    border-color: rgba(6, 182, 212, 0.5);
+    box-shadow: 0 0 12px rgba(6, 182, 212, 0.35);
+    transform: scale(1.12);
+}
+
+/* 1. Bình thường (> 24h) */
+.card-dl-badge.dl-normal {
+    background: rgba(14, 165, 233, 0.1);
+    border: 1px solid rgba(14, 165, 233, 0.28);
+    color: #38bdf8;
+}
+.card-dl-badge.dl-normal:hover {
+    background: rgba(14, 165, 233, 0.18);
+    border-color: rgba(14, 165, 233, 0.45);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.2);
+}
+
+/* 2. Gấp (< 24h) */
+.card-dl-badge.dl-urgent {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: #fbbf24;
+    animation: dlPulseAmber 2.5s infinite;
+}
+
+/* 2.5. Cảnh báo khẩn cấp (<= 10 phút) - Chớp đỏ */
+.card-dl-badge.dl-critical-10m {
+    background: #dc2626;
+    border: 1px solid #f87171;
+    color: #ffffff !important;
+    font-weight: 700;
+    animation: dlFlashRed 0.75s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.7);
+}
+
+.item-card:has(.dl-critical-10m) {
+    border-color: rgba(239, 68, 68, 0.65) !important;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.25) !important;
+}
+
+/* 3. Trễ hạn (< 0) */
+.card-dl-badge.dl-overdue {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #f87171;
+    animation: dlPulseRed 2s infinite;
+}
+
+/* 4. Đã hoàn thành */
+.card-dl-badge.dl-done {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.26);
+    color: #34d399;
+}
+.card-dl-badge.dl-done:hover {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.45);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.18);
+}
+
+/* Hỗ trợ List Mode */
+.grid-container.list-mode .item-card-deadline-row {
+    margin: 0 !important;
+    min-height: auto !important;
+}
+
+@keyframes dlFlashRed {
+    0% {
+        background: rgba(239, 68, 68, 0.35);
+        border-color: rgba(239, 68, 68, 0.6);
+        box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+        color: #fecaca;
+    }
+    100% {
+        background: #dc2626;
+        border-color: #fca5a5;
+        box-shadow: 0 0 18px 5px rgba(239, 68, 68, 0.95);
+        color: #ffffff;
+        transform: scale(1.03);
+    }
+}
+
+@keyframes dlPulseAmber {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    50% { box-shadow: 0 0 8px 1px rgba(245, 158, 11, 0.35); }
+}
+
+@keyframes dlPulseRed {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    50% { box-shadow: 0 0 10px 2px rgba(239, 68, 68, 0.4); }
+}

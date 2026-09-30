@@ -2,15 +2,15 @@ console.log("UI.js loaded v1.1");
 const UI = {
 	async confirm(message) {
 		return new Promise((resolve) => {
-			const overlay = document.createElement('div');
-			overlay.className = 'modal-overlay';
-			overlay.style.zIndex = '999999';
-			overlay.style.display = 'flex';
+			const overlay = document.createElement("div");
+			overlay.className = "modal-overlay";
+			overlay.style.zIndex = "999999";
+			overlay.style.display = "flex";
 			overlay.innerHTML = `
 				<div class="modal" style="max-width: 450px; padding: 30px 25px; text-align: center; border-radius: 16px; background: #1a1e29; box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05);">
                     <div style="margin-bottom: 25px;">
 					    <div style="width: 64px; height: 64px; background: rgba(79, 157, 255, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-					    <div style="font-size: 1.15rem; color: #e2e8f0; line-height: 1.6; word-break: break-word;">${message.replace(/\n/g, '<br>')}</div>
+					    <div style="font-size: 1.15rem; color: #e2e8f0; line-height: 1.6; word-break: break-word;">${message.replace(/\n/g, "<br>")}</div>
                     </div>
 					<div style="display: flex; gap: 12px; justify-content: center;">
 						<button class="btn btn-ghost" id="ui-confirm-cancel" style="min-width: 110px; font-weight: 500;">Hủy</button>
@@ -19,22 +19,28 @@ const UI = {
 				</div>
 			`;
 			document.body.appendChild(overlay);
-			overlay.querySelector('#ui-confirm-ok').onclick = () => { overlay.remove(); resolve(true); };
-			overlay.querySelector('#ui-confirm-cancel').onclick = () => { overlay.remove(); resolve(false); };
+			overlay.querySelector("#ui-confirm-ok").onclick = () => {
+				overlay.remove();
+				resolve(true);
+			};
+			overlay.querySelector("#ui-confirm-cancel").onclick = () => {
+				overlay.remove();
+				resolve(false);
+			};
 		});
 	},
 
 	async alert(message) {
 		return new Promise((resolve) => {
-			const overlay = document.createElement('div');
-			overlay.className = 'modal-overlay';
-			overlay.style.zIndex = '999999';
-			overlay.style.display = 'flex';
+			const overlay = document.createElement("div");
+			overlay.className = "modal-overlay";
+			overlay.style.zIndex = "999999";
+			overlay.style.display = "flex";
 			overlay.innerHTML = `
 				<div class="modal" style="max-width: 450px; padding: 30px 25px; text-align: center; border-radius: 16px; background: #1a1e29; box-shadow: 0 20px 40px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05);">
                     <div style="margin-bottom: 25px;">
                         <div style="width: 64px; height: 64px; background: rgba(79, 157, 255, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
-					    <div style="font-size: 1.15rem; color: #e2e8f0; line-height: 1.6; word-break: break-word;">${message.replace(/\n/g, '<br>')}</div>
+					    <div style="font-size: 1.15rem; color: #e2e8f0; line-height: 1.6; word-break: break-word;">${message.replace(/\n/g, "<br>")}</div>
                     </div>
 					<div style="display: flex; justify-content: center;">
 						<button class="btn btn-primary" id="ui-alert-ok" style="min-width: 130px; font-weight: 500;">OK</button>
@@ -42,14 +48,20 @@ const UI = {
 				</div>
 			`;
 			document.body.appendChild(overlay);
-			overlay.querySelector('#ui-alert-ok').onclick = () => { overlay.remove(); resolve(); };
+			overlay.querySelector("#ui-alert-ok").onclick = () => {
+				overlay.remove();
+				resolve();
+			};
 		});
 	},
 
-	showLoading(message = 'Đang xử lý...', subText = 'Vui lòng chờ trong giây lát...') {
-		if (!document.getElementById('ui-loading-styles')) {
-			const style = document.createElement('style');
-			style.id = 'ui-loading-styles';
+	showLoading(
+		message = "Đang xử lý...",
+		subText = "Vui lòng chờ trong giây lát...",
+	) {
+		if (!document.getElementById("ui-loading-styles")) {
+			const style = document.createElement("style");
+			style.id = "ui-loading-styles";
 			style.textContent = `
 				@keyframes ui-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 				@keyframes ui-pulse-glow { 0%, 100% { transform: scale(0.95); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } }
@@ -57,12 +69,13 @@ const UI = {
 			document.head.appendChild(style);
 		}
 
-		let overlay = document.getElementById('ui-loading-overlay');
+		let overlay = document.getElementById("ui-loading-overlay");
 		if (!overlay) {
-			overlay = document.createElement('div');
-			overlay.id = 'ui-loading-overlay';
-			overlay.className = 'modal-overlay';
-			overlay.style.cssText = 'position:fixed; inset:0; z-index:1000001; background:rgba(6,9,15,0.78); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; animation:modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);';
+			overlay = document.createElement("div");
+			overlay.id = "ui-loading-overlay";
+			overlay.className = "modal-overlay";
+			overlay.style.cssText =
+				"position:fixed; inset:0; z-index:1000001; background:rgba(6,9,15,0.78); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; animation:modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);";
 			overlay.innerHTML = `
 				<div style="background:linear-gradient(145deg, #151b26, #0d1118); border:1px solid rgba(0,210,211,0.22); padding:26px 36px; border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,0.75), 0 0 35px rgba(0,210,211,0.12); display:flex; flex-direction:column; align-items:center; gap:14px; min-width:260px; max-width:400px; text-align:center; position:relative; overflow:hidden;">
 					<div style="position:relative; width:44px; height:44px; display:flex; align-items:center; justify-content:center;">
@@ -77,25 +90,27 @@ const UI = {
 			`;
 			document.body.appendChild(overlay);
 		} else {
-			const msgEl = overlay.querySelector('#ui-loading-msg');
+			const msgEl = overlay.querySelector("#ui-loading-msg");
 			if (msgEl) msgEl.innerText = message;
-			const subEl = overlay.querySelector('#ui-loading-sub');
+			const subEl = overlay.querySelector("#ui-loading-sub");
 			if (subEl) subEl.innerText = subText;
-			overlay.style.display = 'flex';
+			overlay.style.display = "flex";
 		}
 	},
 
 	hideLoading() {
-		const overlay = document.getElementById('ui-loading-overlay');
+		const overlay = document.getElementById("ui-loading-overlay");
 		if (overlay) overlay.remove();
 	},
 	formatBytes(bytes, decimals = 1) {
-		if (!bytes || bytes <= 0) return '0 B';
+		if (!bytes || bytes <= 0) return "0 B";
 		const k = 1024;
 		const dm = decimals < 0 ? 0 : decimals;
-		const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+		const sizes = ["B", "KB", "MB", "GB", "TB"];
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+		return (
+			parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
+		);
 	},
 	renderCategories(categories, stats = {}) {
 		const sidebar = document.getElementById("category-sidebar");
@@ -140,8 +155,9 @@ const UI = {
 				displayIcon = cat.substring(0, 2).toUpperCase();
 			}
 
-			const stat = (stats && stats[cat]) ? stats[cat] : null;
-			const sizeStr = stat && stat.size_formatted ? stat.size_formatted : '';
+			const stat = stats && stats[cat] ? stats[cat] : null;
+			const sizeStr =
+				stat && stat.size_formatted ? stat.size_formatted : "";
 			if (sizeStr) {
 				displaySubtitle = `${displaySubtitle} • ${sizeStr}`;
 			}
@@ -150,7 +166,7 @@ const UI = {
                 <div class="category-item-icon">${displayIcon}</div>
                 <div class="flex-1-minw0">
                     <div class="category-item-title" title="${displayTitle}">${displayTitle}</div>
-                    <div class="category-item-subtitle" title="${sizeStr ? `Tổng dung lượng: ${sizeStr}` : ''}">${displaySubtitle}</div>
+                    <div class="category-item-subtitle" title="${sizeStr ? `Tổng dung lượng: ${sizeStr}` : ""}">${displaySubtitle}</div>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
             `;
@@ -166,7 +182,7 @@ const UI = {
 		const catText = category || "Toàn bộ";
 		const currentCatEl = document.getElementById("current-category");
 		if (currentCatEl) currentCatEl.innerText = catText;
-		
+
 		const titleEl = document.getElementById("content-title");
 		if (titleEl) titleEl.innerText = `Dự án: ${catText}`;
 
@@ -236,8 +252,13 @@ const UI = {
 			card.className = `item-card ${cardStatusClass}`;
 
 			card.onclick = () => App.openConfig(p.name, category);
+			card.oncontextmenu = (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				UI.openMenu(e, safeName, safeCat);
+			};
 
-			const thumbHtml = p.screenshot 
+			const thumbHtml = p.screenshot
 				? `<img src="${p.screenshot}" class="item-card-thumb-img" alt="${p.name}" loading="lazy" />`
 				: `<div class="item-card-thumb-placeholder">
 						<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -245,27 +266,101 @@ const UI = {
 				   </div>`;
 
 			const isCustomPhp = !!p.is_custom_php;
-			const phpDisplay = p.php_display || (p.php_version ? p.php_version.replace(/^php-?/i, 'PHP ') : 'PHP');
+			const phpDisplay =
+				p.php_display ||
+				(p.php_version
+					? p.php_version.replace(/^php-?/i, "PHP ")
+					: "PHP");
 			const phpTitle = isCustomPhp
 				? `Phiên bản PHP riêng: ${p.php_version} (Cấu hình riêng trong sites.json)`
-				: `Phiên bản PHP mặc định hệ thống: ${p.php_version || 'Hệ thống'}`;
+				: `Phiên bản PHP mặc định hệ thống: ${p.php_version || "Hệ thống"}`;
 
 			// Phân loại màu theo phiên bản: >= 8.4 (php-v84), 8.3 (php-v83), 7.4 / < 8.0 (php-v74)
-			const vNum = parseFloat((p.php_version || '').replace(/[^0-9.]/g, ''));
-			let vClass = 'php-v-default';
+			const vNum = parseFloat(
+				(p.php_version || "").replace(/[^0-9.]/g, ""),
+			);
+			let vClass = "php-v-default";
 			if (!isNaN(vNum)) {
-				if (vNum >= 8.4) vClass = 'php-v84';
-				else if (vNum >= 8.3 && vNum < 8.4) vClass = 'php-v83';
-				else if (vNum < 8.0) vClass = 'php-v74';
-				else vClass = 'php-v8x';
+				if (vNum >= 8.4) vClass = "php-v84";
+				else if (vNum >= 8.3 && vNum < 8.4) vClass = "php-v83";
+				else if (vNum < 8.0) vClass = "php-v74";
+				else vClass = "php-v8x";
 			}
 
-			const customClass = isCustomPhp ? 'is-custom' : '';
-			const phpBadge = `<span class="badge-php ${vClass} ${customClass}" title="${phpTitle}">${isCustomPhp ? '<span class="badge-php-dot"></span>' : ''}${phpDisplay}</span>`;
+			const customClass = isCustomPhp ? "is-custom" : "";
+			const phpBadge = `<span class="badge-php ${vClass} ${customClass}" title="${phpTitle}">${isCustomPhp ? '<span class="badge-php-dot"></span>' : ""}${phpDisplay}</span>`;
+
+			// Badge Deadline & Design từ Nasani Project Management
+			let deadlineRowHtml =
+				'<div class="item-card-deadline-row is-empty"></div>';
+			if (p.nasani_info) {
+				const ni = p.nasani_info;
+				let shortDate = "";
+				if (ni.deadline) {
+					const parts = ni.deadline.split(" ");
+					const dParts = parts[0].split("-");
+					if (dParts.length === 3) {
+						shortDate = `${dParts[2]}/${dParts[1]}`;
+					} else {
+						shortDate = ni.deadline;
+					}
+				}
+
+				const designLinkHtml = ni.design_url
+					? `<a href="${ni.design_url}" target="_blank" onclick="event.stopPropagation();" class="card-dl-design-btn" title="Mở link Design (Figma / Nasani): ${ni.design_url}">
+						<span>🎨</span>
+					</a>`
+					: "";
+
+				let badgeHtml = "";
+				if (ni.is_active && ni.deadline) {
+					const rem = this.formatRemainingTime(
+						ni.deadline,
+						shortDate,
+					);
+					const demoUrl = this.getProjectDemoUrl(
+						p,
+						safeName,
+						safeCat,
+					);
+					badgeHtml = `
+						<div class="card-dl-badge ${rem.className}" data-deadline="${ni.deadline}" data-shortdate="${shortDate}" data-contract-code="${ni.contract_code || ""}" data-project-name="${safeName}" data-project-cat="${safeCat}" data-demo-url="${demoUrl}" title="⚡ ĐANG LÀM - Hạn chót: ${ni.deadline}\nKhách hàng: ${ni.contract_name || ""}\nMã HĐ: ${ni.contract_code || ""}\nLập trình: ${ni.dev_name || ""}">
+							<span class="dl-icon">${rem.icon}</span>
+							<span class="dl-text">${rem.text}</span>
+						</div>
+					`;
+				} else {
+					let cDate = "";
+					if (ni.completed_at) {
+						const parts = ni.completed_at.split(" ");
+						const dParts = parts[0].split("-");
+						if (dParts.length === 3) {
+							cDate = `${dParts[2]}/${dParts[1]}`;
+							if (parts[1])
+								cDate += " " + parts[1].substring(0, 5);
+						} else {
+							cDate = ni.completed_at;
+						}
+					}
+					badgeHtml = `
+						<div class="card-dl-badge dl-done" title="✓ Dự án đã hoàn thành ${ni.completed_at ? "ngày " + ni.completed_at : ""}\nKhách hàng: ${ni.contract_name || ""}\nMã HĐ: ${ni.contract_code || ""}\nLập trình: ${ni.dev_name || ""}">
+							<span class="dl-icon">✓</span>
+							<span class="dl-text">${cDate || "Hoàn thành"}</span>
+						</div>
+					`;
+				}
+
+				deadlineRowHtml = `
+					<div class="item-card-deadline-row">
+						${badgeHtml}
+						${designLinkHtml}
+					</div>
+				`;
+			}
 
 			card.innerHTML = `
                 <div class="item-card-inner">
-                    <div class="item-card-thumb-wrap" onclick="event.stopPropagation(); App.previewOrCapture('${safeName}', '${safeCat}', '${p.screenshot ? p.screenshot.replace(/'/g, "\\'") : ''}')" title="${p.screenshot ? 'Nhấn để xem hoặc cập nhật ảnh website' : 'Nhấn để chụp ảnh website'}">
+                    <div class="item-card-thumb-wrap" onclick="event.stopPropagation(); App.previewOrCapture('${safeName}', '${safeCat}', '${p.screenshot ? p.screenshot.replace(/'/g, "\\'") : ""}')" title="${p.screenshot ? "Nhấn để xem hoặc cập nhật ảnh website" : "Nhấn để chụp ảnh website"}">
                         ${thumbHtml}
                         <button class="btn-thumb-capture" title="Chụp ảnh website" onclick="event.stopPropagation(); App.captureScreenshot('${safeName}', '${safeCat}')">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -277,13 +372,10 @@ const UI = {
                         </div>
                         <div class="item-card-main flex-1-minw0">
                             <div class="item-card-title">${p.name}</div>
-                            ${p.modified_at ? `<div class="item-card-date"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${p.modified_at}</div>` : ''}
-                            <div class="item-card-size" ${p.size_formatted ? '' : 'style="display:none;"'} title="Dung lượng dự án: ${p.size_formatted || ''}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span>${p.size_formatted || ''}</span></div>
+                            <div class="item-card-size" ${p.size_formatted ? "" : 'style="display:none;"'} title="Dung lượng dự án: ${p.size_formatted || ""}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span>${p.size_formatted || ""}</span></div>
                         </div>
-                        <button class="btn btn-ghost btn-action-trigger" onclick="event.stopPropagation(); UI.openMenu(event, '${safeName}', '${safeCat}')">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                        </button>
                     </div>
+                    ${deadlineRowHtml}
                     <div class="item-card-footer">
                         <div class="item-card-badges" style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap; overflow:hidden;">
                             <span class="badge ${badgeClass}">${badgeText}</span>
@@ -303,24 +395,595 @@ const UI = {
 		document.getElementById("stat-total-projects").innerText = stats.total;
 		document.getElementById("stat-configured").innerText = stats.configured;
 		document.getElementById("stat-demo").innerText = stats.demo;
+
+		// Khởi động bộ đếm thời gian thực cho các dự án đang làm
+		this.startDeadlineTicker();
+	},
+
+	deadlineTickerTimer: null,
+	padZero(num) {
+		return num < 10 ? "0" + num : "" + num;
+	},
+
+	parseDeadlineDate(dateStr) {
+		if (!dateStr) return null;
+		const parts = dateStr.trim().split(" ");
+		const dParts = parts[0].split("-");
+		if (dParts.length !== 3) return null;
+		const year = parseInt(dParts[0], 10);
+		const month = parseInt(dParts[1], 10) - 1;
+		const day = parseInt(dParts[2], 10);
+		let hour = 0,
+			min = 0,
+			sec = 0;
+		if (parts[1]) {
+			const tParts = parts[1].split(":");
+			if (tParts.length >= 2) {
+				hour = parseInt(tParts[0], 10) || 0;
+				min = parseInt(tParts[1], 10) || 0;
+				sec = parseInt(tParts[2], 10) || 0;
+			}
+		}
+		return new Date(year, month, day, hour, min, sec);
+	},
+
+	formatRemainingTime(deadlineStr, shortDate) {
+		const targetDate = this.parseDeadlineDate(deadlineStr);
+		if (!targetDate)
+			return {
+				text: shortDate || "",
+				className: "dl-normal",
+				icon: "⚡",
+				diffMs: 0,
+			};
+		const diffMs = targetDate.getTime() - Date.now();
+		if (diffMs < 0) {
+			const absMs = Math.abs(diffMs);
+			const totalSec = Math.floor(absMs / 1000);
+			const s = totalSec % 60;
+			const totalMin = Math.floor(totalSec / 60);
+			const m = totalMin % 60;
+			const totalHour = Math.floor(totalMin / 60);
+			const h = totalHour % 24;
+			const d = Math.floor(totalHour / 24);
+
+			let timeStr = "";
+			if (d > 0) {
+				timeStr = `${d}d ${this.padZero(h)}:${this.padZero(m)}:${this.padZero(s)}`;
+			} else {
+				timeStr = `${this.padZero(totalHour)}:${this.padZero(m)}:${this.padZero(s)}`;
+			}
+			return {
+				text: `Trễ ${timeStr} (${shortDate})`,
+				className: "dl-overdue",
+				icon: "🚨",
+				diffMs: diffMs,
+			};
+		}
+
+		const totalSec = Math.floor(diffMs / 1000);
+		const s = totalSec % 60;
+		const totalMin = Math.floor(totalSec / 60);
+		const m = totalMin % 60;
+		const totalHour = Math.floor(totalMin / 60);
+		const h = totalHour % 24;
+		const d = Math.floor(totalHour / 24);
+
+		// CẢNH BÁO KHẨN CẤP: Còn <= 10 phút (<= 600s) -> Chớp đỏ theo giây
+		if (diffMs <= 10 * 60 * 1000) {
+			const timeStr = `${this.padZero(m)}:${this.padZero(s)}`;
+			return {
+				text: `Còn ${timeStr}! (${shortDate})`,
+				className: "dl-critical-10m",
+				icon: "🔥",
+				diffMs: diffMs,
+			};
+		}
+
+		// Còn trong 24 giờ
+		if (diffMs <= 24 * 3600 * 1000) {
+			const timeStr = `${this.padZero(h)}:${this.padZero(m)}:${this.padZero(s)}`;
+			return {
+				text: `Còn ${timeStr} (${shortDate})`,
+				className: "dl-urgent",
+				icon: "⚠️",
+				diffMs: diffMs,
+			};
+		}
+
+		// Còn trên 1 ngày -> hiển thị ngày và giờ:phút:giây realtime
+		const timeStr = `${d}d ${this.padZero(h)}:${this.padZero(m)}:${this.padZero(s)}`;
+		return {
+			text: `Còn ${timeStr} (${shortDate})`,
+			className: "dl-normal",
+			icon: "⚡",
+			diffMs: diffMs,
+		};
+	},
+
+	startDeadlineTicker() {
+		if (this.deadlineTickerTimer) clearInterval(this.deadlineTickerTimer);
+		const badges = document.querySelectorAll(
+			".card-dl-badge[data-deadline]",
+		);
+		if (!badges.length) return;
+		this.deadlineTickerTimer = setInterval(() => {
+			document
+				.querySelectorAll(".card-dl-badge[data-deadline]")
+				.forEach((badge) => {
+					const dl = badge.getAttribute("data-deadline");
+					const sd = badge.getAttribute("data-shortdate");
+					if (!dl) return;
+					const res = this.formatRemainingTime(dl, sd);
+					const expectedClass = `card-dl-badge ${res.className}`;
+					if (badge.className !== expectedClass) {
+						badge.className = expectedClass;
+					}
+					const iconEl = badge.querySelector(".dl-icon");
+					const textEl = badge.querySelector(".dl-text");
+					if (iconEl && iconEl.textContent !== res.icon)
+						iconEl.textContent = res.icon;
+					if (textEl && textEl.textContent !== res.text)
+						textEl.textContent = res.text;
+
+					// Tự động kích hoạt mở báo cáo khi còn <= 5 phút (<= 300s)
+					if (
+						res.diffMs !== undefined &&
+						res.diffMs > 0 &&
+						res.diffMs <= 5 * 60 * 1000
+					) {
+						const contractCode =
+							badge.getAttribute("data-contract-code");
+						const pName = badge.getAttribute("data-project-name");
+						const pCat = badge.getAttribute("data-project-cat");
+						const dUrl = badge.getAttribute("data-demo-url");
+						if (contractCode) {
+							this.checkAndTriggerAutoReport(
+								contractCode,
+								pName,
+								pCat,
+								dUrl,
+							);
+						}
+					}
+				});
+		}, 1000);
+	},
+
+	getProjectDemoInfo(projectName, category) {
+		let p = App.projects
+			? App.projects.find((x) => x.name === projectName)
+			: null;
+		let config = {};
+		if (
+			App.currentProjectName === projectName &&
+			App.currentProjectConfig
+		) {
+			config = App.currentProjectConfig;
+		} else if (p && p.config) {
+			config = p.config;
+		}
+
+		const deployed = config.deployed || (p && p.deployed) || {};
+		const demoDeployed = deployed.demo || null;
+
+		// Kiểm tra nếu dự án đã từng deploy demo
+		const isDemoDeployed =
+			!!(
+				demoDeployed &&
+				(demoDeployed.deploy_time ||
+					demoDeployed.url ||
+					demoDeployed.demo_server_id ||
+					demoDeployed.server_id ||
+					demoDeployed.matched_folder ||
+					demoDeployed.custom_domain ||
+					demoDeployed.db_name)
+			) || !!(config.lock_demo || (p && p.lock_demo));
+
+		let adminUrl = "";
+		let isSsl = !!(config.demo && config.demo.ssl);
+
+		if (isDemoDeployed && demoDeployed) {
+			// 1. Nếu có URL trực tiếp đã lưu (do bridge hoặc user set)
+			if (
+				demoDeployed.url &&
+				typeof demoDeployed.url === "string" &&
+				demoDeployed.url.trim()
+			) {
+				adminUrl = demoDeployed.url.trim();
+			}
+			// 2. Nếu có custom domain riêng cho demo
+			else if (
+				demoDeployed.custom_domain &&
+				typeof demoDeployed.custom_domain === "string" &&
+				demoDeployed.custom_domain.trim()
+			) {
+				adminUrl = demoDeployed.custom_domain.trim();
+			}
+			// 3. Nếu có demo_url được cấu hình ở project
+			else if (config.demo_url || (p && p.demo_url)) {
+				adminUrl = (config.demo_url || p.demo_url).trim();
+			}
+			// 4. Nếu deploy lên demo server thông qua hệ thống
+			else {
+				let demoDomain = "demo92.nasanivietnam.net";
+				const targetServerId =
+					demoDeployed.demo_server_id ||
+					demoDeployed.server_id ||
+					(App.globalData && App.globalData.default_demo_id) ||
+					"demo_1785834732693";
+				if (App.globalData && App.globalData.demo_list) {
+					const matchedServer = App.globalData.demo_list.find(
+						(d) => d.id === targetServerId,
+					);
+					if (matchedServer) {
+						if (matchedServer.web_domain) {
+							demoDomain = matchedServer.web_domain
+								.replace(/^https?:\/\//i, "")
+								.replace(/\/+$/, "");
+						}
+						if (
+							matchedServer.ssl !== undefined &&
+							(!config.demo || config.demo.ssl === undefined)
+						) {
+							isSsl = !!matchedServer.ssl;
+						}
+					}
+				}
+
+				// Lấy đúng folder đã deploy trên demo server (matched_folder)
+				let folder = "";
+				if (
+					demoDeployed.matched_folder &&
+					typeof demoDeployed.matched_folder === "string" &&
+					demoDeployed.matched_folder.trim()
+				) {
+					folder = demoDeployed.matched_folder.trim();
+				} else if (p && p.relPath) {
+					folder = p.relPath.replace(/\\/g, "/");
+				} else {
+					const cat = category || (p && p.category) || "";
+					folder =
+						cat && cat !== "uncategorized" && cat !== "default"
+							? `${cat}/${projectName}`
+							: projectName;
+				}
+
+				adminUrl = `${demoDomain}/${folder.replace(/^\/+|\/+$/g, "")}/`;
+			}
+		} else {
+			// Dự án chưa deploy demo: fallback theo URL dự kiến
+			if (config.demo_url || (p && p.demo_url)) {
+				adminUrl = (config.demo_url || p.demo_url).trim();
+			} else {
+				let demoDomain = "demo92.nasanivietnam.net";
+				if (
+					App.globalData &&
+					App.globalData.demo_list &&
+					App.globalData.demo_list[0] &&
+					App.globalData.demo_list[0].web_domain
+				) {
+					demoDomain = App.globalData.demo_list[0].web_domain
+						.replace(/^https?:\/\//i, "")
+						.replace(/\/+$/, "");
+				}
+				const cat = category || (p && p.category) || "";
+				const rel =
+					p && p.relPath
+						? p.relPath.replace(/\\/g, "/")
+						: cat && cat !== "uncategorized" && cat !== "default"
+							? `${cat}/${projectName}`
+							: projectName;
+				adminUrl = `${demoDomain}/${rel.replace(/^\/+|\/+$/g, "")}/`;
+			}
+		}
+
+		// Chuẩn hóa protocol http:// hoặc https://
+		if (
+			!adminUrl.startsWith("http://") &&
+			!adminUrl.startsWith("https://")
+		) {
+			const proto = isSsl ? "https://" : "http://";
+			adminUrl = proto + adminUrl;
+		}
+
+		// Chuẩn hóa đường dẫn admin
+		adminUrl = adminUrl.replace(/\/+$/, "");
+		if (!adminUrl.endsWith("/admin")) {
+			adminUrl += "/admin";
+		}
+
+		return {
+			isDeployed: isDemoDeployed,
+			adminUrl: adminUrl,
+			adminUser: "admin",
+			deployedDemo: demoDeployed,
+			config: config,
+		};
+	},
+
+	getProjectDemoUrl(p, projectName, category) {
+		const name = projectName || (p && p.name);
+		const cat = category || (p && p.category);
+		return this.getProjectDemoInfo(name, cat).adminUrl;
+	},
+
+	generateRandomPassword(len = 10) {
+		const uppers = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+		const lowers = "abcdefghijkmnpqrstuvwxyz";
+		const digits = "23456789";
+		const all = uppers + lowers + digits;
+		let pwd = [
+			uppers[Math.floor(Math.random() * uppers.length)],
+			lowers[Math.floor(Math.random() * lowers.length)],
+			digits[Math.floor(Math.random() * digits.length)],
+		];
+		while (pwd.length < len) {
+			pwd.push(all[Math.floor(Math.random() * all.length)]);
+		}
+		return pwd.sort(() => 0.5 - Math.random()).join("");
+	},
+
+	playAlertSound() {
+		try {
+			const AudioContext =
+				window.AudioContext || window.webkitAudioContext;
+			if (!AudioContext) return;
+			const ctx = new AudioContext();
+			const now = ctx.currentTime;
+
+			const osc1 = ctx.createOscillator();
+			const gain1 = ctx.createGain();
+			osc1.connect(gain1);
+			gain1.connect(ctx.destination);
+			osc1.type = "sine";
+			osc1.frequency.setValueAtTime(587.33, now);
+			gain1.gain.setValueAtTime(0.25, now);
+			gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+			osc1.start(now);
+			osc1.stop(now + 0.2);
+
+			const osc2 = ctx.createOscillator();
+			const gain2 = ctx.createGain();
+			osc2.connect(gain2);
+			gain2.connect(ctx.destination);
+			osc2.type = "sine";
+			osc2.frequency.setValueAtTime(880, now + 0.18);
+			gain2.gain.setValueAtTime(0.3, now + 0.18);
+			gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+			osc2.start(now + 0.18);
+			osc2.stop(now + 0.55);
+		} catch (e) {}
+	},
+
+	checkAndTriggerAutoReport(contractCode, pName, pCat, dUrl) {
+		if (!contractCode) return;
+		window._rbwAutoReports = window._rbwAutoReports || {};
+		const now = Date.now();
+		const lastTrigger = window._rbwAutoReports[contractCode];
+		// Kích hoạt 1 lần trong 15 phút tránh spam mở tab
+		if (lastTrigger && now - lastTrigger < 15 * 60 * 1000) {
+			return;
+		}
+		window._rbwAutoReports[contractCode] = now;
+
+		this.executeAutoReport(contractCode, pName, pCat, dUrl, true);
+	},
+
+	async triggerAutoReport(projectName, category) {
+		const project = App.projects
+			? App.projects.find((p) => p.name === projectName)
+			: null;
+		if (
+			!project ||
+			!project.nasani_info ||
+			!project.nasani_info.contract_code
+		) {
+			this.showToast(
+				"Không tìm thấy thông tin hợp đồng Nasani của dự án này!",
+				"warning",
+			);
+			return;
+		}
+		if (
+			App.currentProjectName === projectName &&
+			!App.currentProjectConfig
+		) {
+			try {
+				const res = await Api.getProjectConfig(
+					projectName,
+					category || "",
+				);
+				if (res && res.data) {
+					App.currentProjectConfig = res.data;
+				}
+			} catch (e) {}
+		}
+		const ni = project.nasani_info;
+		const demoInfo = this.getProjectDemoInfo(projectName, category);
+		this.executeAutoReport(
+			ni.contract_code,
+			projectName,
+			category,
+			demoInfo.adminUrl,
+			false,
+		);
+	},
+
+	executeAutoReport(
+		contractCode,
+		pName,
+		pCat,
+		dUrl,
+		isAutoTriggered = false,
+	) {
+		const demoInfo = this.getProjectDemoInfo(pName, pCat);
+		const adminUrl = dUrl || demoInfo.adminUrl;
+		const pass = this.generateRandomPassword(10);
+		const cleanTargetUrl =
+			"https://projects.nasani.vn/ky-thuat/program/list/";
+		const fallbackUrlWithParams = `${cleanTargetUrl}?auto_report_code=${encodeURIComponent(contractCode)}&auto_admin_url=${encodeURIComponent(adminUrl)}&auto_admin_user=admin&auto_admin_pass=${encodeURIComponent(pass)}&rbw_t=${Date.now()}`;
+
+		this.playAlertSound();
+
+		// 1. Gửi lệnh cho Extension để xử lý thông minh qua Chrome Storage & Messaging:
+		// KHÔNG cần đưa tham số lên URL, giúp URL sạch 100% và không bị lặp lại popup khi F5 / submit báo cáo
+		window.postMessage(
+			{
+				type: "RBW_OPEN_OR_FOCUS_NASANI",
+				url: cleanTargetUrl,
+				reportCode: contractCode,
+				adminUrl: adminUrl,
+				adminUser: "admin",
+				adminPass: pass,
+			},
+			"*",
+		);
+
+		// 2. Chỉ gọi window.open dự phòng nếu Extension chưa được cài đặt
+		const isExtInstalled =
+			document.documentElement.getAttribute("data-rbw-nasani-ext") ===
+				"1" || window._rbwNasaniExtLoaded;
+		let win = null;
+		if (!isExtInstalled) {
+			try {
+				win = window.open(fallbackUrlWithParams, "rbw_nasani_tab");
+			} catch (e) {
+				win = null;
+			}
+		}
+
+		this.showAutoReportModal({
+			projectName: pName,
+			contractCode: contractCode,
+			adminUrl: adminUrl,
+			adminUser: "admin",
+			adminPass: pass,
+			targetUrl: isExtInstalled ? cleanTargetUrl : fallbackUrlWithParams,
+			autoOpened: true,
+			isAutoTriggered: isAutoTriggered,
+			isDeployed: demoInfo.isDeployed,
+		});
+	},
+
+	onAutoReportModalOpenBtnClick(contractCode, adminUrl, pass) {
+		const modal = document.getElementById("rbw-autoreport-modal");
+		if (modal) modal.remove();
+		const cleanTargetUrl =
+			"https://projects.nasani.vn/ky-thuat/program/list/";
+		const isExtInstalled =
+			document.documentElement.getAttribute("data-rbw-nasani-ext") ===
+				"1" || window._rbwNasaniExtLoaded;
+		if (isExtInstalled) {
+			window.postMessage(
+				{
+					type: "RBW_OPEN_OR_FOCUS_NASANI",
+					url: cleanTargetUrl,
+					reportCode: contractCode,
+					adminUrl: adminUrl,
+					adminUser: "admin",
+					adminPass: pass,
+				},
+				"*",
+			);
+		} else {
+			const fallbackUrl = `${cleanTargetUrl}?auto_report_code=${encodeURIComponent(contractCode)}&auto_admin_url=${encodeURIComponent(adminUrl)}&auto_admin_user=admin&auto_admin_pass=${encodeURIComponent(pass)}&rbw_t=${Date.now()}`;
+			window.open(fallbackUrl, "rbw_nasani_tab");
+		}
+	},
+
+	showAutoReportModal(info) {
+		const existing = document.getElementById("rbw-autoreport-modal");
+		if (existing) existing.remove();
+
+		const modal = document.createElement("div");
+		modal.id = "rbw-autoreport-modal";
+		modal.style.cssText = `
+			position: fixed; inset: 0; z-index: 9999999;
+			background: rgba(10, 12, 18, 0.75); backdrop-filter: blur(8px);
+			display: flex; align-items: center; justify-content: center;
+			padding: 20px;
+		`;
+
+		modal.innerHTML = `
+			<div style="background: #1e222d; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 16px; width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); overflow: hidden; font-family: inherit; color: #f1f5f9;">
+				<div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 18px 24px; display: flex; align-items: center; justify-content: space-between;">
+					<div style="display: flex; align-items: center; gap: 10px;">
+						<span style="font-size: 24px;">⚡</span>
+						<div>
+							<div style="font-weight: 700; font-size: 16px; color: #ffffff;">${info.isAutoTriggered ? "Cảnh báo 5 Phút: Tự động Báo Cáo Dự Án" : "Báo Cáo Hoàn Thành Dự Án"}</div>
+							<div style="font-size: 12px; color: rgba(255,255,255,0.85);">Hợp đồng: <b>${info.contractCode}</b> (${info.projectName})</div>
+						</div>
+					</div>
+					<button onclick="document.getElementById('rbw-autoreport-modal').remove()" style="background: rgba(0,0,0,0.2); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;">✕</button>
+				</div>
+				<div style="padding: 20px 24px;">
+					<div style="margin-bottom: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px;">
+						<div style="margin-bottom: 10px;">
+							<div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
+								<span>Link quản trị (/admin)</span>
+								<span style="font-size: 10px; padding: 1px 6px; border-radius: 4px; ${info.isDeployed ? "background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);" : "background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);"}">
+									${info.isDeployed ? "✓ Đã lấy đúng link Demo đã deploy" : "⚡ Link Demo dự kiến"}
+								</span>
+							</div>
+							<div style="font-size: 13px; font-weight: 600; color: #38bdf8; word-break: break-all;">${info.adminUrl}</div>
+						</div>
+						<div style="display: flex; gap: 20px;">
+							<div style="flex: 1;">
+								<div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 4px;">Tên đăng nhập</div>
+								<div style="font-size: 14px; font-weight: 700; color: #f8fafc;">${info.adminUser}</div>
+							</div>
+							<div style="flex: 1;">
+								<div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 4px;">Mật khẩu tạo ngẫu nhiên</div>
+								<div style="display: flex; align-items: center; gap: 8px;">
+									<span style="font-size: 15px; font-weight: 700; letter-spacing: 1px; color: #34d399; font-family: monospace;">${info.adminPass}</span>
+									<button onclick="navigator.clipboard.writeText('${info.adminPass}'); UI.showToast('Đã sao chép mật khẩu!', 'success');" style="background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.3); color: #34d399; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer;">Copy</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px; font-size: 13px; color: ${info.autoOpened ? "#34d399" : "#fbbf24"};">
+						<span>${info.autoOpened ? "✓" : "⚠️"}</span>
+						<span>${info.autoOpened ? "Đã gửi lệnh qua Extension và tự động điền form trên Nasani." : "Trình duyệt có thể đã chặn popup, vui lòng bấm nút bên dưới để mở ngay:"}</span>
+					</div>
+
+					<div style="display: flex; gap: 12px;">
+						<button type="button" onclick="UI.onAutoReportModalOpenBtnClick('${info.contractCode}', '${info.adminUrl.replace(/'/g, "\\'")}', '${info.adminPass}')" style="flex: 1; text-align: center; background: #10b981; color: #ffffff; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35); display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+							<span>🚀</span> Mở Trang Báo Cáo Nasani
+						</button>
+						<button type="button" onclick="document.getElementById('rbw-autoreport-modal').remove()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #94a3b8; border-radius: 10px; padding: 12px 18px; font-size: 13px; font-weight: 600; cursor: pointer;">Đóng</button>
+					</div>
+				</div>
+			</div>
+		`;
+
+		document.body.appendChild(modal);
 	},
 
 	// ===== PORTAL MENU (single element at body level) =====
 	openMenu(event, projectName, category) {
-		const trigger = event.currentTarget;
+		const trigger = event.currentTarget || event.target;
 		const portal = document.getElementById("action-menu-portal");
 
 		// Read state from parent attributes
-		const card = trigger.closest(".item-card");
-		const isLockedDemo = card.dataset.lockDemo === "1";
-		const isLockedProd = card.dataset.lockProd === "1";
-		const isConfigured = card.dataset.configured === "1";
-		const deployedJson = card.dataset.deployed || "";
+		const card = (trigger && typeof trigger.closest === "function")
+			? (trigger.closest(".item-card") || trigger)
+			: document.querySelector(`.item-card[data-project="${projectName}"]`);
+		const isLockedDemo = card ? card.dataset.lockDemo === "1" : false;
+		const isLockedProd = card ? card.dataset.lockProd === "1" : false;
+		const isConfigured = card ? card.dataset.configured === "1" : false;
+		const deployedJson = card ? (card.dataset.deployed || "") : "";
 
 		const safeName = projectName;
 		const safeCat = category;
-		const project = App.projects ? App.projects.find((p) => p.name === projectName) : null;
-		const isConfigPhp = !!(project && (project.is_config_php || project.has_config_php));
+		const project = App.projects
+			? App.projects.find((p) => p.name === projectName)
+			: null;
+		const isConfigPhp = !!(
+			project &&
+			(project.is_config_php || project.has_config_php)
+		);
 
 		// Build menu content
 		portal.innerHTML = `
@@ -339,6 +1002,18 @@ const UI = {
                 Chụp ảnh Website
             </button>
             ${
+				project &&
+				project.nasani_info &&
+				project.nasani_info.contract_code
+					? `
+            <button class="action-menu-item" style="color: #10b981; font-weight: 600;" onclick="UI.closePortalMenu(); UI.triggerAutoReport('${safeName}','${safeCat}')">
+                <span class="menu-icon mi-green"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+                ⚡ Báo cáo hoàn thành (Nasani)
+            </button>
+            `
+					: ""
+			}
+            ${
 				deployedJson
 					? `
             <button id="portal-detail-btn" class="action-menu-item">
@@ -348,6 +1023,10 @@ const UI = {
 					: ""
 			}
             <div class="menu-divider"></div>
+            <button class="action-menu-item" onclick="UI.closePortalMenu(); App.showSetDemoAccountModal('${safeName}','${safeCat}')">
+                <span class="menu-icon mi-blue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+                Set tài khoản Demo
+            </button>
             <button class="action-menu-item ${isLockedDemo ? "disabled" : ""}" onclick="UI.closePortalMenu(); App.deployDemo('${safeName}','${safeCat}')">
                 <span class="menu-icon mi-green"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
                 Deploy Demo ${isLockedDemo ? "🔒" : ""}
@@ -373,11 +1052,15 @@ const UI = {
                 <span class="menu-icon mi-green"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></span>
                 Đổi PHP Version
             </button>
-            ${!isConfigPhp ? `
+            ${
+				!isConfigPhp
+					? `
             <button class="action-menu-item" onclick="UI.closePortalMenu(); App.downloadPackage('${safeName}','${safeCat}')">
                 <span class="menu-icon mi-amber"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
                 Download Package
-            </button>` : ""}
+            </button>`
+					: ""
+			}
             <div class="menu-divider"></div>
             <button class="action-menu-item portal-danger-item" onclick="UI.closePortalMenu(); App.cleanupTools('${safeName}','${safeCat}', 'demo')">
                 <span class="menu-icon mi-red"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg></span>
@@ -414,16 +1097,33 @@ const UI = {
 		portal.style.visibility = "hidden";
 		portal.style.display = "block";
 
-		const rect = trigger.getBoundingClientRect();
 		const menuW = 210;
 		const menuH = portal.offsetHeight || 280;
 
-		let top = rect.bottom + window.scrollY + 6;
-		let left = rect.right + window.scrollX - menuW;
+		let top = 0;
+		let left = 0;
 
-		// Flip upward if not enough space below in the viewport
-		if (rect.bottom + menuH > window.innerHeight - 10) {
-			top = rect.top + window.scrollY - menuH - 6;
+		if (event.pageX !== undefined && event.pageY !== undefined) {
+			// Click chuột phải (contextmenu) -> hiển thị chính xác tại con trỏ chuột
+			top = event.pageY + 2;
+			left = event.pageX + 2;
+
+			// Nếu tràn cạnh dưới màn hình thì mở ngược lên trên
+			if (event.clientY + menuH > window.innerHeight - 10) {
+				top = event.pageY - menuH - 2;
+			}
+			// Nếu tràn cạnh phải màn hình thì lùi sang bên trái
+			if (event.clientX + menuW > window.innerWidth - 10) {
+				left = event.pageX - menuW - 2;
+			}
+		} else if (trigger && typeof trigger.getBoundingClientRect === "function") {
+			const rect = trigger.getBoundingClientRect();
+			top = rect.bottom + window.scrollY + 6;
+			left = rect.right + window.scrollX - menuW;
+
+			if (rect.bottom + menuH > window.innerHeight - 10) {
+				top = rect.top + window.scrollY - menuH - 6;
+			}
 		}
 
 		// Chống tràn mép trên (theo viewport)
@@ -440,13 +1140,20 @@ const UI = {
 
 		// Close on outside click (defer so this click doesn't immediately close it)
 		setTimeout(() => {
-			const closeMenu = (e) => {
+			if (this._portalCloseHandler) {
+				document.removeEventListener("click", this._portalCloseHandler);
+				document.removeEventListener("contextmenu", this._portalCloseHandler);
+			}
+			this._portalCloseHandler = (e) => {
 				if (!portal.contains(e.target)) {
 					UI.closePortalMenu();
-					document.removeEventListener("click", closeMenu);
+					document.removeEventListener("click", this._portalCloseHandler);
+					document.removeEventListener("contextmenu", this._portalCloseHandler);
+					this._portalCloseHandler = null;
 				}
 			};
-			document.addEventListener("click", closeMenu);
+			document.addEventListener("click", this._portalCloseHandler);
+			document.addEventListener("contextmenu", this._portalCloseHandler);
 		}, 10);
 	},
 
@@ -561,8 +1268,17 @@ const UI = {
 		this.renderMasterHistoryInfo(config.history, "d_");
 
 		// Show / Hide Hosting File Manager & Sync Center tabs if project is deployed to Demo OR has Production config
-		const hasDemo = !!(deployed && deployed.demo && (deployed.demo.deploy_time || deployed.demo.url || deployed.demo.server_id || deployed.demo.demo_server_id));
-		const hasProd = !!(deployed && deployed.production) || !!(prod && (prod.ftp_host || prod.web_domain || prod.ftp_user));
+		const hasDemo = !!(
+			deployed &&
+			deployed.demo &&
+			(deployed.demo.deploy_time ||
+				deployed.demo.url ||
+				deployed.demo.server_id ||
+				deployed.demo.demo_server_id)
+		);
+		const hasProd =
+			!!(deployed && deployed.production) ||
+			!!(prod && (prod.ftp_host || prod.web_domain || prod.ftp_user));
 		const canManageFiles = hasDemo || hasProd;
 
 		const fmBtn = document.getElementById("tab-btn-filemanager");
@@ -573,24 +1289,42 @@ const UI = {
 		const sideFmBtn = document.getElementById("side-tab-filemanager");
 		const sideSyncBtn = document.getElementById("side-tab-synccenter");
 		const sideBkBtn = document.getElementById("side-tab-backups");
-		if (sideFmBtn) sideFmBtn.style.display = canManageFiles ? "flex" : "none";
-		if (sideSyncBtn) sideSyncBtn.style.display = canManageFiles ? "flex" : "none";
-		if (sideBkBtn) sideBkBtn.style.display = canManageFiles ? "flex" : "none";
+		if (sideFmBtn)
+			sideFmBtn.style.display = canManageFiles ? "flex" : "none";
+		if (sideSyncBtn)
+			sideSyncBtn.style.display = canManageFiles ? "flex" : "none";
+		if (sideBkBtn)
+			sideBkBtn.style.display = canManageFiles ? "flex" : "none";
 
 		// Automatically prioritize environment for current project (Production if configured, otherwise Demo)
-		if (typeof FileManager !== 'undefined' && FileManager.resetToDefaultEnv) {
+		if (
+			typeof FileManager !== "undefined" &&
+			FileManager.resetToDefaultEnv
+		) {
 			FileManager.resetToDefaultEnv();
 		}
-		if (typeof SyncCenter !== 'undefined') {
+		if (typeof SyncCenter !== "undefined") {
 			if (SyncCenter.resetToDefaultEnv) SyncCenter.resetToDefaultEnv();
 			SyncCenter.init();
 		}
 
 		if (!canManageFiles) {
-			const activeTab = document.querySelector('.project-side-tab.active') || document.querySelector('.project-master-tabs .tab.active');
-			if (activeTab && (activeTab.dataset?.tab === 'd_tab-filemanager' || activeTab.dataset?.tab === 'd_tab-synccenter' || activeTab.dataset?.tab === 'd_tab-backups' || activeTab.id === 'tab-btn-filemanager' || activeTab.id === 'tab-btn-synccenter')) {
-				const firstTabBtn = document.querySelector('.project-side-tab') || document.querySelector('.project-master-tabs .tab');
-				if (firstTabBtn) this.switchProjectTab(firstTabBtn, 'd_tab-config');
+			const activeTab =
+				document.querySelector(".project-side-tab.active") ||
+				document.querySelector(".project-master-tabs .tab.active");
+			if (
+				activeTab &&
+				(activeTab.dataset?.tab === "d_tab-filemanager" ||
+					activeTab.dataset?.tab === "d_tab-synccenter" ||
+					activeTab.dataset?.tab === "d_tab-backups" ||
+					activeTab.id === "tab-btn-filemanager" ||
+					activeTab.id === "tab-btn-synccenter")
+			) {
+				const firstTabBtn =
+					document.querySelector(".project-side-tab") ||
+					document.querySelector(".project-master-tabs .tab");
+				if (firstTabBtn)
+					this.switchProjectTab(firstTabBtn, "d_tab-config");
 			}
 		}
 	},
@@ -619,7 +1353,11 @@ const UI = {
 		};
 
 		const hasProd = !!(config.deployed && config.deployed.production);
-		const hasDemo = !!(config.deployed && config.deployed.demo && config.deployed.demo.deploy_time);
+		const hasDemo = !!(
+			config.deployed &&
+			config.deployed.demo &&
+			config.deployed.demo.deploy_time
+		);
 
 		let demoUrl =
 			config.deployed && config.deployed.demo && config.deployed.demo.url
@@ -698,6 +1436,7 @@ const UI = {
 					${hasDemo && !isConfigPhp ? `<div class="chip util" onclick="App.downloadPackage('${safeName}','${safeCat}')"><div class="ic">⭳</div><div class="lbl">Download Package</div></div>` : ""}
 					${hasDemo ? `<div class="chip danger" onclick="App.cleanupTools('${safeName}','${safeCat}', 'demo')"><div class="ic">✎</div><div class="lbl">Dọn dẹp Demo</div></div>` : ""}
 					<div class="chip" onclick="App.toggleActionLock('${safeName}','demo', '${safeCat}')"><div class="ic" style="background:rgba(63,216,160,0.15);color:#5FF0BE;">⚿</div><div class="lbl">${isLockedDemo ? "Mở khóa Demo" : "Khóa Demo"}</div></div>
+					<div class="chip util" onclick="App.showSetDemoAccountModal('${safeName}', '${safeCat}')" title="Gán hoặc chỉnh sửa thông tin kết nối Demo đã có sẵn trên hosting"><div class="ic" style="background:rgba(59,130,246,0.18);color:#60a5fa;">🔗</div><div class="lbl">${hasDemo ? "Sửa kết nối Demo" : "Set tài khoản Demo"}</div></div>
 				</div>
 			</div>
 
@@ -760,15 +1499,98 @@ const UI = {
 		const hasDemo = deployed && deployed.demo && deployed.demo.deploy_time;
 		const hasProd = deployed && deployed.production;
 
+		// Thông tin dự án Nasani (nếu khớp mã HĐ hoặc tên dự án)
+		const nasaniInfo =
+			typeof App !== "undefined" && App.currentProjectConfig
+				? App.currentProjectConfig.nasani_info
+				: null;
+		let nasaniCardHtml = "";
+		if (nasaniInfo) {
+			const ni = nasaniInfo;
+			const isDone = !!ni.is_completed;
+			const statusColor = isDone
+				? "#34d399"
+				: ni.status_type === "overdue"
+					? "#f87171"
+					: ni.status_type === "urgent"
+						? "#fbbf24"
+						: "#00d2d3";
+			const statusLabel = isDone
+				? "✓ Đã hoàn thành"
+				: ni.status_type === "overdue"
+					? "🚨 Đang làm (Trễ hạn)"
+					: ni.status_type === "urgent"
+						? "⚠️ Đang làm (Gấp < 24h)"
+						: "⚡ ĐANG LÀM";
+
+			nasaniCardHtml = `
+				<div class="side-card" style="border: 1px solid rgba(0, 210, 211, 0.25); background: linear-gradient(135deg, rgba(0, 210, 211, 0.05), rgba(9, 132, 227, 0.03)); border-radius: 12px; margin-bottom: 16px;">
+					<div style="display:flex; align-items:center; gap:6px; margin-bottom: 10px;">
+						<span style="font-size: 15px;">📋</span>
+						<h3 style="margin:0; font-size:13px; font-weight:800; color:#fff;">Quản lý project Nasani</h3>
+					</div>
+					<div class="deploy-box" style="background: rgba(0,0,0,0.25); padding:10px 12px; border-radius:8px;">
+						${ni.contract_code ? `<div class="kv"><span class="k">Mã HĐ</span><span class="v" style="font-family:monospace; font-weight:bold; color:#00d2d3;">${ni.contract_code}</span></div>` : ""}
+						${ni.contract_name ? `<div class="kv"><span class="k">Khách hàng</span><span class="v" style="color:#f1f5f9; font-weight:600;">${ni.contract_name}</span></div>` : ""}
+						${
+							!isDone && ni.deadline
+								? `
+							<div class="kv">
+								<span class="k">Dự kiến xong</span>
+								<span class="v" style="color:${statusColor}; font-weight:700;">
+									${ni.deadline} ${ni.days_left !== null ? `(${ni.days_left >= 0 ? "Còn " + ni.days_left + " ngày" : "Quá " + Math.abs(ni.days_left) + " ngày"})` : ""}
+								</span>
+							</div>`
+								: ""
+						}
+						${
+							isDone && ni.completed_at
+								? `
+							<div class="kv">
+								<span class="k">Ngày xong</span>
+								<span class="v" style="color:#34d399; font-weight:700;">${ni.completed_at}</span>
+							</div>`
+								: ""
+						}
+						${ni.dev_name ? `<div class="kv"><span class="k">Lập trình</span><span class="v">${ni.dev_name}</span></div>` : ""}
+						${ni.lt_hours ? `<div class="kv"><span class="k">Giờ làm</span><span class="v">${ni.lt_hours}</span></div>` : ""}
+						<div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+							${
+								ni.contract_code
+									? `
+								<button type="button" class="btn btn-xs" style="background:#10b981; color:#fff; border:none; font-size:11.5px; padding:5px 12px; border-radius:6px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(16, 185, 129, 0.3);" onclick="UI.triggerAutoReport(App.currentProjectName, App.currentCategory)" title="Báo cáo hoàn thành sớm cho trưởng nhóm trên Nasani (Tự điền form)">
+									<span>⚡</span> Báo cáo
+								</button>
+							`
+									: "<span></span>"
+							}
+							${
+								ni.design_url
+									? `
+								<a href="${ni.design_url}" target="_blank" class="btn btn-outline btn-xs" style="color:#00d2d3; border-color:rgba(0,210,211,0.4); font-size:11.5px; padding:4px 10px; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+									<span>🎨 Link Design</span>
+									<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+								</a>
+							`
+									: ""
+							}
+						</div>
+					</div>
+				</div>
+			`;
+		}
+
 		container.style.display = "block";
 		if (!hasDemo && !hasProd) {
 			container.innerHTML = `
+				${nasaniCardHtml}
 				<div class="side-card">
 					<h3>Thông tin triển khai</h3>
 					<div class="deploy-box empty-box" style="background:linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px dashed rgba(255,255,255,0.12); text-align:center; padding:24px 16px;">
 						<div style="font-size: 28px; margin-bottom: 8px; opacity: 0.7;">🚀</div>
 						<div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">Chưa Triển Khai</div>
-						<div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.5;">Dự án này chưa được deploy lên môi trường Demo hoặc Production.</div>
+						<div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.5; margin-bottom:12px;">Dự án này chưa được deploy lên môi trường Demo hoặc Production.</div>
+						<button class="btn btn-outline btn-xs" style="font-size:11.5px; padding:4px 12px; border-radius:6px; border-color:rgba(96,165,250,0.4); color:#60a5fa;" onclick="App.showSetDemoAccountModal(App.currentProjectName, App.currentCategory)">🔗 Set tài khoản Demo</button>
 					</div>
 				</div>
 			`;
@@ -776,21 +1598,32 @@ const UI = {
 		}
 
 		container.innerHTML = `
+			${nasaniCardHtml}
 			<div class="side-card">
 				<h3>Thông tin triển khai</h3>
 				${
 					hasDemo
 						? `
 				<div class="deploy-box">
-					<div class="tag">⚡ DEMO</div>
-					<div class="kv"><span class="k">DB</span><span class="v">${deployed.demo.db_name}</span></div>
+					<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+						<div class="tag" style="margin-bottom:0;">⚡ DEMO</div>
+						<a href="javascript:void(0)" onclick="App.showSetDemoAccountModal(App.currentProjectName, App.currentCategory)" style="font-size:11px; color:#60a5fa; text-decoration:none;" title="Chỉnh sửa thông tin kết nối Demo">✏️ Sửa</a>
+					</div>
+					${deployed.demo.server_name ? `<div class="kv"><span class="k">Server</span><span class="v">${deployed.demo.server_name}</span></div>` : ""}
+					${deployed.demo.matched_folder ? `<div class="kv"><span class="k">Folder</span><span class="v" title="${deployed.demo.matched_folder}">${deployed.demo.matched_folder}</span></div>` : ""}
+					<div class="kv"><span class="k">DB</span><span class="v">${deployed.demo.db_name || "—"}</span></div>
+					${
+						deployed.demo.db_pass
+							? `
 					<div class="kv">
 						<span class="k">Pass</span>
 						<span class="v pw-row">
 							<span id="${prefix}demo_pw_text">••••••••••••</span>
 							<button class="eye-btn" onclick="UI.togglePasswordText('${prefix}demo_pw_text', '${deployed.demo.db_pass}', this)">Hiện</button>
 						</span>
-					</div>
+					</div>`
+							: ""
+					}
 				</div>`
 						: ""
 				}
@@ -947,7 +1780,8 @@ const UI = {
 		let textarea = null;
 		if (ev && ev.target) {
 			const box =
-				ev.target.closest(".quick-paste-box") || ev.target.closest(".modal");
+				ev.target.closest(".quick-paste-box") ||
+				ev.target.closest(".modal");
 			if (box) textarea = box.querySelector("textarea");
 		}
 		if (!textarea) {
@@ -991,7 +1825,10 @@ const UI = {
 					/\s*[-–—|]\s*(ngày\s*hết\s*hạn|hết\s*hạn|exp|expired).*$/i,
 					"",
 				)
-				.replace(/\s*\((ngày\s*hết\s*hạn|hết\s*hạn|exp|expired).*?\)/i, "")
+				.replace(
+					/\s*\((ngày\s*hết\s*hạn|hết\s*hạn|exp|expired).*?\)/i,
+					"",
+				)
 				.trim();
 		};
 
@@ -1053,7 +1890,11 @@ const UI = {
 			const colonIdx = line.indexOf(":");
 			const isUrl = /^https?:\/\//i.test(line);
 
-			if (colonIdx > 0 && !isUrl && isKeyLabel(line.substring(0, colonIdx))) {
+			if (
+				colonIdx > 0 &&
+				!isUrl &&
+				isKeyLabel(line.substring(0, colonIdx))
+			) {
 				const k = line.substring(0, colonIdx).trim();
 				const v = line.substring(colonIdx + 1).trim();
 				pairs.push({ key: k, val: v, section: currentSection });
@@ -1064,7 +1905,11 @@ const UI = {
 			if (isKeyLabel(line)) {
 				const nextLine = rawLines[i + 1];
 				if (nextLine && !isKeyLabel(nextLine)) {
-					pairs.push({ key: line, val: nextLine, section: currentSection });
+					pairs.push({
+						key: line,
+						val: nextLine,
+						section: currentSection,
+					});
 					i++;
 					continue;
 				}
@@ -1103,7 +1948,9 @@ const UI = {
 				config.ftp_host = cleanHost(val);
 			}
 			// 4. Username
-			else if (/^(ftp\s*user|ftp\s*username|tài\s*khoản\s*ftp)$/i.test(k)) {
+			else if (
+				/^(ftp\s*user|ftp\s*username|tài\s*khoản\s*ftp)$/i.test(k)
+			) {
 				config.ftp_user = val.trim();
 			} else if (
 				/^(panel\s*user|da\s*user|directadmin\s*user|cpanel\s*user|hosting\s*user)$/i.test(
@@ -1133,7 +1980,9 @@ const UI = {
 				}
 			}
 			// 5. Password
-			else if (/^(ftp\s*pass|ftp\s*password|mật\s*khẩu\s*ftp)$/i.test(k)) {
+			else if (
+				/^(ftp\s*pass|ftp\s*password|mật\s*khẩu\s*ftp)$/i.test(k)
+			) {
 				config.ftp_pass = cleanPassword(val);
 			} else if (
 				/^(panel\s*pass|da\s*pass|directadmin\s*pass|cpanel\s*pass|hosting\s*pass)$/i.test(
@@ -1247,9 +2096,13 @@ const UI = {
 			.forEach((b) => b.classList.remove("active"));
 
 		if (btn) btn.classList.add("active");
-		const matchingSide = document.querySelector(`.project-side-tab[data-tab="${tabId}"]`);
+		const matchingSide = document.querySelector(
+			`.project-side-tab[data-tab="${tabId}"]`,
+		);
 		if (matchingSide) matchingSide.classList.add("active");
-		const matchingTop = document.querySelector(`.project-tab-btn[data-tab="${tabId}"]`);
+		const matchingTop = document.querySelector(
+			`.project-tab-btn[data-tab="${tabId}"]`,
+		);
 		if (matchingTop) matchingTop.classList.add("active");
 
 		// Toggle Content in Project Detail
@@ -1264,28 +2117,30 @@ const UI = {
 
 		// Update breadcrumb title
 		const tabTitles = {
-			'd_tab-config': 'Cấu hình & Deploy',
-			'd_tab-schema': 'Visual Schema',
-			'd_tab-fonts': 'Quản lý Fonts',
-			'd_tab-webp': 'Convert Ảnh WebP',
-			'd_tab-trim': 'Trim Ảnh',
-			'd_tab-auto-media': 'Tự động Map Ảnh',
-			'd_tab-seed': 'Tạo Dữ Liệu Mẫu',
-			'd_tab-filemanager': 'Quản lý File (Host)',
-			'd_tab-synccenter': 'Sync Center',
-			'd_tab-backups': 'Lịch sử Backup'
+			"d_tab-config": "Cấu hình & Deploy",
+			"d_tab-schema": "Visual Schema",
+			"d_tab-fonts": "Quản lý Fonts",
+			"d_tab-webp": "Convert Ảnh WebP",
+			"d_tab-trim": "Trim Ảnh",
+			"d_tab-auto-media": "Tự động Map Ảnh",
+			"d_tab-seed": "Tạo Dữ Liệu Mẫu",
+			"d_tab-filemanager": "Quản lý File (Host)",
+			"d_tab-synccenter": "Sync Center",
+			"d_tab-backups": "Lịch sử Backup",
 		};
-		const pathEl = document.getElementById('detail-project-path');
+		const pathEl = document.getElementById("detail-project-path");
 		if (pathEl && tabTitles[tabId]) {
-			pathEl.innerText = `${App.currentCategory || 'Dự án'} / ${tabTitles[tabId]}`;
+			pathEl.innerText = `${App.currentCategory || "Dự án"} / ${tabTitles[tabId]}`;
 		}
 
 		// Hook for specific tabs
 		if (tabId === "d_tab-schema") {
 			const projectName =
 				document.getElementById("d_current-project")?.value ||
-				document.getElementById("detail-project-name")?.innerText || "";
-			if (typeof SchemaBuilder !== 'undefined') SchemaBuilder.init(projectName);
+				document.getElementById("detail-project-name")?.innerText ||
+				"";
+			if (typeof SchemaBuilder !== "undefined")
+				SchemaBuilder.init(projectName);
 		} else if (tabId === "d_tab-fonts") {
 			FontManager.loadCssPreview();
 		} else if (tabId === "d_tab-webp") {
@@ -1301,9 +2156,10 @@ const UI = {
 				document.getElementById("d_current-project")?.value || "";
 			SeedManager.init(projectName);
 		} else if (tabId === "d_tab-synccenter") {
-			if (typeof SyncCenter !== 'undefined') SyncCenter.init();
+			if (typeof SyncCenter !== "undefined") SyncCenter.init();
 		} else if (tabId === "d_tab-backups") {
-			if (typeof SyncCenter !== 'undefined') SyncCenter.openBackupHistoryTab();
+			if (typeof SyncCenter !== "undefined")
+				SyncCenter.openBackupHistoryTab();
 		}
 	},
 
@@ -1318,73 +2174,75 @@ const UI = {
 		rose: "Hồng Ruby",
 		orange: "Cam Cyber",
 		amber: "Hoàng Kim",
-		red: "Đỏ Crimson"
+		red: "Đỏ Crimson",
 	},
 
 	initTheme() {
-		const currentTheme = localStorage.getItem('rbw_theme') || 'mint';
+		const currentTheme = localStorage.getItem("rbw_theme") || "mint";
 		this.applyThemeUI(currentTheme);
 
 		// Global click listener to close theme dropdown when clicking outside
-		document.addEventListener('click', (e) => {
-			const wrapper = document.querySelector('.theme-dropdown-wrapper');
-			const dropdown = document.getElementById('theme-menu-dropdown');
+		document.addEventListener("click", (e) => {
+			const wrapper = document.querySelector(".theme-dropdown-wrapper");
+			const dropdown = document.getElementById("theme-menu-dropdown");
 			if (wrapper && dropdown && !wrapper.contains(e.target)) {
-				dropdown.classList.remove('show');
+				dropdown.classList.remove("show");
 			}
 		});
 	},
 
 	toggleThemeMenu(e) {
 		if (e) e.stopPropagation();
-		const dropdown = document.getElementById('theme-menu-dropdown');
+		const dropdown = document.getElementById("theme-menu-dropdown");
 		if (dropdown) {
-			dropdown.classList.toggle('show');
+			dropdown.classList.toggle("show");
 		}
 	},
 
 	setTheme(themeName) {
-		if (!this.themeLabels[themeName]) themeName = 'mint';
-		localStorage.setItem('rbw_theme', themeName);
-		document.documentElement.setAttribute('data-theme', themeName);
+		if (!this.themeLabels[themeName]) themeName = "mint";
+		localStorage.setItem("rbw_theme", themeName);
+		document.documentElement.setAttribute("data-theme", themeName);
 		this.applyThemeUI(themeName);
 
-		const dropdown = document.getElementById('theme-menu-dropdown');
-		if (dropdown) dropdown.classList.remove('show');
+		const dropdown = document.getElementById("theme-menu-dropdown");
+		if (dropdown) dropdown.classList.remove("show");
 
-		this.showToast(`Đã chuyển sang giao diện ${this.themeLabels[themeName]}`, 'success');
+		this.showToast(
+			`Đã chuyển sang giao diện ${this.themeLabels[themeName]}`,
+			"success",
+		);
 	},
 
 	applyThemeUI(themeName) {
-		document.documentElement.setAttribute('data-theme', themeName);
+		document.documentElement.setAttribute("data-theme", themeName);
 
-		const labelEl = document.getElementById('theme-current-label');
+		const labelEl = document.getElementById("theme-current-label");
 		if (labelEl && this.themeLabels[themeName]) {
 			labelEl.textContent = this.themeLabels[themeName];
 		}
 
-		const selectorEl = document.getElementById('g_theme_selector');
+		const selectorEl = document.getElementById("g_theme_selector");
 		if (selectorEl) {
 			selectorEl.value = themeName;
 		}
 
 		// Update active check in menu
-		const items = document.querySelectorAll('.theme-menu-item');
+		const items = document.querySelectorAll(".theme-menu-item");
 		items.forEach((item) => {
-			const val = item.getAttribute('data-theme-val');
+			const val = item.getAttribute("data-theme-val");
 			if (val === themeName) {
-				item.classList.add('active');
+				item.classList.add("active");
 			} else {
-				item.classList.remove('active');
+				item.classList.remove("active");
 			}
 		});
-	}
+	},
 };
 
 // Initialize theme on load
-if (document.readyState === 'loading') {
-	document.addEventListener('DOMContentLoaded', () => UI.initTheme());
+if (document.readyState === "loading") {
+	document.addEventListener("DOMContentLoaded", () => UI.initTheme());
 } else {
 	UI.initTheme();
 }
-
