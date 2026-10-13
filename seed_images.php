@@ -530,6 +530,45 @@ Yêu cầu:
                 $images = is_array($imageFiles) ? array_values(array_filter($imageFiles)) : [];
                 $imgTotal = count($images);
 
+                $copySeedImage = function(string $imgFile) use ($folderKey, $laravelBase, $globalConfig, $baseDir, $targetDirNorm): string {
+                    if ($folderKey === 'project_images') {
+                        $srcAbs = AutoMediaPipeline::normalizePath($laravelBase . '/assets/images/images/' . $imgFile);
+                    } else {
+                        $poolPath = AutoMediaPipeline::normalizePath($globalConfig['images_pool_path'] ?? ($baseDir . '/images'));
+                        $srcAbs   = AutoMediaPipeline::normalizePath($poolPath . '/' . $imgFile);
+                    }
+
+                    if (!is_file($srcAbs)) {
+                        return '';
+                    }
+
+                    $today      = date('Y/m/d');
+                    $ext        = strtolower(pathinfo($imgFile, PATHINFO_EXTENSION));
+                    $base       = pathinfo($imgFile, PATHINFO_FILENAME);
+                    $newName    = time() . '_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $base) . ($ext ? ".$ext" : '');
+                    $publicPath = $laravelBase . DIRECTORY_SEPARATOR . 'public';
+                    if (is_dir($publicPath)) {
+                        $destFolder = AutoMediaPipeline::normalizePath(
+                            $publicPath . '/' . str_replace('/', DIRECTORY_SEPARATOR, $targetDirNorm) . '/' . str_replace('/', DIRECTORY_SEPARATOR, $today)
+                        );
+                    } else {
+                        $destFolder = AutoMediaPipeline::normalizePath(
+                            $laravelBase . '/' . str_replace('/', DIRECTORY_SEPARATOR, $targetDirNorm) . '/' . str_replace('/', DIRECTORY_SEPARATOR, $today)
+                        );
+                    }
+                    if (!is_dir($destFolder)) @mkdir($destFolder, 0777, true);
+                    $destAbs = $destFolder . DIRECTORY_SEPARATOR . $newName;
+                    if (@copy($srcAbs, $destAbs)) {
+                        $dbPath = $targetDirNorm;
+                        if (str_starts_with($dbPath, 'upload/')) {
+                            $dbPath = substr($dbPath, 7);
+                        }
+                        usleep(1000);
+                        return AutoMediaPipeline::toForwardSlash($dbPath . '/' . $today . '/' . $newName);
+                    }
+                    return '';
+                };
+
                 // Tự động kiểm tra và tạo danh mục (categories: list, cat, item, sub)
                 $generated = [
                     'list' => [],
@@ -563,6 +602,57 @@ Yêu cầu:
                     $stExist = $pdo->prepare("SELECT id FROM `$catTable` WHERE `$typeCol` = ?");
                     $stExist->execute([$typeVal]);
                     $existingIds = $stExist->fetchAll(PDO::FETCH_COLUMN);
+
+                    // Xác định cột ảnh cho danh mục (ưu tiên photo, icon hoặc các key trong config images)
+                    $catImgCols = [];
+                    if (isset($categoriesConfig[$level]['images']) && $categoriesConfig[$level]['images'] === false) {
+                        $catImgCols = [];
+                    } elseif (!empty($categoriesConfig[$level]['images']) && is_array($categoriesConfig[$level]['images'])) {
+                        foreach (array_keys($categoriesConfig[$level]['images']) as $candCol) {
+                            if (in_array($candCol, $catColumns)) {
+                                $catImgCols[] = $candCol;
+                            }
+                        }
+                    }
+                    if (empty($catImgCols) && (!isset($categoriesConfig[$level]['images']) || $categoriesConfig[$level]['images'] !== false)) {
+                        if (in_array('photo', $catColumns)) {
+                            $catImgCols[] = 'photo';
+                        } elseif (in_array('icon', $catColumns)) {
+                            $catImgCols[] = 'icon';
+                        }
+                    }
+
+                    // Bổ sung ảnh cho danh mục đã có nếu đang để trống ảnh
+                    if (!empty($catImgCols) && !empty($existingIds) && $imgTotal > 0) {
+                        $placeholders = implode(',', array_fill(0, count($existingIds), '?'));
+                        $selectCols = 'id, `' . implode('`, `', $catImgCols) . '`';
+                        $stCheckPhoto = $pdo->prepare("SELECT $selectCols FROM `$catTable` WHERE id IN ($placeholders)");
+                        $stCheckPhoto->execute($existingIds);
+                        $rowsPhoto = $stCheckPhoto->fetchAll(PDO::FETCH_ASSOC);
+
+                        $existImgIdx = 0;
+                        foreach ($rowsPhoto as $rPhoto) {
+                            $updates = [];
+                            $updateVals = [];
+                            foreach ($catImgCols as $imgColIdx => $cCol) {
+                                $currVal = trim((string)($rPhoto[$cCol] ?? ''));
+                                if ($currVal === '') {
+                                    $catImgFile = $images[($existImgIdx + ($lvlIdx + 1) * 3 + $imgColIdx) % $imgTotal];
+                                    $catNewImg = $copySeedImage($catImgFile);
+                                    if ($catNewImg !== '') {
+                                        $updates[] = "`$cCol` = ?";
+                                        $updateVals[] = $catNewImg;
+                                    }
+                                }
+                            }
+                            if (!empty($updates)) {
+                                $updateVals[] = $rPhoto['id'];
+                                $stUpdPhoto = $pdo->prepare("UPDATE `$catTable` SET " . implode(', ', $updates) . " WHERE id = ?");
+                                $stUpdPhoto->execute($updateVals);
+                                $existImgIdx++;
+                            }
+                        }
+                    }
 
                     // Đảm bảo slug cho các categories đã tồn tại trong table_slug
                     $stSlugCheckTable = $pdo->query("SHOW TABLES LIKE 'table_slug'");
@@ -713,6 +803,18 @@ Yêu cầu:
                                 }
                             }
 
+                            // Gán ảnh cho danh mục mới tạo
+                            if (!empty($catImgCols) && $imgTotal > 0) {
+                                foreach ($catImgCols as $imgColIdx => $cCol) {
+                                    $catImgFile = $images[($cIdx + ($lvlIdx + 1) * 3 + $imgColIdx) % $imgTotal];
+                                    $catNewImg = $copySeedImage($catImgFile);
+                                    if ($catNewImg !== '') {
+                                        $cols[] = $cCol;
+                                        $vals[] = $catNewImg;
+                                    }
+                                }
+                            }
+
                             $ph = array_fill(0, count($cols), '?');
                             $st = $pdo->prepare("INSERT INTO `$catTable` (`" . implode('`, `', $cols) . "`) VALUES (" . implode(', ', $ph) . ")");
                             $st->execute($vals);
@@ -764,44 +866,12 @@ Yêu cầu:
 
                 $inserted = 0;
                 for ($i = 0; $i < $count; $i++) {
-                    // Chọn ảnh random từ danh sách
+                    // Chọn ảnh từ danh sách
                     $chosenFile = '';
                     $newImagePath = '';
                     if ($imgTotal > 0) {
                         $imgFile = $images[$i % $imgTotal];
-                        if ($folderKey === 'project_images') {
-                            $srcAbs = AutoMediaPipeline::normalizePath($laravelBase . '/assets/images/images/' . $imgFile);
-                        } else {
-                            $poolPath = AutoMediaPipeline::normalizePath($globalConfig['images_pool_path'] ?? ($baseDir . '/images'));
-                            $srcAbs   = AutoMediaPipeline::normalizePath($poolPath . '/' . $imgFile);
-                        }
-
-                        if (is_file($srcAbs)) {
-                            $today      = date('Y/m/d');
-                            $ext        = strtolower(pathinfo($imgFile, PATHINFO_EXTENSION));
-                            $base       = pathinfo($imgFile, PATHINFO_FILENAME);
-                            $newName    = time() . '_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $base) . ($ext ? ".$ext" : '');
-                            $publicPath = $laravelBase . DIRECTORY_SEPARATOR . 'public';
-                            if (is_dir($publicPath)) {
-                                $destFolder = AutoMediaPipeline::normalizePath(
-                                    $publicPath . '/' . str_replace('/', DIRECTORY_SEPARATOR, $targetDirNorm) . '/' . str_replace('/', DIRECTORY_SEPARATOR, $today)
-                                );
-                            } else {
-                                $destFolder = AutoMediaPipeline::normalizePath(
-                                    $laravelBase . '/' . str_replace('/', DIRECTORY_SEPARATOR, $targetDirNorm) . '/' . str_replace('/', DIRECTORY_SEPARATOR, $today)
-                                );
-                            }
-                            if (!is_dir($destFolder)) @mkdir($destFolder, 0777, true);
-                            $destAbs = $destFolder . DIRECTORY_SEPARATOR . $newName;
-                            if (@copy($srcAbs, $destAbs)) {
-                                $dbPath = $targetDirNorm;
-                                if (str_starts_with($dbPath, 'upload/')) {
-                                    $dbPath = substr($dbPath, 7);
-                                }
-                                $newImagePath = AutoMediaPipeline::toForwardSlash($dbPath . '/' . $today . '/' . $newName);
-                            }
-                            usleep(1000);
-                        }
+                        $newImagePath = $copySeedImage($imgFile);
                     }
 
                     // Build insert data

@@ -1823,6 +1823,36 @@ const SyncCenter = {
         
         this.scan();
     },
+
+    async clearCompiledCache() {
+        const projectName = document.getElementById('detail-project-name')?.innerText;
+        if (!projectName) {
+            UI.showToast('Vui lòng chọn dự án trước', 'warning');
+            return;
+        }
+        UI.showLoading('Đang xoá sạch cache compiled (Local & Remote)...');
+        try {
+            const res = await fetch('api.php?action=fmClearCompiledCache', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: projectName,
+                    category: App.currentCategory,
+                    env: this.currentEnv
+                })
+            }).then(r => r.json());
+            UI.hideLoading();
+            if (res.status === 'success') {
+                const info = res.info || {};
+                UI.showToast(`✅ Đã xoá sạch cache compiled! (Local: ${info.deleted_local || 0}, Remote: ${info.deleted_remote || 0})`, 'success');
+            } else {
+                UI.showToast('Lỗi xoá cache: ' + (res.message || 'Thất bại'), 'error');
+            }
+        } catch (e) {
+            UI.hideLoading();
+            UI.showToast('Lỗi kết nối khi xoá cache: ' + e.message, 'error');
+        }
+    },
     
     scan(allowUploadBridge = false) {
         const projectName = document.getElementById('detail-project-name')?.innerText;
@@ -3025,9 +3055,9 @@ const SyncCenter = {
                 const results = res.results || [];
                 const errors = results.filter(r => r.status === 'error');
                 if (errors.length > 0) {
-                    UI.showToast(`Đã đồng bộ ${results.length - errors.length}/${results.length} files. Có ${errors.length} file bị lỗi!`, 'warning');
+                    UI.showToast(`Đã đồng bộ ${results.length - errors.length}/${results.length} files (Đã xoá sạch cache compiled). Có ${errors.length} file bị lỗi!`, 'warning');
                 } else {
-                    UI.showToast(`Đồng bộ thành công ${results.length} files (Tất cả đã được backup)!`, 'success');
+                    UI.showToast(`Đồng bộ thành công ${results.length} files & đã xoá sạch cache compiled!`, 'success');
                 }
                 this.scan(); // Rescan to refresh differences
             } else {
@@ -3469,7 +3499,7 @@ const SyncCenter = {
         this.runExecuteApi(actions).then(res => {
             UI.hideLoading();
             if (res.status === 'success') {
-                UI.showToast(`Đã ${action === 'upload' ? 'đẩy' : 'kéo'} file thành công & đã tự động backup!`, 'success');
+                UI.showToast(`Đã ${action === 'upload' ? 'đẩy' : 'kéo'} file thành công & đã xoá sạch cache compiled!`, 'success');
                 this.closeDiffModal();
                 this.scan(); // Refresh differences
             } else {

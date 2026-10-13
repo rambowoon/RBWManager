@@ -67,6 +67,10 @@ class RamboWoonBridge
             case 'syncDbSchema':
                 $this->syncDbSchema();
                 break;
+            case 'clearCompiled':
+            case 'clearCache':
+                $this->clearCompiled();
+                break;
             default:
                 echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
                 break;
@@ -1680,6 +1684,39 @@ class RamboWoonBridge
             ];
         }
         return $schema;
+    }
+
+    public function clearCompiled()
+    {
+        $deleted = 0;
+        $targets = ['compiled', 'bootstrap/cache', 'caches'];
+        foreach ($targets as $dir) {
+            if (is_dir($dir)) {
+                $files = @scandir($dir);
+                if (is_array($files)) {
+                    foreach ($files as $f) {
+                        if ($f === '.' || $f === '..' || $f === '.gitignore') continue;
+                        $fp = $dir . '/' . $f;
+                        if (is_file($fp)) {
+                            if (@unlink($fp)) $deleted++;
+                        } elseif (is_dir($fp)) {
+                            $subFiles = @scandir($fp);
+                            if (is_array($subFiles)) {
+                                foreach ($subFiles as $sf) {
+                                    if ($sf === '.' || $sf === '..' || $sf === '.gitignore') continue;
+                                    $sfp = $fp . '/' . $sf;
+                                    if (is_file($sfp)) {
+                                        if (@unlink($sfp)) $deleted++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        echo json_encode(['status' => 'success', 'message' => "Đã dọn dẹp $deleted tệp cache compiled.", 'deleted' => $deleted]);
+        exit;
     }
 }
 

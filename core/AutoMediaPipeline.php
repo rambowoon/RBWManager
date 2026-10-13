@@ -176,6 +176,11 @@ class AutoMediaPipeline
         $baseClean = strtolower(self::stripAccents($base));
         $matches = [];
 
+        // Sort subTypes by key length descending to match longer prefixes first
+        uksort($subTypes, function ($a, $b) {
+            return strlen($b) <=> strlen($a);
+        });
+
         // 1. Pass 1: Strict prefix match using regex
         foreach ($subTypes as $subKey => $cfg) {
             if (preg_match($cfg['regex'], $base)) {
@@ -422,6 +427,7 @@ class AutoMediaPipeline
             'doitac' => ['dt', 'doitac', 'doi-tac', 'partner'],
             'lienhe' => ['lh', 'lienhe', 'lien-he', 'contact'],
             'chinhsach' => ['cs', 'chinhsach', 'chinh-sach', 'policy'],
+            'logo-footer' => ['logo-footer', 'logo_footer', 'logofooter', 'footer-logo', 'footer_logo', 'footerlogo', 'logo-ft'],
         ];
 
         foreach ($synonyms as $keyword => $syns) {

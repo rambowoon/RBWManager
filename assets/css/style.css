@@ -138,7 +138,7 @@ to { opacity: 1; transform: translateY(0); }
 .item-card-thumb-wrap:hover .btn-thumb-capture { opacity: 1; }
 .btn-thumb-capture:hover { background: var(--primary); color: #0d1117; border-color: var(--primary); transform: scale(1.08); }
 .item-card-thumb-wrap.capturing { pointer-events: none; }
-.item-card-thumb-wrap.capturing::after { content: "⏳ Đang chụp full page..."; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(4px); color: #fff; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; z-index: 3; animation: modalPulse 1.5s infinite; }
+.item-card-thumb-wrap.capturing::after { content: "â³ Äang chá»¥p full page..."; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(4px); color: #fff; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; z-index: 3; animation: modalPulse 1.5s infinite; }
 /* List Mode Support for Thumbnails */
 .grid-container.list-mode .item-card-thumb-wrap { width: 96px !important; height: 56px !important; margin-bottom: 0 !important; flex-shrink: 0 !important; border-radius: 8px !important; }
 .grid-container.list-mode .item-card-thumb-placeholder svg { width: 20px; height: 20px; }
@@ -877,30 +877,30 @@ to { transform: rotate(360deg); }
 }
 /* ===== PHP VERSION BADGE ===== */
 .badge-php { height: 28px; padding: 0 9px; border-radius: 8px !important; display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 750; font-family: var(--mono); box-sizing: border-box; line-height: 1; white-space: nowrap; user-select: none; transition: all 0.2s ease; }
-/* 1. PHP 8.4 trở lên (>= 8.4): Màu Xanh Băng Mint / Cyan tươi mới */
+/* 1. PHP 8.4 trá»Ÿ lÃªn (>= 8.4): MÃ u Xanh BÄƒng Mint / Cyan tÆ°Æ¡i má»›i */
 .badge-php.php-v84 { background: rgba(0, 210, 211, 0.12); color: #00d2d3; border: 1px solid rgba(0, 210, 211, 0.3); }
 .badge-php.php-v84.is-custom { background: rgba(0, 210, 211, 0.2); border-color: rgba(0, 210, 211, 0.55); box-shadow: 0 0 10px rgba(0, 210, 211, 0.2); }
 .badge-php.php-v84 .badge-php-dot { background: #00d2d3; box-shadow: 0 0 6px #00d2d3; }
 .badge-php.php-v84:hover { background: rgba(0, 210, 211, 0.25); border-color: rgba(0, 210, 211, 0.6); }
-/* 2. PHP 8.3: Màu Tím PHP Neon (PHP Purple) */
+/* 2. PHP 8.3: MÃ u TÃ­m PHP Neon (PHP Purple) */
 .badge-php.php-v83 { background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
 .badge-php.php-v83.is-custom { background: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.55); box-shadow: 0 0 10px rgba(168, 85, 247, 0.2); }
 .badge-php.php-v83 .badge-php-dot { background: #c084fc; box-shadow: 0 0 6px #c084fc; }
 .badge-php.php-v83:hover { background: rgba(168, 85, 247, 0.25); border-color: rgba(168, 85, 247, 0.6); }
-/* 3. PHP 7.4 (hoặc < 8.0): Màu Cam Hổ Phách (Amber) */
+/* 3. PHP 7.4 (hoáº·c < 8.0): MÃ u Cam Há»• PhÃ¡ch (Amber) */
 .badge-php.php-v74 { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.32); }
 .badge-php.php-v74.is-custom { background: rgba(245, 158, 11, 0.22); border-color: rgba(245, 158, 11, 0.58); box-shadow: 0 0 10px rgba(245, 158, 11, 0.22); }
 .badge-php.php-v74 .badge-php-dot { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
 .badge-php.php-v74:hover { background: rgba(245, 158, 11, 0.28); border-color: rgba(245, 158, 11, 0.65); }
-/* 4. Phiên bản trung gian 8.0 - 8.2 (Xanh Biển Sky) */
+/* 4. PhiÃªn báº£n trung gian 8.0 - 8.2 (Xanh Biá»ƒn Sky) */
 .badge-php.php-v8x { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 .badge-php.php-v8x.is-custom { background: rgba(56, 189, 248, 0.2); border-color: rgba(56, 189, 248, 0.55); box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); }
 .badge-php.php-v8x .badge-php-dot { background: #38bdf8; box-shadow: 0 0 6px #38bdf8; }
 /* Default fallback */
 .badge-php.php-v-default { background: rgba(255, 255, 255, 0.05); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.14); }
-/* Chấm tròn phát sáng cho PHP riêng biệt */
+/* Cháº¥m trÃ²n phÃ¡t sÃ¡ng cho PHP riÃªng biá»‡t */
 .badge-php-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-/* ===== SYSTEM PHP BADGE TRÊN TOP NAVBAR HEADER ===== */
+/* ===== SYSTEM PHP BADGE TRÃŠN TOP NAVBAR HEADER ===== */
 .system-php-header-badge { height: 34px; padding: 0 12px; border-radius: 9px; display: inline-flex; align-items: center; gap: 7px; font-size: 0.74rem; font-weight: 750; font-family: var(--mono); box-sizing: border-box; cursor: default; user-select: none; transition: all 0.2s ease; }
 .system-php-header-badge.php-v84 { background: rgba(0, 210, 211, 0.1); color: #00d2d3; border: 1px solid rgba(0, 210, 211, 0.28); }
 .system-php-header-badge.php-v83 { background: rgba(168, 85, 247, 0.1); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.28); }
@@ -915,7 +915,7 @@ to { transform: rotate(360deg); }
 /* ===== RESPONSIVE & COMPACT TOP NAVBAR HEADER ===== */
 .detail-title { max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .theme-toggle-btn { white-space: nowrap; user-select: none; }
-/* Khi màn hình vừa/nhỏ (laptop 1366px, v.v.), tự động thu gọn chữ các nút phụ để tối ưu không gian */
+/* Khi mÃ n hÃ¬nh vá»«a/nhá» (laptop 1366px, v.v.), tá»± Ä‘á»™ng thu gá»n chá»¯ cÃ¡c nÃºt phá»¥ Ä‘á»ƒ tá»‘i Æ°u khÃ´ng gian */
 @media (max-width:1440px) {
 header { padding: 0 20px; }
 .header-left, .header-right { gap: 10px; }
@@ -940,156 +940,146 @@ header { padding: 0 14px; }
 }
 .setting-group-card { transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease; }
 .setting-group-card:hover { border-color: rgba(255, 255, 255, 0.18) !important; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28) !important; }
-
 /* Nasani Deadline & Design Row */
-.item-card-deadline-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin: 4px 0 12px 0;
-    min-height: 26px;
-}
-
-.item-card-deadline-row.is-empty {
-    min-height: 26px;
-    margin: 4px 0 12px 0;
-}
-
-.card-dl-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3.5px 9px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.25;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    white-space: nowrap;
-    user-select: none;
-    font-variant-numeric: tabular-nums;
-}
-
-.card-dl-badge .dl-icon {
-    font-size: 11px;
-    line-height: 1;
-}
-
-.card-dl-badge .dl-text {
-    white-space: nowrap;
-}
-
-/* Nút Design hiện đại dạng icon tròn */
-.card-dl-design-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    padding: 0;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 50%;
-    color: #cbd5e1;
-    font-size: 13px;
-    line-height: 1;
-    text-decoration: none;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-left: auto;
-    flex-shrink: 0;
-}
-
-.card-dl-design-btn:hover {
-    background: rgba(6, 182, 212, 0.2);
-    border-color: rgba(6, 182, 212, 0.5);
-    box-shadow: 0 0 12px rgba(6, 182, 212, 0.35);
-    transform: scale(1.12);
-}
-
-/* 1. Bình thường (> 24h) */
-.card-dl-badge.dl-normal {
-    background: rgba(14, 165, 233, 0.1);
-    border: 1px solid rgba(14, 165, 233, 0.28);
-    color: #38bdf8;
-}
-.card-dl-badge.dl-normal:hover {
-    background: rgba(14, 165, 233, 0.18);
-    border-color: rgba(14, 165, 233, 0.45);
-    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.2);
-}
-
-/* 2. Gấp (< 24h) */
-.card-dl-badge.dl-urgent {
-    background: rgba(245, 158, 11, 0.12);
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    color: #fbbf24;
-    animation: dlPulseAmber 2.5s infinite;
-}
-
-/* 2.5. Cảnh báo khẩn cấp (<= 10 phút) - Chớp đỏ */
-.card-dl-badge.dl-critical-10m {
-    background: #dc2626;
-    border: 1px solid #f87171;
-    color: #ffffff !important;
-    font-weight: 700;
-    animation: dlFlashRed 0.75s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 0 14px rgba(239, 68, 68, 0.7);
-}
-
-.item-card:has(.dl-critical-10m) {
-    border-color: rgba(239, 68, 68, 0.65) !important;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.25) !important;
-}
-
-/* 3. Trễ hạn (< 0) */
-.card-dl-badge.dl-overdue {
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    color: #f87171;
-    animation: dlPulseRed 2s infinite;
-}
-
-/* 4. Đã hoàn thành */
-.card-dl-badge.dl-done {
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.26);
-    color: #34d399;
-}
-.card-dl-badge.dl-done:hover {
-    background: rgba(16, 185, 129, 0.18);
-    border-color: rgba(16, 185, 129, 0.45);
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.18);
-}
-
-/* Hỗ trợ List Mode */
-.grid-container.list-mode .item-card-deadline-row {
-    margin: 0 !important;
-    min-height: auto !important;
-}
-
+.item-card-deadline-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 12px 0; min-height: 26px; }
+.item-card-deadline-row.is-empty { min-height: 26px; margin: 4px 0 12px 0; }
+.card-dl-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3.5px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.25; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap; user-select: none; font-variant-numeric: tabular-nums; }
+.card-dl-badge .dl-icon { font-size: 11px; line-height: 1; }
+.card-dl-badge .dl-text { white-space: nowrap; }
+/* NÃºt Design hiá»‡n Ä‘áº¡i dáº¡ng icon trÃ²n */
+.card-dl-design-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 50%; color: #cbd5e1; font-size: 13px; line-height: 1; text-decoration: none; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); margin-left: auto; flex-shrink: 0; }
+.card-dl-design-btn:hover { background: rgba(6, 182, 212, 0.2); border-color: rgba(6, 182, 212, 0.5); box-shadow: 0 0 12px rgba(6, 182, 212, 0.35); transform: scale(1.12); }
+/* 1. BÃ¬nh thÆ°á»ng (> 24h) */
+.card-dl-badge.dl-normal { background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.28); color: #38bdf8; }
+.card-dl-badge.dl-normal:hover { background: rgba(14, 165, 233, 0.18); border-color: rgba(14, 165, 233, 0.45); box-shadow: 0 2px 8px rgba(14, 165, 233, 0.2); }
+/* 2. Gáº¥p (< 24h) */
+.card-dl-badge.dl-urgent { background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #fbbf24; animation: dlPulseAmber 2.5s infinite; }
+/* 2.5. Cáº£nh bÃ¡o kháº©n cáº¥p (<= 10 phÃºt) - Chá»›p Ä‘á» */
+.card-dl-badge.dl-critical-10m { background: #dc2626; border: 1px solid #f87171; color: #ffffff !important; font-weight: 700; animation: dlFlashRed 0.75s infinite alternate cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 14px rgba(239, 68, 68, 0.7); }
+.item-card:has(.dl-critical-10m) { border-color: rgba(239, 68, 68, 0.65) !important; box-shadow: 0 0 20px rgba(239, 68, 68, 0.25) !important; }
+/* 3. Trá»… háº¡n (< 0) */
+.card-dl-badge.dl-overdue { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; animation: dlPulseRed 2s infinite; }
+/* 4. ÄÃ£ hoÃ n thÃ nh */
+.card-dl-badge.dl-done { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.26); color: #34d399; }
+.card-dl-badge.dl-done:hover { background: rgba(16, 185, 129, 0.18); border-color: rgba(16, 185, 129, 0.45); box-shadow: 0 2px 8px rgba(16, 185, 129, 0.18); }
+/* Há»— trá»£ List Mode */
+.grid-container.list-mode .item-card-deadline-row { margin: 0 !important; min-height: auto !important; }
 @keyframes dlFlashRed {
-    0% {
-        background: rgba(239, 68, 68, 0.35);
-        border-color: rgba(239, 68, 68, 0.6);
-        box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
-        color: #fecaca;
-    }
-    100% {
-        background: #dc2626;
-        border-color: #fca5a5;
-        box-shadow: 0 0 18px 5px rgba(239, 68, 68, 0.95);
-        color: #ffffff;
-        transform: scale(1.03);
-    }
+0% { background: rgba(239, 68, 68, 0.35); border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); color: #fecaca; }
+100% { background: #dc2626; border-color: #fca5a5; box-shadow: 0 0 18px 5px rgba(239, 68, 68, 0.95); color: #ffffff; transform: scale(1.03); }
 }
-
 @keyframes dlPulseAmber {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
-    50% { box-shadow: 0 0 8px 1px rgba(245, 158, 11, 0.35); }
+0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+50% { box-shadow: 0 0 8px 1px rgba(245, 158, 11, 0.35); }
 }
-
 @keyframes dlPulseRed {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-    50% { box-shadow: 0 0 10px 2px rgba(239, 68, 68, 0.4); }
-}
+0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+50% { box-shadow: 0 0 10px 2px rgba(239, 68, 68, 0.4); }
+}
+/* ===== PROJECT DETAIL NEW LAYOUT ===== */
+.pd-new-layout { display: flex; flex-direction: column; gap: 0; width: 100%; }
+/* ---- Top Nasani Card ---- */
+.pd-top-card { background: linear-gradient(135deg, #0d121f 0%, #0f1628 100%); border: 1px solid rgba(0, 210, 211, 0.18); border-radius: 14px; padding: 18px 22px; margin-bottom: 20px; }
+.pd-top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; }
+.pd-top-title { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: #00d2d3; margin: 0; }
+.pd-top-actions { display: flex; align-items: center; gap: 8px; }
+.pd-btn-report { background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border: 1px solid transparent; font-size: 12.5px; font-weight: 700; padding: 0 14px; height: 34px; box-sizing: border-box; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3); transition: all 0.2s ease; white-space: nowrap; line-height: 1; text-decoration: none; }
+.pd-btn-report:hover { background: linear-gradient(135deg, #059669, #047857); box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4); transform: translateY(-1px); }
+.pd-btn-design { background: rgba(0, 210, 211, 0.06); border: 1px solid rgba(0, 210, 211, 0.25); color: #00d2d3; font-size: 12.5px; font-weight: 700; padding: 0 14px; height: 34px; box-sizing: border-box; border-radius: 8px; text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s ease; white-space: nowrap; line-height: 1; }
+.pd-btn-design:hover { background: rgba(0, 210, 211, 0.14); border-color: rgba(0, 210, 211, 0.45); color: #00f2fe; transform: translateY(-1px); }
+/* Stats grid in top card */
+.pd-stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+@media (max-width:1100px) {
+.pd-stats-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width:640px) {
+.pd-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.pd-stat-box { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 9px; padding: 11px 14px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pd-stat-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+.pd-stat-value { font-size: 13.5px; font-weight: 700; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pd-stat-sub { font-size: 10.5px; font-weight: 600; margin-top: 0; }
+/* ---- Section header "Cáº¥u hÃ¬nh & Deploy" ---- */
+.pd-section-header { display: flex; align-items: baseline; gap: 12px; margin: 0 0 14px 0; }
+.pd-section-title { font-size: 17px; font-weight: 800; color: #ffffff; margin: 0; letter-spacing: -0.01em; }
+.pd-section-subtitle { font-size: 12.5px; font-weight: 500; color: #475569; }
+/* ---- Environment 3-column grid ---- */
+.pd-env-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+@media (max-width:1100px) {
+.pd-env-grid { grid-template-columns: 1fr; }
+}
+.pd-env-card { background: #0b0f1c; border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 14px; padding: 18px 16px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; transition: border-color 0.2s ease; }
+.pd-env-card:hover { border-color: rgba(255, 255, 255, 0.12); }
+.pd-env-header { display: flex; flex-direction: column; gap: 4px; }
+.pd-env-title-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pd-env-title { font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase; }
+.pd-env-sub { margin: 0; font-size: 11.5px; color: #475569; line-height: 1.4; }
+/* ---- Badges ---- */
+.pd-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.pd-badge-local { background: rgba(249, 115, 22, 0.12); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.25); }
+.pd-badge-demo { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
+.pd-badge-prod { background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.25); }
+.pd-badge-warning { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }
+.pd-badge-neutral { background: rgba(255, 255, 255, 0.05); color: #64748b; border: 1px solid rgba(255, 255, 255, 0.08); }
+.pd-badge-success { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
+/* ---- Hero Buttons ---- */
+.pd-hero-btn { display: flex; align-items: center; gap: 13px; border-radius: 10px; padding: 0 16px; height: 60px; cursor: pointer; transition: all 0.2s ease; text-decoration: none; user-select: none; box-sizing: border-box; border: none; outline: none; }
+.pd-hero-btn:hover:not(.pd-hero-disabled) { transform: translateY(-1px); }
+.pd-hero-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.pd-hero-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.pd-hero-title { font-size: 15px; font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pd-hero-sub { font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; }
+.pd-hero-arrow { font-size: 16px; font-weight: bold; flex-shrink: 0; opacity: 0.9; }
+/* Hero variants - CAM (Local) -> XANH (Demo) -> TÍM (Production) */
+.pd-hero-local { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; }
+.pd-hero-local .pd-hero-icon { background: rgba(255, 255, 255, 0.2); }
+.pd-hero-local:hover { box-shadow: 0 6px 20px rgba(249, 115, 22, 0.45); }
+.pd-hero-demo { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; }
+.pd-hero-demo .pd-hero-icon { background: rgba(255, 255, 255, 0.2); }
+.pd-hero-demo:hover { box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45); }
+.pd-hero-disabled { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.07) !important; color: #475569; cursor: default; }
+.pd-hero-disabled .pd-hero-icon { background: rgba(255, 255, 255, 0.04); color: #475569; }
+.pd-hero-disabled .pd-hero-title { color: #64748b; }
+.pd-hero-disabled .pd-hero-sub { color: #334155; }
+.pd-hero-disabled .pd-hero-arrow { color: #334155; }
+.pd-hero-config { background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); color: #ffffff; }
+.pd-hero-config .pd-hero-icon { background: rgba(255, 255, 255, 0.2); }
+.pd-hero-config:hover { box-shadow: 0 6px 20px rgba(168, 85, 247, 0.45); }
+.pd-hero-prod { background: linear-gradient(135deg, #c084fc 0%, #9333ea 100%); color: #ffffff; }
+.pd-hero-prod .pd-hero-icon { background: rgba(255, 255, 255, 0.2); }
+.pd-hero-prod:hover { box-shadow: 0 6px 20px rgba(168, 85, 247, 0.45); }
+.pd-hero-prod .pd-hero-icon { background: rgba(255, 255, 255, 0.2); }
+.pd-hero-prod:hover { box-shadow: 0 6px 20px rgba(168, 85, 247, 0.45); }
+/* ---- Action buttons stack ---- */
+.pd-actions-stack { display: flex; flex-direction: column; gap: 7px; width: 100%; }
+.pd-action-btn { display: flex; align-items: center; gap: 11px; width: 100%; box-sizing: border-box; padding: 0 14px; height: 45px; background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 9px; color: #cbd5e1; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.18s ease; text-decoration: none; user-select: none; overflow: hidden; text-align: left; font-family: inherit; }
+.pd-action-btn:hover:not(.is-disabled) { background: rgba(255, 255, 255, 0.075); border-color: rgba(255, 255, 255, 0.15); color: #ffffff; transform: translateY(-1px); }
+.pd-action-btn.is-disabled { opacity: 0.38; cursor: not-allowed; filter: grayscale(0.3); }
+.pd-action-btn.is-configured { background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.15); }
+.pd-action-btn.is-danger { color: #f87171; }
+.pd-action-btn.is-danger:hover:not(.is-disabled) { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5; }
+/* Icon container inside action button - seamless with text */
+.pd-btn-icon { width: 20px; height: auto; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; background: none; border: none; }
+.pd-btn-text { flex: 1; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: normal; }
+.pd-pill-next { margin-left: auto; background: #f97316; color: #fff; font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+/* ---- Bottom section cards (Deploy info + History) ---- */
+.pd-section-card { background: #0b0f1c; border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 14px; padding: 18px 20px; margin-bottom: 18px; }
+.pd-card-header-title { font-size: 10.5px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 14px; }
+/* Empty deploy state */
+.pd-empty-deploy-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; background: rgba(0, 0, 0, 0.2); border: 1px dashed rgba(255, 255, 255, 0.08); border-radius: 10px; }
+@media (max-width:768px) {
+.pd-empty-deploy-row { flex-direction: column; align-items: flex-start; }
+}
+.pd-empty-deploy-left { display: flex; align-items: center; gap: 14px; }
+.pd-empty-deploy-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.18); display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+.pd-empty-deploy-title { font-size: 13.5px; font-weight: 700; color: #ffffff; margin-bottom: 2px; }
+.pd-empty-deploy-sub { font-size: 12px; color: #475569; }
+.pd-btn-set-demo { background: #ffffff; color: #0b1329; border: none; font-weight: 700; font-size: 12.5px; padding: 8px 18px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; transition: all 0.2s ease; }
+.pd-btn-set-demo:hover { background: #e2e8f0; transform: translateY(-1px); }
+/* ---- History items ---- */
+.pd-history-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 14px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 8px; margin-bottom: 7px; }
+.pd-history-item:last-child { margin-bottom: 0; }
+.pd-history-check { width: 24px; height: 24px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; flex-shrink: 0; border: 1px solid rgba(16, 185, 129, 0.2); }
+.pd-history-action { font-size: 13px; font-weight: 700; color: #e2e8f0; margin-bottom: 2px; }
+.pd-history-msg { font-size: 11.5px; color: #10b981; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 380px; }
+.pd-history-time { font-size: 11.5px; color: #475569; font-family: var(--mono, monospace); white-space: nowrap; flex-shrink: 0; }

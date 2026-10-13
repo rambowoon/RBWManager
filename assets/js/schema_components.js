@@ -283,12 +283,39 @@ const SchemaComponents = {
         `;
 		div.appendChild(autoSizeWrap);
 
+		const getCurrentFile = () => (this.currentFile || (typeof SchemaBuilder !== 'undefined' ? SchemaBuilder.currentFile : '') || '').toLowerCase();
+		const checkIsProduct = () => {
+			const cf = getCurrentFile();
+			return /(^|[\\/])type-products?\.php$/.test(cf)
+				|| cf.includes('product')
+				|| (path && path.length && (path[0] === 'san-pham' || path.includes('products')));
+		};
+
+		const isInitialProduct = checkIsProduct();
+		const initialThumbW = isInitialProduct ? Math.min(w, 500) : w;
+		const initialThumbH = Math.round((initialThumbW * currentRh) / currentRw);
+		const defaultThumb = `${initialThumbW}x${initialThumbH}x${currentS}`;
+		const displayThumb = data[keyT] || defaultThumb;
+
 		const resultInfo = document.createElement('div');
 		resultInfo.style.marginTop = '15px';
 		resultInfo.style.fontSize = '0.75rem';
 		resultInfo.style.color = 'var(--muted)';
-		resultInfo.innerHTML = `Result: <b class="res-dim" style="color:var(--primary);">${w} × ${h}</b> | Thumb: <b class="res-thumb" style="color:var(--primary);">${data[keyT] || ''}</b>`;
+		resultInfo.innerHTML = `Result: <b class="res-dim" style="color:var(--primary);">${w} × ${h}</b> | Thumb: <b class="res-thumb" style="color:var(--primary); cursor:pointer;" title="Nhấp để tùy chỉnh kích thước Thumb nếu cần">${displayThumb}</b>`;
 		div.appendChild(resultInfo);
+
+		const thumbEl = resultInfo.querySelector('.res-thumb');
+		if (thumbEl) {
+			thumbEl.onclick = () => {
+				const currentVal = thumbEl.innerText;
+				const inputVal = prompt('Nhập kích thước Thumb (W x H x Scale, ví dụ: 500x510x1):', currentVal);
+				if (inputVal && inputVal.trim()) {
+					const trimmed = inputVal.trim();
+					thumbEl.innerText = trimmed;
+					SchemaBuilder.updateData(`${path.join('.')}.${keyT}`, trimmed);
+				}
+			};
+		}
 
 		// Event listeners for automatic calculation
 		const updateRes = () => {
@@ -298,7 +325,12 @@ const SchemaComponents = {
 			const sc = parseFloat(inputScale.querySelector('input').value) || 1;
 
 			const nh = Math.round((nw * rh) / rw);
-			const nt = `${nw}x${nh}x${sc}`;
+
+			// Trong type-products, thumb mặc định chiều rộng tối đa là 500px, tính chiều cao theo tỉ lệ (không kéo chung 800 với photo)
+			const isProduct = checkIsProduct();
+			const thumbW = isProduct ? Math.min(nw, 500) : nw;
+			const thumbH = Math.round((thumbW * rh) / rw);
+			const nt = `${thumbW}x${thumbH}x${sc}`;
 
 			resultInfo.querySelector('.res-dim').innerText = `${nw} × ${nh}`;
 			resultInfo.querySelector('.res-thumb').innerText = nt;
@@ -346,8 +378,7 @@ const SchemaComponents = {
 				const common2 = gcd(newW, newH);
 				const ratioW = Math.max(1, Math.round(newW / common2));
 				const ratioH = Math.max(1, Math.round(newH / common2));
-				const currentFileName = (this.currentFile || '').toLowerCase();
-				const isProductsTypeFile = /(^|[\\/])type-products?\.php$/.test(currentFileName);
+				const isProductsTypeFile = checkIsProduct();
 				const defaultWidthLimit = inCategories || inBrand
 					? 500
 					: isProductsTypeFile

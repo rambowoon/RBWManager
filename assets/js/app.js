@@ -1394,7 +1394,7 @@ const App = {
 		const demoSelect = document.getElementById("pre_deploy_demo_server_id");
 		if (demoSelect && this.globalData && this.globalData.demo_list) {
 			demoSelect.innerHTML = "";
-			const defaultId = this.globalData.default_demo_id || "legacy";
+			const defaultId = this.globalData.default_demo_id || "demo_1785834732693";
 			this.globalData.demo_list.forEach((demo) => {
 				const option = document.createElement("option");
 				option.value = demo.id;
@@ -1482,7 +1482,7 @@ const App = {
 		const demoSelect = document.getElementById("pre_deploy_demo_server_id");
 		if (demoSelect && this.globalData && this.globalData.demo_list) {
 			demoSelect.innerHTML = "";
-			const defaultId = this.globalData.default_demo_id || "legacy";
+			const defaultId = this.globalData.default_demo_id || "demo_1785834732693";
 			this.globalData.demo_list.forEach((demo) => {
 				const option = document.createElement("option");
 				option.value = demo.id;
@@ -3199,7 +3199,7 @@ const App = {
 		const demoSelect = document.getElementById("set_demo_server_id");
 		if (demoSelect && this.globalData && this.globalData.demo_list) {
 			demoSelect.innerHTML = "";
-			const defaultId = this.globalData.default_demo_id || "legacy";
+			const defaultId = this.globalData.default_demo_id || "demo_1785834732693";
 			this.globalData.demo_list.forEach((demo) => {
 				const option = document.createElement("option");
 				option.value = demo.id;
@@ -3248,7 +3248,7 @@ const App = {
 			}
 		}
 		if (!targetServerId && this.globalData) {
-			targetServerId = this.globalData.default_demo_id || "legacy";
+			targetServerId = this.globalData.default_demo_id || "demo_1785834732693";
 		}
 		if (demoSelect && targetServerId) {
 			demoSelect.value = targetServerId;

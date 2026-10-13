@@ -462,15 +462,25 @@
                     </div>
 
                     <!-- TAB: CONFIG & DEPLOY -->
-                    <div id="d_tab-config" class="project-tab-content project-master-layout content-grid">
-                        <div class="master-actions-sidebar" id="d_master-action-buttons">
-                            <!-- Dynamically populated sections matching sample -->
+                    <div id="d_tab-config" class="project-tab-content pd-new-layout">
+                        <!-- Top Card: Quản lý project Nasani -->
+                        <div id="d_nasani-info-card" class="pd-nasani-card-container"></div>
+
+                        <!-- Header: Cấu hình & Deploy -->
+                        <div class="pd-section-header">
+                            <h2 class="pd-section-title">Cấu hình &amp; Deploy</h2>
                         </div>
 
-                        <div class="master-config-area">
-                            <div id="d_master-deployed-info" class="deployed-info-container"></div>
-                            <div id="d_master-history-info"></div>
+                        <!-- 3-Column Environments Grid -->
+                        <div id="d_master-action-buttons" class="pd-env-grid">
+                            <!-- Populated by UI.renderMasterActions -->
                         </div>
+
+                        <!-- Thông tin triển khai -->
+                        <div id="d_master-deployed-info" class="pd-deployed-container"></div>
+
+                        <!-- Lịch sử thao tác -->
+                        <div id="d_master-history-info" class="pd-history-container"></div>
                     </div>
 
                     <!-- TAB: VISUAL SCHEMA BUILDER -->
@@ -822,6 +832,11 @@
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                                         </svg> 📦 Lịch sử Backup
+                                    </button>
+                                    <button class="btn btn-ghost btn-sm" id="sc-btn-clear-cache" onclick="SyncCenter.clearCompiledCache()" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); color: #cbd5e1; margin: 0; text-transform: none;" title="Xoá sạch toàn bộ cache views compiled (.bladec) trên Local và Remote">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+                                        </svg> 🧹 Xoá Cache Compiled
                                     </button>
                                     <button class="btn btn-outline btn-sm" id="sc-btn-scan" onclick="SyncCenter.scan()" style="height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 14px; border-radius: 8px; border-color: rgba(255,255,255,0.15); margin: 0; text-transform: none;">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">

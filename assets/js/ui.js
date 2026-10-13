@@ -657,13 +657,27 @@ const UI = {
 				adminUrl = (config.demo_url || p.demo_url).trim();
 			} else {
 				let demoDomain = "demo92.nasanivietnam.net";
-				if (
-					App.globalData &&
-					App.globalData.demo_list &&
-					App.globalData.demo_list[0] &&
-					App.globalData.demo_list[0].web_domain
-				) {
-					demoDomain = App.globalData.demo_list[0].web_domain
+				const defaultDemoId =
+					(App.globalData && App.globalData.default_demo_id) ||
+					"demo_1785834732693";
+				if (App.globalData && App.globalData.demo_list) {
+					const matchedServer =
+						App.globalData.demo_list.find(
+							(d) => d.id === defaultDemoId,
+						) ||
+						App.globalData.demo_list.find(
+							(d) =>
+								d.web_domain &&
+								d.web_domain.includes("nasanivietnam.net"),
+						) ||
+						App.globalData.demo_list[0];
+					if (matchedServer && matchedServer.web_domain) {
+						demoDomain = matchedServer.web_domain
+							.replace(/^https?:\/\//i, "")
+							.replace(/\/+$/, "");
+					}
+				} else if (App.globalData && App.globalData.web_domain) {
+					demoDomain = App.globalData.web_domain
 						.replace(/^https?:\/\//i, "")
 						.replace(/\/+$/, "");
 				}
@@ -1263,6 +1277,7 @@ const UI = {
 		});
 
 		// Render Master Actions & Info (Page version)
+		this.renderNasaniInfoCard(config, "d_");
 		this.renderMasterActions(name, category, config, "d_");
 		this.renderMasterDeployedInfo(deployed, "d_");
 		this.renderMasterHistoryInfo(config.history, "d_");
@@ -1329,6 +1344,126 @@ const UI = {
 		}
 	},
 
+	renderNasaniInfoCard(config, prefix = "d_") {
+		const container = document.getElementById(prefix + "nasani-info-card");
+		if (!container) return;
+
+		const ni =
+			(config && config.nasani_info) ||
+			(typeof App !== "undefined" &&
+				App.currentProjectConfig &&
+				App.currentProjectConfig.nasani_info) ||
+			null;
+
+		const isDone = !!(ni && ni.is_completed);
+		const statusColor = isDone
+			? "#34d399"
+			: ni && ni.status_type === "overdue"
+				? "#f87171"
+				: ni && ni.status_type === "urgent"
+					? "#fbbf24"
+					: "#00d2d3";
+
+		if (ni) {
+			container.innerHTML = `
+				<div class="pd-top-card">
+					<div class="pd-top-header">
+						<h3 class="pd-top-title">QUẢN LÝ PROJECT NASANI</h3>
+						<div class="pd-top-actions">
+							${
+								ni.contract_code
+									? `
+								<button type="button" class="pd-btn-report" onclick="UI.triggerAutoReport(App.currentProjectName, App.currentCategory)" title="Báo cáo hoàn thành sớm cho trưởng nhóm trên Nasani (Tự điền form)">
+									<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+									<span>Báo cáo</span>
+								</button>`
+									: ""
+							}
+							${
+								ni.design_url
+									? `
+								<a href="${ni.design_url}" target="_blank" class="pd-btn-design" title="Mở link Design (Figma / Nasani): ${ni.design_url}">
+									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+									<span>Link Design</span>
+									<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+								</a>`
+									: ""
+							}
+						</div>
+					</div>
+					<div class="pd-stats-grid">
+						<div class="pd-stat-box">
+							<span class="pd-stat-label">MÃ HĐ</span>
+							<span class="pd-stat-value" style="font-family:var(--mono); color:#00d2d3; font-weight:800;">${ni.contract_code || "—"}</span>
+						</div>
+						<div class="pd-stat-box">
+							<span class="pd-stat-label">Khách hàng</span>
+							<span class="pd-stat-value" title="${ni.contract_name || ""}">${ni.contract_name || "—"}</span>
+						</div>
+						<div class="pd-stat-box">
+							<span class="pd-stat-label">${isDone ? "Ngày xong" : "Dự kiến xong"}</span>
+							<span class="pd-stat-value" style="color:${statusColor};">${ni.deadline || ni.completed_at || "—"}</span>
+							${
+								!isDone && ni.days_left !== null && ni.days_left !== undefined
+									? `<span class="pd-stat-sub" style="color:${statusColor};">${ni.days_left >= 0 ? "Còn " + ni.days_left + " ngày" : "Quá " + Math.abs(ni.days_left) + " ngày"}</span>`
+									: ""
+							}
+						</div>
+						<div class="pd-stat-box">
+							<span class="pd-stat-label">Lập trình</span>
+							<span class="pd-stat-value">${ni.dev_name || "—"}</span>
+						</div>
+						<div class="pd-stat-box">
+							<span class="pd-stat-label">Giờ làm</span>
+							<span class="pd-stat-value">${ni.lt_hours || "—"}</span>
+						</div>
+					</div>
+				</div>
+			`;
+		} else {
+			const p =
+				(typeof App !== "undefined" &&
+					App.projects &&
+					App.projects.find((item) => item.name === App.currentProjectName)) ||
+				{};
+			container.innerHTML = `
+				<div class="pd-top-card">
+					<div class="pd-top-header">
+						<h3 class="pd-top-title">QUẢN LÝ DỰ ÁN NASANI</h3>
+						<div class="pd-top-actions">
+							<button type="button" class="pd-btn-report" onclick="UI.triggerAutoReport(App.currentProjectName, App.currentCategory)" title="Báo cáo hoàn thành cho trưởng nhóm">
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+								<span>Báo cáo</span>
+							</button>
+						</div>
+					</div>
+					<div class="pd-stats-grid">
+						<div class="pd-stat-box">
+							<span class="pd-stat-label">Tên dự án</span>
+							<span class="pd-stat-value" style="color:#00d2d3;">${App.currentProjectName || "—"}</span>
+						</div>
+						<div class="pd-stat-box">
+							<span class="pd-stat-label">Thư mục</span>
+							<span class="pd-stat-value">${App.currentCategory || "—"}</span>
+						</div>
+						<div class="pd-stat-box">
+							<span class="pd-stat-label">Dung lượng</span>
+							<span class="pd-stat-value">${(config && config.size_formatted) || p.size_formatted || "—"}</span>
+						</div>
+						<div class="pd-stat-box">
+							<span class="pd-stat-label">PHP Version</span>
+							<span class="pd-stat-value">${p.php_version || "8.3"}</span>
+						</div>
+						<div class="pd-stat-box">
+							<span class="pd-stat-label">Trạng thái</span>
+							<span class="pd-stat-value" style="color:#64748b;">Chưa gán HĐ Nasani</span>
+						</div>
+					</div>
+				</div>
+			`;
+		}
+	},
+
 	renderMasterActions(name, category, config, prefix = "") {
 		const container = document.getElementById(
 			prefix + "master-action-buttons",
@@ -1365,12 +1500,22 @@ const UI = {
 				: config.demo_url || "";
 		if (!demoUrl && hasDemo && project) {
 			let demoDomain = "demo92.nasanivietnam.net";
-			const demoId = config.deployed.demo.demo_server_id || "legacy";
+			const defaultDemoId =
+				(App.globalData && App.globalData.default_demo_id) ||
+				"demo_1785834732693";
+			const demoId =
+				(config.deployed &&
+					config.deployed.demo &&
+					config.deployed.demo.demo_server_id) ||
+				defaultDemoId;
 			if (App.globalData && App.globalData.demo_list) {
-				const demoServer = App.globalData.demo_list.find(
-					(d) => d.id === demoId,
-				);
-				if (demoServer)
+				const demoServer =
+					App.globalData.demo_list.find((d) => d.id === demoId) ||
+					App.globalData.demo_list.find(
+						(d) => d.id === defaultDemoId,
+					) ||
+					App.globalData.demo_list[0];
+				if (demoServer && demoServer.web_domain)
 					demoDomain = demoServer.web_domain
 						.replace(/https?:\/\//i, "")
 						.replace(/\/$/, "");
@@ -1398,82 +1543,163 @@ const UI = {
 		);
 
 		container.innerHTML = `
-			<div class="env-block">
-				<div class="section-title"><span class="swatch" style="background:linear-gradient(90deg,var(--local-a),var(--local-b))"></span><h2>Môi trường Local (Dev)</h2></div>
-				<p class="section-sub">Chạy và chỉnh sửa dự án trên máy của bạn.</p>
-				<div class="hero-action local-hero" onclick="${localUrl ? `window.open('${localUrl}', '_blank')` : ""}">
-					<div class="content">
-						<div class="icon">⌂</div>
-						<div class="txt"><div class="t">Mở Website (Local)</div><div class="s">${localUrl ? "Xem trực tiếp trên trình duyệt" : "Chưa xác định đường dẫn"}</div></div>
-						<div class="arrow">→</div>
+			<div class="pd-env-card">
+				<div class="pd-env-header">
+					<div class="pd-env-title-row">
+						<span class="pd-env-title">MÔI TRƯỜNG LOCAL (DEV)</span>
+						<span class="pd-badge pd-badge-local">✔ Sẵn sàng</span>
 					</div>
 				</div>
-				<div class="chip-row">
-					<div class="chip ${isConfiguredLocal ? "locked" : "util"}" onclick="${isConfiguredLocal ? "UI.notify('Dự án này đã được cấu hình Source Local!', 'info')" : `App.setupLocalSource('${safeName}', '${safeCat}')`}"><div class="ic" style="background:${isConfiguredLocal ? "rgba(255,255,255,0.05)" : "var(--primary-glow)"};color:${isConfiguredLocal ? "var(--text-muted)" : "var(--primary)"};">${isConfiguredLocal ? "✓" : "🔧"}</div><div class="lbl">${isConfiguredLocal ? "Đã cấu hình Source" : "Cấu hình Source Local"}</div></div>
-					<div class="chip util" onclick="App.autoLoginAdmin('${safeName}', '${safeCat}', 'local')" title="Tự động đăng nhập thẳng vào trang quản trị Admin Local"><div class="ic" style="background:rgba(168,85,247,0.18);color:#c084fc;">🔑</div><div class="lbl">Đăng nhập Admin (Local)</div></div>
-					<div class="chip neutral" onclick="App.openAntigravity('${safeName}')"><div class="ic">▶</div><div class="lbl">Mở bằng Antigravity</div></div>
-					${!isConfigPhp ? `<div class="chip util" onclick="UI.showChangeTypeModal('${safeName}', '${safeCat}')"><div class="ic">🔄</div><div class="lbl">Đổi Type DB</div></div>` : ""}
-					${!isConfigPhp ? `<div class="chip util" onclick="App.integrateAMP('${safeName}','${safeCat}')"><div class="ic">⚡</div><div class="lbl">Tích hợp AMP</div></div>` : ""}
-					<div class="chip util" onclick="App.clearProjectCache('${safeName}','${safeCat}')"><div class="ic">🧹</div><div class="lbl">Xóa cache trình duyệt</div></div>
+
+				<div class="pd-hero-btn pd-hero-local" onclick="${localUrl ? `window.open('${localUrl}', '_blank')` : ""}">
+					<div class="pd-hero-icon">⌂</div>
+					<div class="pd-hero-text">
+						<div class="pd-hero-title">Mở Website (Local)</div>
+					</div>
+					<div class="pd-hero-arrow">→</div>
+				</div>
+
+				<div class="pd-actions-stack">
+					<button type="button" class="pd-action-btn ${isConfiguredLocal ? "is-disabled" : ""}" onclick="${isConfiguredLocal ? "UI.notify('Dự án này đã được cấu hình Source Local!', 'info')" : `App.setupLocalSource('${safeName}', '${safeCat}')`}">
+						<span class="pd-btn-icon">${isConfiguredLocal ? "✓" : "🔧"}</span>
+						<span class="pd-btn-text">${isConfiguredLocal ? "Đã cấu hình Source" : "Cấu hình Source Local"}</span>
+					</button>
+					<button type="button" class="pd-action-btn" onclick="App.autoLoginAdmin('${safeName}', '${safeCat}', 'local')" title="Tự động đăng nhập thẳng vào trang quản trị Admin Local">
+						<span class="pd-btn-icon">🔑</span>
+						<span class="pd-btn-text">Đăng nhập Admin (Local)</span>
+					</button>
+					<button type="button" class="pd-action-btn" onclick="App.openAntigravity('${safeName}')">
+						<span class="pd-btn-icon">▶</span>
+						<span class="pd-btn-text">Mở bằng Antigravity</span>
+					</button>
+					${!isConfigPhp ? `
+					<button type="button" class="pd-action-btn" onclick="UI.showChangeTypeModal('${safeName}', '${safeCat}')">
+						<span class="pd-btn-icon">🔄</span>
+						<span class="pd-btn-text">Đổi Type DB</span>
+					</button>` : ""}
+					${!isConfigPhp ? `
+					<button type="button" class="pd-action-btn" onclick="App.integrateAMP('${safeName}','${safeCat}')">
+						<span class="pd-btn-icon">⚡</span>
+						<span class="pd-btn-text">Tích hợp AMP</span>
+					</button>` : ""}
+					<button type="button" class="pd-action-btn" onclick="App.clearProjectCache('${safeName}','${safeCat}')">
+						<span class="pd-btn-icon">🗑</span>
+						<span class="pd-btn-text">Xóa cache trình duyệt</span>
+					</button>
 				</div>
 			</div>
 
-			<div class="env-block">
-				<div class="section-title"><span class="swatch" style="background:linear-gradient(90deg,var(--demo-a),var(--demo-b))"></span><h2>Môi trường Demo</h2></div>
-				<p class="section-sub">Bản xem trước dành cho khách hàng ${isLockedDemo ? "— hiện đang bị khóa." : ""}</p>
-				<div class="hero-action demo-hero" onclick="${hasDemo && demoUrl ? `window.open('${getUrl(demoUrl, isDemoSsl)}', '_blank')` : ""}">
-					<div class="content">
-						<div class="icon">⛓</div>
-						<div class="txt"><div class="t">${hasDemo ? "Mở Website (Demo)" : "Chưa Deploy Demo"}</div><div class="s">${demoUrl || "Chưa triển khai Demo"}</div></div>
-						<div class="arrow">→</div>
+			<div class="pd-env-card">
+				<div class="pd-env-header">
+					<div class="pd-env-title-row">
+						<span class="pd-env-title">MÔI TRƯỜNG DEMO</span>
+						<span class="pd-badge ${hasDemo ? "pd-badge-demo" : "pd-badge-neutral"}">${hasDemo ? "✔ Đã deploy" : "Chưa deploy"}</span>
 					</div>
 				</div>
-				<div class="chip-row">
-					<div class="chip ${hasDemo ? "util" : "locked"}" onclick="${hasDemo ? `App.autoLoginAdmin('${safeName}', '${safeCat}', 'demo')` : `UI.notify('Dự án chưa được Deploy Demo! Vui lòng Deploy Demo trước khi đăng nhập.', 'warning')`}" title="${hasDemo ? "Tự động đăng nhập thẳng vào trang quản trị Admin trên Hosting Demo" : "Chưa Deploy Demo — Cần Deploy Demo trước"}"><div class="ic" style="background:${hasDemo ? "rgba(168,85,247,0.18)" : "rgba(255,255,255,0.05)"};color:${hasDemo ? "#c084fc" : "var(--text-muted)"};">🔑</div><div class="lbl">Đăng nhập Admin (Demo)</div></div>
-					<div class="chip ${isLockedDemo ? "locked" : ""}" onclick="${isLockedDemo ? "UI.notify('Dự án đang bị KHÓA!', 'error')" : `App.deployDemo('${safeName}','${safeCat}')`}"><div class="ic" style="background:rgba(255,183,77,0.15);color:#FFCB7A;">▶</div><div class="lbl">Deploy Demo</div></div>
-					<div class="chip ${isLockedDemo ? "locked" : ""}" onclick="${isLockedDemo ? "UI.notify('Dự án đang bị KHÓA!', 'error')" : `App.deployDbDemo('${safeName}','${safeCat}')`}"><div class="ic" style="background:rgba(255,183,77,0.15);color:#FFCB7A;">▤</div><div class="lbl">Deploy DB Demo</div></div>
-					${hasDemo ? `<div class="chip util" onclick="App.pushTools('${safeName}', '${safeCat}')"><div class="ic">⚡</div><div class="lbl">Sync Tools</div></div>` : ""}
-					${hasDemo && !isConfigPhp ? `<div class="chip util" onclick="App.downloadPackage('${safeName}','${safeCat}')"><div class="ic">⭳</div><div class="lbl">Download Package</div></div>` : ""}
-					${hasDemo ? `<div class="chip danger" onclick="App.cleanupTools('${safeName}','${safeCat}', 'demo')"><div class="ic">✎</div><div class="lbl">Dọn dẹp Demo</div></div>` : ""}
-					<div class="chip" onclick="App.toggleActionLock('${safeName}','demo', '${safeCat}')"><div class="ic" style="background:rgba(63,216,160,0.15);color:#5FF0BE;">⚿</div><div class="lbl">${isLockedDemo ? "Mở khóa Demo" : "Khóa Demo"}</div></div>
-					<div class="chip util" onclick="App.showSetDemoAccountModal('${safeName}', '${safeCat}')" title="Gán hoặc chỉnh sửa thông tin kết nối Demo đã có sẵn trên hosting"><div class="ic" style="background:rgba(59,130,246,0.18);color:#60a5fa;">🔗</div><div class="lbl">${hasDemo ? "Sửa kết nối Demo" : "Set tài khoản Demo"}</div></div>
+
+				<div class="pd-hero-btn ${hasDemo ? "pd-hero-demo" : "pd-hero-disabled"}" onclick="${hasDemo && demoUrl ? `window.open('${getUrl(demoUrl, isDemoSsl)}', '_blank')` : ""}">
+					<div class="pd-hero-icon">🔗</div>
+					<div class="pd-hero-text">
+						<div class="pd-hero-title">${hasDemo ? "Mở Website (Demo)" : "Chưa Deploy Demo"}</div>
+					</div>
+					<div class="pd-hero-arrow">→</div>
+				</div>
+
+				<div class="pd-actions-stack">
+					<button type="button" class="pd-action-btn ${hasDemo ? "" : "is-disabled"}" onclick="${hasDemo ? `App.autoLoginAdmin('${safeName}', '${safeCat}', 'demo')` : `UI.notify('Dự án chưa được Deploy Demo! Vui lòng Deploy Demo trước khi đăng nhập.', 'warning')`}" title="${hasDemo ? "Tự động đăng nhập thẳng vào trang quản trị Admin trên Hosting Demo" : "Chưa Deploy Demo — Cần Deploy Demo trước"}">
+						<span class="pd-btn-icon">🔑</span>
+						<span class="pd-btn-text">Đăng nhập Admin (Demo)</span>
+					</button>
+					<button type="button" class="pd-action-btn ${isLockedDemo ? "is-disabled" : ""}" onclick="${isLockedDemo ? "UI.notify('Dự án đang bị KHÓA!', 'error')" : `App.deployDemo('${safeName}','${safeCat}')`}">
+						<span class="pd-btn-icon">▶</span>
+						<span class="pd-btn-text">Deploy Demo</span>
+					</button>
+					<button type="button" class="pd-action-btn ${isLockedDemo ? "is-disabled" : ""}" onclick="${isLockedDemo ? "UI.notify('Dự án đang bị KHÓA!', 'error')" : `App.deployDbDemo('${safeName}','${safeCat}')`}">
+						<span class="pd-btn-icon">▤</span>
+						<span class="pd-btn-text">Deploy DB Demo</span>
+					</button>
+					${hasDemo ? `
+					<button type="button" class="pd-action-btn" onclick="App.pushTools('${safeName}', '${safeCat}')">
+						<span class="pd-btn-icon">⚡</span>
+						<span class="pd-btn-text">Sync Tools</span>
+					</button>` : ""}
+					${hasDemo && !isConfigPhp ? `
+					<button type="button" class="pd-action-btn" onclick="App.downloadPackage('${safeName}','${safeCat}')">
+						<span class="pd-btn-icon">⭳</span>
+						<span class="pd-btn-text">Download Package</span>
+					</button>` : ""}
+					${hasDemo ? `
+					<button type="button" class="pd-action-btn is-danger" onclick="App.cleanupTools('${safeName}','${safeCat}', 'demo')">
+						<span class="pd-btn-icon">✎</span>
+						<span class="pd-btn-text">Dọn dẹp Demo</span>
+					</button>` : ""}
+					<button type="button" class="pd-action-btn" onclick="App.toggleActionLock('${safeName}','demo', '${safeCat}')">
+						<span class="pd-btn-icon">🔒</span>
+						<span class="pd-btn-text">${isLockedDemo ? "Mở khóa Demo" : "Khóa Demo"}</span>
+					</button>
+					<button type="button" class="pd-action-btn" onclick="App.showSetDemoAccountModal('${safeName}', '${safeCat}')" title="Gán hoặc chỉnh sửa thông tin kết nối Demo đã có sẵn trên hosting">
+						<span class="pd-btn-icon">🔗</span>
+						<span class="pd-btn-text">${hasDemo ? "Sửa kết nối Demo" : "Set tài khoản Demo"}</span>
+						${!hasDemo ? `<span class="pd-pill-next">Tiếp theo</span>` : ""}
+					</button>
 				</div>
 			</div>
 
-			<div class="env-block">
-				<div class="section-title"><span class="swatch" style="background:linear-gradient(90deg,var(--prod-a),var(--prod-b))"></span><h2>Môi trường Production</h2></div>
-				${
-					!isConfiguredProd
-						? `
-				<p class="section-sub">Chưa có cấu hình Hosting — vui lòng cấu hình Hosting trước khi Publish Production.</p>
-				<div class="hero-action prod-hero" style="background:linear-gradient(135deg, rgba(255, 94, 143, 0.18), rgba(182, 68, 255, 0.1)); border:1px dashed rgba(255, 94, 143, 0.4);" onclick="UI.showModal('${prefix ? "detail-config-modal" : "config-modal"}')">
-					<div class="content">
-						<div class="icon">⚙</div>
-						<div class="txt"><div class="t">⚙️ Cấu hình Hosting</div><div class="s">Nhập IP, FTP User, DA User, Web Domain để sẵn sàng Deploy Production</div></div>
-						<div class="arrow">→</div>
+			<div class="pd-env-card">
+				<div class="pd-env-header">
+					<div class="pd-env-title-row">
+						<span class="pd-env-title">MÔI TRƯỜNG PRODUCTION</span>
+						<span class="pd-badge ${isConfiguredProd ? "pd-badge-prod" : "pd-badge-warning"}">${isConfiguredProd ? "✔ Sẵn sàng" : "⚠ Thiếu cấu hình"}</span>
 					</div>
 				</div>
-				`
-						: `
-				<p class="section-sub">Website chính thức — mọi thao tác tại đây ảnh hưởng người dùng thật ${isLockedProd ? "— hiện đang bị khóa." : ""}</p>
-				<div class="hero-action prod-hero" onclick="${prodUrl ? `window.open('${getUrl(prodUrl, isProdSsl)}', '_blank')` : "UI.notify('Chưa cấu hình Domain Production!', 'warning')"}">
-					<div class="content">
-						<div class="icon">🌐</div>
-						<div class="txt"><div class="t">Mở Website (Prod)</div><div class="s">${prodUrl || "Chưa xác định Web Domain"}</div></div>
-						<div class="arrow">→</div>
+
+				${!isConfiguredProd ? `
+				<div class="pd-hero-btn pd-hero-config" onclick="UI.showModal('${prefix ? "detail-config-modal" : "config-modal"}')">
+					<div class="pd-hero-icon">⚙</div>
+					<div class="pd-hero-text">
+						<div class="pd-hero-title">Cấu hình Hosting</div>
 					</div>
+					<div class="pd-hero-arrow">→</div>
 				</div>
-				<div class="chip-row">
-					<div class="chip ${hasProd ? "util" : "locked"}" onclick="${hasProd ? `App.autoLoginAdmin('${safeName}', '${safeCat}', 'prod')` : `UI.notify('Dự án chưa được Publish Production! Vui lòng Publish Production trước khi đăng nhập.', 'warning')`}" title="${hasProd ? "Tự động đăng nhập thẳng vào trang quản trị Admin trên Production" : "Chưa Publish Production — Cần Publish Production trước"}"><div class="ic" style="background:${hasProd ? "rgba(168,85,247,0.18)" : "rgba(255,255,255,0.05)"};color:${hasProd ? "#c084fc" : "var(--text-muted)"};">🔑</div><div class="lbl">Đăng nhập Admin (Prod)</div></div>
-					<div class="chip util" onclick="UI.showModal('${prefix ? "detail-config-modal" : "config-modal"}')"><div class="ic">⚙</div><div class="lbl">Cấu hình Hosting</div></div>
-					<div class="chip ${isLockedProd ? "locked" : ""}" onclick="${isLockedProd ? "UI.notify('Production đang bị KHÓA!', 'error')" : `App.publishToProduction('${safeName}','${safeCat}')`}"><div class="ic" style="background:rgba(63,216,160,0.15);color:#5FF0BE;">◉</div><div class="lbl">Publish Production</div></div>
-					<div class="chip util" onclick="App.installSSL('${safeName}', '${safeCat}')"><div class="ic">🔒</div><div class="lbl">Install SSL</div></div>
-					<div class="chip util" onclick="App.showChangePhpVersionModal('${safeName}', '${safeCat}')"><div class="ic">🌐</div><div class="lbl">Đổi PHP Version</div></div>
-					<div class="chip danger" onclick="App.cleanupTools('${safeName}','${safeCat}', 'production')"><div class="ic">✎</div><div class="lbl">Dọn dẹp Production</div></div>
-					<div class="chip danger" onclick="App.toggleActionLock('${safeName}','production', '${safeCat}')"><div class="ic">⚿</div><div class="lbl">${isLockedProd ? "Mở khóa Production" : "Khóa Production"}</div></div>
+				` : `
+				<div class="pd-hero-btn pd-hero-prod" onclick="${prodUrl ? `window.open('${getUrl(prodUrl, isProdSsl)}', '_blank')` : "UI.notify('Chưa cấu hình Domain Production!', 'warning')"}">
+					<div class="pd-hero-icon">🌐</div>
+					<div class="pd-hero-text">
+						<div class="pd-hero-title">Mở Website (Prod)</div>
+					</div>
+					<div class="pd-hero-arrow">→</div>
 				</div>
-				`
-				}
+				<div class="pd-actions-stack">
+					<button type="button" class="pd-action-btn ${hasProd ? "" : "is-disabled"}" onclick="${hasProd ? `App.autoLoginAdmin('${safeName}', '${safeCat}', 'prod')` : `UI.notify('Dự án chưa được Publish Production! Vui lòng Publish Production trước khi đăng nhập.', 'warning')`}" title="${hasProd ? "Tự động đăng nhập thẳng vào trang quản trị Admin trên Production" : "Chưa Publish Production — Cần Publish Production trước"}">
+						<span class="pd-btn-icon">🔑</span>
+						<span class="pd-btn-text">Đăng nhập Admin (Prod)</span>
+					</button>
+					<button type="button" class="pd-action-btn" onclick="UI.showModal('${prefix ? "detail-config-modal" : "config-modal"}')">
+						<span class="pd-btn-icon">⚙</span>
+						<span class="pd-btn-text">Cấu hình Hosting</span>
+					</button>
+					<button type="button" class="pd-action-btn ${isLockedProd ? "is-disabled" : ""}" onclick="${isLockedProd ? "UI.notify('Production đang bị KHÓA!', 'error')" : `App.publishToProduction('${safeName}','${safeCat}')`}">
+						<span class="pd-btn-icon">◉</span>
+						<span class="pd-btn-text">Publish Production</span>
+					</button>
+					<button type="button" class="pd-action-btn" onclick="App.installSSL('${safeName}', '${safeCat}')">
+						<span class="pd-btn-icon">🔒</span>
+						<span class="pd-btn-text">Install SSL</span>
+					</button>
+					<button type="button" class="pd-action-btn" onclick="App.showChangePhpVersionModal('${safeName}', '${safeCat}')">
+						<span class="pd-btn-icon">🌐</span>
+						<span class="pd-btn-text">Đổi PHP Version</span>
+					</button>
+					<button type="button" class="pd-action-btn is-danger" onclick="App.cleanupTools('${safeName}','${safeCat}', 'production')">
+						<span class="pd-btn-icon">✎</span>
+						<span class="pd-btn-text">Dọn dẹp Production</span>
+					</button>
+					<button type="button" class="pd-action-btn is-danger" onclick="App.toggleActionLock('${safeName}','production', '${safeCat}')">
+						<span class="pd-btn-icon">🔒</span>
+						<span class="pd-btn-text">${isLockedProd ? "Mở khóa Production" : "Khóa Production"}</span>
+					</button>
+				</div>
+				`}
 			</div>
 		`;
 	},
@@ -1499,98 +1725,22 @@ const UI = {
 		const hasDemo = deployed && deployed.demo && deployed.demo.deploy_time;
 		const hasProd = deployed && deployed.production;
 
-		// Thông tin dự án Nasani (nếu khớp mã HĐ hoặc tên dự án)
-		const nasaniInfo =
-			typeof App !== "undefined" && App.currentProjectConfig
-				? App.currentProjectConfig.nasani_info
-				: null;
-		let nasaniCardHtml = "";
-		if (nasaniInfo) {
-			const ni = nasaniInfo;
-			const isDone = !!ni.is_completed;
-			const statusColor = isDone
-				? "#34d399"
-				: ni.status_type === "overdue"
-					? "#f87171"
-					: ni.status_type === "urgent"
-						? "#fbbf24"
-						: "#00d2d3";
-			const statusLabel = isDone
-				? "✓ Đã hoàn thành"
-				: ni.status_type === "overdue"
-					? "🚨 Đang làm (Trễ hạn)"
-					: ni.status_type === "urgent"
-						? "⚠️ Đang làm (Gấp < 24h)"
-						: "⚡ ĐANG LÀM";
-
-			nasaniCardHtml = `
-				<div class="side-card" style="border: 1px solid rgba(0, 210, 211, 0.25); background: linear-gradient(135deg, rgba(0, 210, 211, 0.05), rgba(9, 132, 227, 0.03)); border-radius: 12px; margin-bottom: 16px;">
-					<div style="display:flex; align-items:center; gap:6px; margin-bottom: 10px;">
-						<span style="font-size: 15px;">📋</span>
-						<h3 style="margin:0; font-size:13px; font-weight:800; color:#fff;">Quản lý project Nasani</h3>
-					</div>
-					<div class="deploy-box" style="background: rgba(0,0,0,0.25); padding:10px 12px; border-radius:8px;">
-						${ni.contract_code ? `<div class="kv"><span class="k">Mã HĐ</span><span class="v" style="font-family:monospace; font-weight:bold; color:#00d2d3;">${ni.contract_code}</span></div>` : ""}
-						${ni.contract_name ? `<div class="kv"><span class="k">Khách hàng</span><span class="v" style="color:#f1f5f9; font-weight:600;">${ni.contract_name}</span></div>` : ""}
-						${
-							!isDone && ni.deadline
-								? `
-							<div class="kv">
-								<span class="k">Dự kiến xong</span>
-								<span class="v" style="color:${statusColor}; font-weight:700;">
-									${ni.deadline} ${ni.days_left !== null ? `(${ni.days_left >= 0 ? "Còn " + ni.days_left + " ngày" : "Quá " + Math.abs(ni.days_left) + " ngày"})` : ""}
-								</span>
-							</div>`
-								: ""
-						}
-						${
-							isDone && ni.completed_at
-								? `
-							<div class="kv">
-								<span class="k">Ngày xong</span>
-								<span class="v" style="color:#34d399; font-weight:700;">${ni.completed_at}</span>
-							</div>`
-								: ""
-						}
-						${ni.dev_name ? `<div class="kv"><span class="k">Lập trình</span><span class="v">${ni.dev_name}</span></div>` : ""}
-						${ni.lt_hours ? `<div class="kv"><span class="k">Giờ làm</span><span class="v">${ni.lt_hours}</span></div>` : ""}
-						<div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
-							${
-								ni.contract_code
-									? `
-								<button type="button" class="btn btn-xs" style="background:#10b981; color:#fff; border:none; font-size:11.5px; padding:5px 12px; border-radius:6px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(16, 185, 129, 0.3);" onclick="UI.triggerAutoReport(App.currentProjectName, App.currentCategory)" title="Báo cáo hoàn thành sớm cho trưởng nhóm trên Nasani (Tự điền form)">
-									<span>⚡</span> Báo cáo
-								</button>
-							`
-									: "<span></span>"
-							}
-							${
-								ni.design_url
-									? `
-								<a href="${ni.design_url}" target="_blank" class="btn btn-outline btn-xs" style="color:#00d2d3; border-color:rgba(0,210,211,0.4); font-size:11.5px; padding:4px 10px; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
-									<span>🎨 Link Design</span>
-									<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-								</a>
-							`
-									: ""
-							}
-						</div>
-					</div>
-				</div>
-			`;
-		}
-
 		container.style.display = "block";
 		if (!hasDemo && !hasProd) {
 			container.innerHTML = `
-				${nasaniCardHtml}
-				<div class="side-card">
-					<h3>Thông tin triển khai</h3>
-					<div class="deploy-box empty-box" style="background:linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px dashed rgba(255,255,255,0.12); text-align:center; padding:24px 16px;">
-						<div style="font-size: 28px; margin-bottom: 8px; opacity: 0.7;">🚀</div>
-						<div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">Chưa Triển Khai</div>
-						<div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.5; margin-bottom:12px;">Dự án này chưa được deploy lên môi trường Demo hoặc Production.</div>
-						<button class="btn btn-outline btn-xs" style="font-size:11.5px; padding:4px 12px; border-radius:6px; border-color:rgba(96,165,250,0.4); color:#60a5fa;" onclick="App.showSetDemoAccountModal(App.currentProjectName, App.currentCategory)">🔗 Set tài khoản Demo</button>
+				<div class="pd-section-card">
+					<div class="pd-card-header-title">THÔNG TIN TRIỂN KHAI</div>
+					<div class="pd-empty-deploy-row">
+						<div class="pd-empty-deploy-left">
+							<div class="pd-empty-deploy-icon">🚀</div>
+							<div>
+								<div class="pd-empty-deploy-title">Chưa Triển Khai</div>
+								<div class="pd-empty-deploy-sub">Dự án này chưa được deploy lên môi trường Demo hoặc Production.</div>
+							</div>
+						</div>
+						<button type="button" class="pd-btn-set-demo" onclick="App.showSetDemoAccountModal(App.currentProjectName, App.currentCategory)">
+							<span>🔗</span> Set tài khoản Demo
+						</button>
 					</div>
 				</div>
 			`;
@@ -1598,53 +1748,54 @@ const UI = {
 		}
 
 		container.innerHTML = `
-			${nasaniCardHtml}
-			<div class="side-card">
-				<h3>Thông tin triển khai</h3>
-				${
-					hasDemo
-						? `
-				<div class="deploy-box">
-					<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-						<div class="tag" style="margin-bottom:0;">⚡ DEMO</div>
-						<a href="javascript:void(0)" onclick="App.showSetDemoAccountModal(App.currentProjectName, App.currentCategory)" style="font-size:11px; color:#60a5fa; text-decoration:none;" title="Chỉnh sửa thông tin kết nối Demo">✏️ Sửa</a>
-					</div>
-					${deployed.demo.server_name ? `<div class="kv"><span class="k">Server</span><span class="v">${deployed.demo.server_name}</span></div>` : ""}
-					${deployed.demo.matched_folder ? `<div class="kv"><span class="k">Folder</span><span class="v" title="${deployed.demo.matched_folder}">${deployed.demo.matched_folder}</span></div>` : ""}
-					<div class="kv"><span class="k">DB</span><span class="v">${deployed.demo.db_name || "—"}</span></div>
+			<div class="pd-section-card">
+				<div class="pd-card-header-title">THÔNG TIN TRIỂN KHAI</div>
+				<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
 					${
-						deployed.demo.db_pass
+						hasDemo
 							? `
-					<div class="kv">
-						<span class="k">Pass</span>
-						<span class="v pw-row">
-							<span id="${prefix}demo_pw_text">••••••••••••</span>
-							<button class="eye-btn" onclick="UI.togglePasswordText('${prefix}demo_pw_text', '${deployed.demo.db_pass}', this)">Hiện</button>
-						</span>
+					<div class="deploy-box" style="margin:0; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px 16px;">
+						<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+							<div class="tag" style="margin:0; font-weight:800; color:#5FF0BE;">⚡ DEMO</div>
+							<a href="javascript:void(0)" onclick="App.showSetDemoAccountModal(App.currentProjectName, App.currentCategory)" style="font-size:11px; color:#60a5fa; text-decoration:none;" title="Chỉnh sửa thông tin kết nối Demo">✏️ Sửa</a>
+						</div>
+						${deployed.demo.server_name ? `<div class="kv"><span class="k">Server</span><span class="v">${deployed.demo.server_name}</span></div>` : ""}
+						${deployed.demo.matched_folder ? `<div class="kv"><span class="k">Folder</span><span class="v" title="${deployed.demo.matched_folder}">${deployed.demo.matched_folder}</span></div>` : ""}
+						<div class="kv"><span class="k">DB</span><span class="v">${deployed.demo.db_name || "—"}</span></div>
+						${
+							deployed.demo.db_pass
+								? `
+						<div class="kv">
+							<span class="k">Pass</span>
+							<span class="v pw-row">
+								<span id="${prefix}demo_pw_text">••••••••••••</span>
+								<button class="eye-btn" onclick="UI.togglePasswordText('${prefix}demo_pw_text', '${deployed.demo.db_pass}', this)">Hiện</button>
+							</span>
+						</div>`
+								: ""
+						}
 					</div>`
 							: ""
 					}
-				</div>`
-						: ""
-				}
 
-				${
-					hasProd
-						? `
-				<div class="deploy-box prod-box">
-					<div class="tag">🚀 PRODUCTION</div>
-					<div class="kv"><span class="k">DB</span><span class="v">${deployed.production.db_name}</span></div>
-					<div class="kv"><span class="k">Email</span><span class="v">${deployed.production.email_user || "—"}</span></div>
-					<div class="kv">
-						<span class="k">Pass</span>
-						<span class="v pw-row">
-							<span id="${prefix}prod_pw_text">••••••••••••</span>
-							<button class="eye-btn" onclick="UI.togglePasswordText('${prefix}prod_pw_text', '${deployed.production.db_pass}', this)">Hiện</button>
-						</span>
-					</div>
-				</div>`
-						: ""
-				}
+					${
+						hasProd
+							? `
+					<div class="deploy-box prod-box" style="margin:0; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px 16px;">
+						<div class="tag" style="margin:0 0 8px 0; font-weight:800; color:#c084fc;">🚀 PRODUCTION</div>
+						<div class="kv"><span class="k">DB</span><span class="v">${deployed.production.db_name}</span></div>
+						<div class="kv"><span class="k">Email</span><span class="v">${deployed.production.email_user || "—"}</span></div>
+						<div class="kv">
+							<span class="k">Pass</span>
+							<span class="v pw-row">
+								<span id="${prefix}prod_pw_text">••••••••••••</span>
+								<button class="eye-btn" onclick="UI.togglePasswordText('${prefix}prod_pw_text', '${deployed.production.db_pass}', this)">Hiện</button>
+							</span>
+						</div>
+					</div>`
+							: ""
+					}
+				</div>
 			</div>
 		`;
 	},
@@ -1658,8 +1809,8 @@ const UI = {
 		container.style.display = "block";
 		if (!history || history.length === 0) {
 			container.innerHTML = `
-				<div class="side-card">
-					<h3>Lịch sử thao tác</h3>
+				<div class="pd-section-card">
+					<div class="pd-card-header-title">LỊCH SỬ THAO TÁC</div>
 					<div style="text-align:center; padding:18px 10px; color:var(--text-muted); font-size:12px; border:1px dashed rgba(255,255,255,0.08); border-radius:10px;">
 						Chưa có lịch sử thao tác
 					</div>
@@ -1668,23 +1819,22 @@ const UI = {
 			return;
 		}
 
-		container.style.display = "block";
 		container.innerHTML = `
-			<div class="side-card">
-				<h3>Lịch sử thao tác</h3>
-				<div class="history-scroll-container" style="max-height: 250px; overflow-y: auto;">
+			<div class="pd-section-card">
+				<div class="pd-card-header-title">LỊCH SỬ THAO TÁC</div>
+				<div class="history-scroll-container" style="max-height: 280px; overflow-y: auto;">
 					${history
 						.map(
 							(item) => `
-					<div class="history-item">
-						<div class="history-top">
-							<span class="history-name">
-								<span class="${item.action.includes("Khóa") ? "lock-dot" : "unlock-dot"}"></span>
-								${item.action}
-							</span>
-							<span class="history-time">${item.time}</span>
+					<div class="pd-history-item">
+						<div style="display:flex; align-items:center; gap:12px; overflow:hidden;">
+							<div class="pd-history-check">✓</div>
+							<div style="overflow:hidden;">
+								<div class="pd-history-action">${item.action}</div>
+								<div class="pd-history-msg">${item.message || "Khởi tạo thành công"}</div>
+							</div>
 						</div>
-						<div class="history-status">✓ ${item.message || "Thành công"}</div>
+						<div class="pd-history-time">${item.time}</div>
 					</div>`,
 						)
 						.join("")}

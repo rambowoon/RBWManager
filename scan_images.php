@@ -118,15 +118,49 @@ try {
 
         if (!empty($nameMatches)) {
             if (count($nameMatches) > 1) {
-                usort($nameMatches, function($a, $b) use ($subTypeRatios, $w) {
+                $base = pathinfo($f, PATHINFO_FILENAME);
+                $baseClean = strtolower(AutoMediaPipeline::stripAccents($base));
+                $normBase = preg_replace('/[^a-z0-9]/', '', $baseClean);
+
+                $scoreFn = static function ($subKey) use ($baseClean, $normBase, $subTypes): int {
+                    $cleanKey = strtolower(AutoMediaPipeline::stripAccents($subKey));
+                    $normKey = preg_replace('/[^a-z0-9]/', '', $cleanKey);
+                    $candidates = $subTypes[$subKey]['candidates'] ?? [$subKey];
+
+                    $bestScore = 0;
+                    foreach ($candidates as $cand) {
+                        $cleanCand = strtolower(AutoMediaPipeline::stripAccents($cand));
+                        $normCand = preg_replace('/[^a-z0-9]/', '', $cleanCand);
+
+                        if ($baseClean === $cleanCand || $normBase === $normCand) {
+                            $bestScore = max($bestScore, 5000 + strlen($cleanCand) * 10);
+                        } elseif (preg_match('/^' . preg_quote($cleanCand, '/') . '([^a-z0-9]|$)/i', $baseClean)) {
+                            $bestScore = max($bestScore, 3000 + strlen($cleanCand) * 10);
+                        } elseif (str_starts_with($normBase, $normCand)) {
+                            $bestScore = max($bestScore, 2000 + strlen($normCand) * 10);
+                        } elseif (str_contains($baseClean, $cleanCand)) {
+                            $bestScore = max($bestScore, 1000 + strlen($cleanCand) * 10);
+                        }
+                    }
+                    return $bestScore;
+                };
+
+                usort($nameMatches, static function ($a, $b) use ($subTypeRatios, $w, $h, $scoreFn) {
+                    $scoreA = $scoreFn($a);
+                    $scoreB = $scoreFn($b);
+                    if ($scoreA !== $scoreB) {
+                        return $scoreB <=> $scoreA; // Highest name specificity score first
+                    }
+
+                    // Tie-breaker: dimension difference to target
                     $rrA = $subTypeRatios[$a] ?? null;
                     $rrB = $subTypeRatios[$b] ?? null;
-                    $diffA = $rrA ? abs($w - (int)$rrA['width']) : 9999;
-                    $diffB = $rrB ? abs($w - (int)$rrB['width']) : 9999;
+                    $diffA = $rrA ? (abs($w - (int)$rrA['width']) + abs($h - (int)$rrA['height'])) : 9999;
+                    $diffB = $rrB ? (abs($w - (int)$rrB['width']) + abs($h - (int)$rrB['height'])) : 9999;
                     return $diffA <=> $diffB;
                 });
             }
-            
+
             $matchedSubTypes[] = [
                 'sub_type' => $nameMatches[0],
                 'match_source' => 'name',

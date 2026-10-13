@@ -220,7 +220,7 @@ const SchemaBuilder = {
 							title: "anhdaidien",
 							width: 800,
 							height: 800,
-							thumb: "400x400x1",
+							thumb: "500x500x1",
 						},
 					},
 					show_images: true,
@@ -235,7 +235,7 @@ const SchemaBuilder = {
 							name_photo: true,
 							photo_width: 800,
 							photo_height: 800,
-							photo_thumb: "800x800x1",
+							photo_thumb: "500x500x1",
 							sync_with_main: true,
 						},
 					},
@@ -992,9 +992,11 @@ const SchemaBuilder = {
 				delete current.images;
 				delete current.gallery;
 			} else {
-				const isProduct = this.currentFile.includes("product");
+				const isProduct = this.currentFile && this.currentFile.includes("product");
 				const defW = isProduct ? 800 : 400;
 				const defH = isProduct ? 800 : 400;
+				const defThumbW = isProduct ? 500 : defW;
+				const defThumbH = isProduct ? 500 : defH;
 
 				if (!current.images) {
 					current.images = {
@@ -1002,7 +1004,7 @@ const SchemaBuilder = {
 							title: "anhdaidien",
 							width: defW,
 							height: defH,
-							thumb: `${defW}x${defH}x1`,
+							thumb: `${defThumbW}x${defThumbH}x1`,
 						},
 					};
 				}
@@ -1023,7 +1025,7 @@ const SchemaBuilder = {
 							name_photo: true,
 							photo_width: defW,
 							photo_height: defH,
-							photo_thumb: `${defW}x${defH}x1`,
+							photo_thumb: `${defThumbW}x${defThumbH}x1`,
 						},
 					};
 				}
@@ -1441,11 +1443,11 @@ const SchemaBuilder = {
 				gall.photo_width = mainImg.width;
 				gall.photo_height = mainImg.height;
 
-				// Extract scale from thumb string (e.g. 800x800x1 -> 1)
+				// Extract scale from thumb string (e.g. 500x510x1 -> 1)
 				const parts = (mainImg.thumb || "").split("x");
 				const scale = parts.length > 2 ? parts[2] : 1;
 
-				gall.photo_thumb = `${mainImg.width}x${mainImg.height}x${scale}`;
+				gall.photo_thumb = mainImg.thumb || `${mainImg.width}x${mainImg.height}x${scale}`;
 			}
 		}
 	},

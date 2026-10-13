@@ -16,7 +16,26 @@ function getDemoConfigForProject($projectConfig = [])
 {
     $globalPath = __DIR__ . '/data/demo_config.json';
     $gConfig = file_exists($globalPath) ? json_decode(file_get_contents($globalPath), true) : [];
-    $demoId = $projectConfig['deployed']['demo']['demo_server_id'] ?? (!empty($projectConfig['deployed']['demo']['url']) ? 'legacy' : ($gConfig['default_demo_id'] ?? 'legacy'));
+    $defaultDemoId = $gConfig['default_demo_id'] ?? 'demo_1785834732693';
+
+    // Check if deployed demo has an explicit demo_server_id
+    $demoId = $projectConfig['deployed']['demo']['demo_server_id'] ?? null;
+
+    // If not set, check if the url matches any known demo domain
+    if (!$demoId && !empty($projectConfig['deployed']['demo']['url']) && !empty($gConfig['demo_list'])) {
+        $deployedUrl = $projectConfig['deployed']['demo']['url'];
+        foreach ($gConfig['demo_list'] as $d) {
+            if (!empty($d['web_domain']) && strpos($deployedUrl, $d['web_domain']) !== false) {
+                $demoId = $d['id'];
+                break;
+            }
+        }
+    }
+
+    if (!$demoId) {
+        $demoId = $defaultDemoId;
+    }
+
     $config = $gConfig;
     if (!empty($gConfig['demo_list'])) {
         foreach ($gConfig['demo_list'] as $d) {
@@ -136,6 +155,140 @@ function saveSyncAutoBackup($projectName, $category, $subFolder, $cleanPath, $co
         'size' => strlen($content),
         'backup_file' => "{$envKey}/{$dateFolder}/{$subFolder}/" . dirname($cleanPath) . "/[{$timePrefix}]_{$fileName}"
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+
+function clearProjectCompiledCache($localRoot, $config = [], $currentEnv = 'demo', $project = null, $deployService = null)
+{
+    $deletedLocal = 0;
+    $deletedRemote = 0;
+
+    // 1. Xoá cache compiled ở Local Workspace
+    if (!empty($localRoot) && is_dir($localRoot)) {
+        $targets = [
+            $localRoot . '/compiled',
+            $localRoot . '/bootstrap/cache',
+            $localRoot . '/caches',
+            $localRoot . '/assets/caches'
+        ];
+        foreach ($targets as $dir) {
+            if (is_dir($dir)) {
+                $files = @scandir($dir);
+                if (is_array($files)) {
+                    foreach ($files as $f) {
+                        if ($f === '.' || $f === '..' || $f === '.gitignore') continue;
+                        $fp = $dir . '/' . $f;
+                        if (is_file($fp)) {
+                            if (@unlink($fp)) $deletedLocal++;
+                        } elseif (is_dir($fp)) {
+                            $subFiles = @scandir($fp);
+                            if (is_array($subFiles)) {
+                                foreach ($subFiles as $sf) {
+                                    if ($sf === '.' || $sf === '..' || $sf === '.gitignore') continue;
+                                    $sfp = $fp . '/' . $sf;
+                                    if (is_file($sfp)) {
+                                        if (@unlink($sfp)) $deletedLocal++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Xoá cache compiled ở Remote Hosting (Demo hoặc Production)
+    if (!empty($config) && !empty($config['ftp_host'])) {
+        // 2a. Gọi bridge.php trên Remote nếu có
+        $cleanHost = !empty($config['web_domain']) ? str_replace(['https://', 'http://', '/'], '', $config['web_domain']) : str_replace(['ftp.', 'www.'], '', $config['ftp_host']);
+        if ($currentEnv === 'prod') {
+            $bridgeClearUrls = [
+                'https://' . $cleanHost . '/bridge.php?action=clearCompiled',
+                'http://' . $cleanHost . '/bridge.php?action=clearCompiled'
+            ];
+        } else {
+            $webSub = ($deployService && !empty($config['ftp_root'])) ? $deployService->getWebSubPath($config['ftp_root']) : '';
+            $relP = $project ? ($project['relPath'] ?? '') : '';
+            $fullSubPath = rtrim($webSub, '/') . '/' . trim($relP, '/');
+            $bridgeClearUrls = [
+                'https://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=clearCompiled',
+                'http://' . $cleanHost . '/' . ltrim($fullSubPath, '/') . '/bridge.php?action=clearCompiled'
+            ];
+        }
+
+        $bridgeCleared = false;
+        foreach ($bridgeClearUrls as $bUrl) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $bUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            $resB = curl_exec($ch);
+            $httpCodeB = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($httpCodeB === 200 && $resB) {
+                $jsonB = json_decode($resB, true);
+                if (is_array($jsonB) && ($jsonB['status'] ?? '') === 'success') {
+                    $bridgeCleared = true;
+                    $deletedRemote += (int)($jsonB['deleted'] ?? 0);
+                    break;
+                }
+            }
+        }
+
+        // 2b. Dọn dẹp bổ trợ / fallback trực tiếp qua FTP
+        if (!$bridgeCleared) {
+            $host = $config['ftp_host'];
+            $user = $config['ftp_user'] ?? '';
+            $pass = $config['ftp_pass'] ?? '';
+            $userPwd = "$user:$pass";
+
+            if (!empty($user) && !empty($pass)) {
+                if ($currentEnv === 'prod') {
+                    $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
+                    $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/');
+                } else {
+                    $baseFtpRoot = !empty($config['ftp_root']) ? $config['ftp_root'] : '/public_html';
+                    $subPath = $project ? ($project['relPath'] ?? '') : '';
+                    $customDomain = $config['custom_domain'] ?? '';
+                    if (!empty($customDomain)) {
+                        $ftpRoot = '/domains/' . $customDomain . '/public_html';
+                    } else {
+                        $ftpRoot = '/' . ltrim(rtrim($baseFtpRoot, '/'), '/') . '/' . trim($subPath, '/');
+                    }
+                }
+
+                // Xoá file trong compiled/ trên FTP
+                $remoteCompiledUrl = "ftp://$host" . rtrim($ftpRoot, '/') . '/compiled/';
+                $remoteFiles = \RamboWoon\RemoteClient::listFtpDirectory($remoteCompiledUrl, $userPwd);
+                if (is_array($remoteFiles)) {
+                    foreach ($remoteFiles as $rf) {
+                        $rfName = basename(trim($rf));
+                        if ($rfName === '' || $rfName === '.' || $rfName === '..' || $rfName === '.gitignore') continue;
+                        $fileUrl = "ftp://$host" . rtrim($ftpRoot, '/') . '/compiled/' . $rfName;
+                        if (\RamboWoon\RemoteClient::deleteViaFTP($fileUrl, $userPwd, false) === true) {
+                            $deletedRemote++;
+                        }
+                    }
+                }
+
+                // Xoá bootstrap/cache nếu có
+                $bootstrapFiles = ['config.php', 'routes.php', 'events.php'];
+                foreach ($bootstrapFiles as $bf) {
+                    $bUrl = "ftp://$host" . rtrim($ftpRoot, '/') . '/bootstrap/cache/' . $bf;
+                    @\RamboWoon\RemoteClient::deleteViaFTP($bUrl, $userPwd, false);
+                }
+            }
+        }
+    }
+
+    return [
+        'status' => 'success',
+        'deleted_local' => $deletedLocal,
+        'deleted_remote' => $deletedRemote
+    ];
 }
 
 function stripVietnameseAccents($str)
@@ -1840,6 +1993,7 @@ switch ($action) {
     case 'fmSyncCenterCompare':
     case 'fmSyncCenterExecute':
     case 'fmSyncCenterExecuteDb':
+    case 'fmClearCompiledCache':
         $data = readJsonInput();
         if (!$data) $data = $_POST;
 
@@ -3107,7 +3261,10 @@ switch ($action) {
                 }
             }
 
-            echo json_encode(['status' => 'success', 'results' => $results]);
+            // Tự động xoá cache compiled cả ở Local và Remote sau khi đồng bộ dữ liệu
+            $cacheCleanInfo = clearProjectCompiledCache($localRoot, $config, $currentEnv, $project, $deployService);
+
+            echo json_encode(['status' => 'success', 'results' => $results, 'cache_cleared' => true, 'cache_clean_info' => $cacheCleanInfo]);
         } elseif ($action === 'fmSyncCenterExecuteDb') {
             @set_time_limit(300);
             $data = readJsonInput();
@@ -3247,6 +3404,8 @@ switch ($action) {
                     echo json_encode(['status' => 'error', 'message' => "Không thể kết nối đến Bridge trên {$envLabel} để đồng bộ Database"]);
                     break;
                 }
+                $localRoot = $project ? rtrim(str_replace('\\', '/', $project['path']), '/') : '';
+                clearProjectCompiledCache($localRoot, $config, $currentEnv, $project, $deployService);
                 echo json_encode($syncRes);
             } else {
                 // ĐỒNG BỘ VỀ LOCAL: Tự động sao lưu Database Local trước
@@ -3306,6 +3465,9 @@ switch ($action) {
                     break;
                 }
 
+                $localRoot = $project ? rtrim(str_replace('\\', '/', $project['path']), '/') : '';
+                clearProjectCompiledCache($localRoot, $config, $currentEnv, $project, $deployService);
+
                 echo json_encode([
                     'status' => 'success',
                     'applied_count' => count($applied),
@@ -3316,6 +3478,14 @@ switch ($action) {
                     'message' => "Đã sao lưu Database Local an toàn (" . round($backupSize / 1024, 1) . " KB) và áp dụng thành công " . count($applied) . " thay đổi cấu trúc!"
                 ]);
             }
+        } elseif ($action === 'fmClearCompiledCache') {
+            $localRoot = $project ? rtrim(str_replace('\\', '/', $project['path']), '/') : '';
+            $cacheCleanInfo = clearProjectCompiledCache($localRoot, $config, $currentEnv, $project, $deployService);
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Đã xoá sạch cache compiled ở cả Local và Remote!',
+                'info' => $cacheCleanInfo
+            ]);
         }
         break;
 
@@ -3773,7 +3943,7 @@ switch ($action) {
                 'db_user' => $dbName,
                 'db_pass' => $config['db_pass'] ?? '',
                 'deploy_time' => date('Y-m-d H:i:s'),
-                'demo_server_id' => $config['id'] ?? ($config['default_demo_id'] ?? 'legacy')
+                'demo_server_id' => $config['id'] ?? ($config['default_demo_id'] ?? 'demo_1785834732693')
             ];
 
             if ($isDemo) $projectConfig['lock_demo'] = true;
@@ -5631,6 +5801,17 @@ switch ($action) {
         $backupCount = 0;
         $errors = [];
 
+        // Kiểm tra xem đã có sẵn file favicon nào trong thư mục chưa
+        $hasFavicon = false;
+        foreach ($files as $f) {
+            if ($f === '.' || $f === '..') continue;
+            $fNameOnlyLower = strtolower(pathinfo($f, PATHINFO_FILENAME));
+            if ($fNameOnlyLower === 'favicon' || stripos($f, 'favicon') !== false) {
+                $hasFavicon = true;
+                break;
+            }
+        }
+
         foreach ($files as $file) {
             if ($file === '.' || $file === '..') continue;
             $filePath = $imagesDir . DIRECTORY_SEPARATOR . $file;
@@ -5646,8 +5827,10 @@ switch ($action) {
 
             if ($isFavicon) continue;
 
-            // If already WebP and not a logo, do nothing
-            if ($ext === 'webp' && !$isLogo) continue;
+            // If already WebP, do nothing (if logo and already has favicon, skip too)
+            if ($ext === 'webp') {
+                if (!$isLogo || $hasFavicon) continue;
+            }
 
             $webpName = $nameOnly . '.webp';
             $webpPath = $imagesDir . DIRECTORY_SEPARATOR . $webpName;
@@ -5680,7 +5863,7 @@ switch ($action) {
             }
 
             if ($img) {
-                if ($isLogo) {
+                if ($isLogo && !$hasFavicon) {
                     $src_w = $info[0];
                     $src_h = $info[1];
                     $target_size = min(180, max($src_w, $src_h));
@@ -5709,6 +5892,7 @@ switch ($action) {
                     $faviconPngPath = $imagesDir . DIRECTORY_SEPARATOR . 'favicon.png';
                     @imagepng($squareImg, $faviconPngPath);
                     imagedestroy($squareImg);
+                    $hasFavicon = true;
                 }
 
                 if ($deep) {
@@ -5800,9 +5984,23 @@ switch ($action) {
             break;
         }
 
-        if ($ext === 'webp' && !$isLogo) {
-            echo json_encode(['status' => 'error', 'message' => 'Tệp đã ở định dạng WebP']);
-            break;
+        // Kiểm tra xem đã có sẵn file favicon nào trong thư mục chưa
+        $hasFavicon = false;
+        $dirFiles = @scandir($imagesDir) ?: [];
+        foreach ($dirFiles as $f) {
+            if ($f === '.' || $f === '..' || $f === $fileName) continue;
+            $fNameLower = strtolower(pathinfo($f, PATHINFO_FILENAME));
+            if ($fNameLower === 'favicon' || stripos($f, 'favicon') !== false) {
+                $hasFavicon = true;
+                break;
+            }
+        }
+
+        if ($ext === 'webp') {
+            if (!$isLogo || $hasFavicon) {
+                echo json_encode(['status' => 'error', 'message' => 'Tệp đã ở định dạng WebP']);
+                break;
+            }
         }
 
         $img = null;
@@ -5843,7 +6041,7 @@ switch ($action) {
         $webpName = $nameOnly . '.webp';
         $webpPath = $imagesDir . DIRECTORY_SEPARATOR . $webpName;
 
-        if ($isLogo) {
+        if ($isLogo && !$hasFavicon) {
             $src_w = $info[0];
             $src_h = $info[1];
             $target_size = min(180, max($src_w, $src_h));
