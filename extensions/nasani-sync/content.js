@@ -446,11 +446,14 @@
             const tdCode = tds[2];
             if (tdCode) {
                 const aLink = tdCode.querySelector('a');
-                if (aLink) {
-                    contractCode = aLink.textContent.trim();
-                } else {
-                    contractCode = tdCode.textContent.trim();
-                }
+                const rawText = (aLink ? aLink.textContent : tdCode.textContent) || '';
+                const mCode = rawText.match(/\d{5,9}/);
+                contractCode = mCode ? mCode[0] : rawText.trim();
+            }
+
+            if (!contractCode) {
+                const mTr = (tr.innerText || '').match(/\d{5,9}/);
+                if (mTr) contractCode = mTr[0];
             }
 
             if (!contractCode && !contractName) return;

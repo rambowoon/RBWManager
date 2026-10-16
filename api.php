@@ -1233,20 +1233,66 @@ switch ($action) {
         break;
 
     case 'getExistingProjectsList':
-        $projects = $scanner->getProjects('', false);
         $projectNames = [];
         $contractCodes = [];
-        foreach ($projects as $p) {
-            $pName = strtolower(trim($p['name'] ?? ''));
-            if ($pName !== '') {
-                $projectNames[] = $pName;
-                if (preg_match('/_(\d+)w?$/i', $pName, $m)) {
-                    $contractCodes[] = $m[1];
-                } elseif (preg_match('/(\d{5,})/i', $pName, $m)) {
-                    $contractCodes[] = $m[1];
+
+        // 1. Quét từ toàn bộ cache (tất cả các categories trong cache)
+        $cache = $scanner->getCacheData(false);
+        if (!empty($cache['projects']) && is_array($cache['projects'])) {
+            foreach ($cache['projects'] as $cat => $pList) {
+                if (is_array($pList)) {
+                    foreach ($pList as $p) {
+                        $pName = strtolower(trim($p['name'] ?? ''));
+                        if ($pName !== '') {
+                            $projectNames[] = $pName;
+                            if (preg_match('/_(\d+)w?$/i', $pName, $m)) {
+                                $contractCodes[] = $m[1];
+                            } elseif (preg_match('/(\d{5,})/i', $pName, $m)) {
+                                $contractCodes[] = $m[1];
+                            }
+                        }
+                    }
                 }
             }
         }
+
+        // 2. Quét trực tiếp thư mục thực tế trên ổ đĩa (đảm bảo dự án vừa tạo lập tức được nhận diện)
+        if (!empty($baseDir) && is_dir($baseDir)) {
+            $rootItems = @scandir($baseDir) ?: [];
+            foreach ($rootItems as $item) {
+                if ($item === '.' || $item === '..') continue;
+                $fullPath = $baseDir . DIRECTORY_SEPARATOR . $item;
+                if (!is_dir($fullPath)) continue;
+
+                $itemLower = strtolower($item);
+
+                // Nếu là thư mục tháng (ví dụ: 2026_10, 2026_09, 2025_12, thang10...)
+                if (preg_match('/^\d{4}[_\-\/]\d{2}$/i', $item) || preg_match('/^\d{4}$/', $item) || preg_match('/^thang\d{2}$/i', $item)) {
+                    $subItems = @scandir($fullPath) ?: [];
+                    foreach ($subItems as $sub) {
+                        if ($sub === '.' || $sub === '..') continue;
+                        $subPath = $fullPath . DIRECTORY_SEPARATOR . $sub;
+                        if (is_dir($subPath)) {
+                            $subLower = strtolower($sub);
+                            $projectNames[] = $subLower;
+                            if (preg_match('/_(\d+)w?$/i', $subLower, $m)) {
+                                $contractCodes[] = $m[1];
+                            } elseif (preg_match('/(\d{5,})/i', $subLower, $m)) {
+                                $contractCodes[] = $m[1];
+                            }
+                        }
+                    }
+                } else {
+                    $projectNames[] = $itemLower;
+                    if (preg_match('/_(\d+)w?$/i', $itemLower, $m)) {
+                        $contractCodes[] = $m[1];
+                    } elseif (preg_match('/(\d{5,})/i', $itemLower, $m)) {
+                        $contractCodes[] = $m[1];
+                    }
+                }
+            }
+        }
+
         echo json_encode([
             'status' => 'success',
             'data' => [
