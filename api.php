@@ -1232,6 +1232,30 @@ switch ($action) {
         ]);
         break;
 
+    case 'getExistingProjectsList':
+        $projects = $scanner->getProjects('', false);
+        $projectNames = [];
+        $contractCodes = [];
+        foreach ($projects as $p) {
+            $pName = strtolower(trim($p['name'] ?? ''));
+            if ($pName !== '') {
+                $projectNames[] = $pName;
+                if (preg_match('/_(\d+)w?$/i', $pName, $m)) {
+                    $contractCodes[] = $m[1];
+                } elseif (preg_match('/(\d{5,})/i', $pName, $m)) {
+                    $contractCodes[] = $m[1];
+                }
+            }
+        }
+        echo json_encode([
+            'status' => 'success',
+            'data' => [
+                'names' => array_values(array_unique($projectNames)),
+                'codes' => array_values(array_unique($contractCodes))
+            ]
+        ]);
+        break;
+
     case 'listProjects':
         $category = $_GET['category'] ?? '';
         $refresh = isset($_GET['refresh']) && $_GET['refresh'] === 'true';

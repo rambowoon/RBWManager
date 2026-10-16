@@ -279,6 +279,256 @@
     }
 
     // ==========================================
+    // NÚT TRIỂN KHAI DỰ ÁN SANG RBWMANAGER
+    // ==========================================
+    window._existingRbwProjects = window._existingRbwProjects || { names: new Set(), codes: new Set(), loaded: false };
+
+    function fetchExistingRbwProjects(callback) {
+        if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+            if (callback) callback();
+            return;
+        }
+
+        try {
+            chrome.runtime.sendMessage({ action: 'GET_EXISTING_RBW_PROJECTS' }, (response) => {
+                if (!chrome.runtime.lastError && response && response.data) {
+                    const names = new Set((response.data.names || []).map(n => String(n).toLowerCase()));
+                    const codes = new Set((response.data.codes || []).map(c => String(c).trim()));
+                    window._existingRbwProjects = { names, codes, loaded: true };
+                }
+                if (callback) callback();
+            });
+        } catch (e) {
+            if (callback) callback();
+        }
+    }
+
+    function isRowInDeployableStatus(tr) {
+        const trText = (tr.innerText || '');
+        const trTextLower = trText.toLowerCase();
+
+        // 1. Bắt buộc có nút/text "TB trưởng nhóm" hoặc "trưởng nhóm"
+        const hasTbTruongNhom = trTextLower.includes('tb trưởng nhóm') || trTextLower.includes('trưởng nhóm');
+        if (!hasTbTruongNhom) return false;
+
+        // 2. Không được có các trạng thái đã hoàn thành / up host / link hoàn thành
+        const forbiddenKeywords = [
+            'link hoàn thành',
+            'tb up host',
+            'upload source',
+            'đã up source',
+            'web đã bg',
+            'web chưa bg',
+            'còn thiếu chức năng',
+            'đã hoàn thành'
+        ];
+
+        for (const kw of forbiddenKeywords) {
+            if (trTextLower.includes(kw)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function isProjectAlreadyInTool(contractName, contractCode) {
+        const data = window._existingRbwProjects;
+        if (!data || !data.loaded) return false;
+
+        const formattedName = formatDeployProjectName(contractName, contractCode).toLowerCase();
+        const cleanCode = (contractCode || '').replace(/[^0-9]/g, '');
+
+        // 1. Kiểm tra mã hợp đồng
+        if (cleanCode && data.codes && data.codes.has(cleanCode)) {
+            return true;
+        }
+
+        // 2. Kiểm tra tên folder dự án chính xác
+        if (formattedName && data.names && data.names.has(formattedName)) {
+            return true;
+        }
+
+        // 3. Kiểm tra xem có thư mục nào trong tool chứa mã hợp đồng này không (ví dụ: *_1843826w)
+        if (cleanCode && cleanCode.length >= 5 && data.names) {
+            for (const name of data.names) {
+                if (name.includes(cleanCode)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    function formatDeployProjectName(contractName, contractCode) {
+        if (!contractName && !contractCode) return '';
+
+        // Tách phần trước dấu ngoặc nếu có (ví dụ: PHẠM THỊ PHÚC LINH (Cọc 50%) -> PHẠM THỊ PHÚC LINH)
+        let rawName = (contractName || '').split('(')[0].trim();
+
+        // Chuyển tiếng Việt thành không dấu
+        let cleanName = rawName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[đĐ]/g, 'd')
+            .toLowerCase();
+
+        // Chỉ giữ chữ cái latin và số, xóa khoảng trắng và ký tự đặc biệt
+        cleanName = cleanName.replace(/[^a-z0-9]/g, '');
+
+        // Mã hợp đồng: chỉ lấy số
+        let cleanCode = (contractCode || '').replace(/[^0-9]/g, '');
+
+        if (cleanName && cleanCode) {
+            return `${cleanName}_${cleanCode}w`;
+        } else if (cleanName) {
+            return `${cleanName}_w`;
+        } else if (cleanCode) {
+            return `project_${cleanCode}w`;
+        }
+        return '';
+    }
+
+    function triggerDeployToRbw(contractName, contractCode) {
+        const formattedName = formatDeployProjectName(contractName, contractCode);
+        if (!formattedName) {
+            showToastMessage('Không tìm thấy tên hoặc mã hợp đồng để triển khai!', 'warning');
+            return;
+        }
+
+        showToastMessage(`🚀 Đang chuyển sang RBWManager để triển khai: ${formattedName}...`, 'info');
+
+        try {
+            chrome.runtime.sendMessage({
+                action: 'OPEN_OR_FOCUS_RBW_DEPLOY',
+                projectName: formattedName,
+                contractName: contractName,
+                contractCode: contractCode
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn('[NasaniSync] Message error:', chrome.runtime.lastError);
+                }
+            });
+        } catch (e) {
+            console.error('[NasaniSync] Error sending deploy message:', e);
+        }
+    }
+
+    function injectDeployButtons() {
+        const rows = document.querySelectorAll('table tbody tr[role="row"], table tbody tr');
+        rows.forEach(tr => {
+            const btnWrap = tr.querySelector('.rbw-deploy-wrap');
+
+            // 1. Chỉ dòng có tình trạng "TB trưởng nhóm" (và không có nhãn hoàn thành) mới có nút
+            if (!isRowInDeployableStatus(tr)) {
+                if (btnWrap) btnWrap.remove();
+                return;
+            }
+
+            const tds = tr.querySelectorAll('td');
+            if (tds.length < 10) return;
+
+            // 2. Tên Khách Hàng / Hợp Đồng (td[1])
+            let contractName = '';
+            const tdName = tds[1];
+            if (tdName) {
+                const clone = tdName.cloneNode(true);
+                clone.querySelectorAll('.text-sm, .tooltip, div, small').forEach(el => el.remove());
+                contractName = clone.textContent.trim().replace(/\s+/g, ' ');
+                if (!contractName) {
+                    contractName = tdName.textContent.split('(')[0].trim();
+                }
+            }
+
+            // 3. Mã Hợp Đồng (td[2])
+            let contractCode = '';
+            const tdCode = tds[2];
+            if (tdCode) {
+                const aLink = tdCode.querySelector('a');
+                if (aLink) {
+                    contractCode = aLink.textContent.trim();
+                } else {
+                    contractCode = tdCode.textContent.trim();
+                }
+            }
+
+            if (!contractCode && !contractName) return;
+
+            // 4. Nếu dự án đã có trong tool rồi thì không còn nút đó nữa
+            if (isProjectAlreadyInTool(contractName, contractCode)) {
+                if (btnWrap) btnWrap.remove();
+                return;
+            }
+
+            // Đã gắn nút hợp lệ thì giữ nguyên
+            if (tr.querySelector('.rbw-btn-deploy-row')) return;
+
+            // Tạo nút Triển khai gắn ngay dưới Mã HĐ trong td[2]
+            const newBtnWrap = document.createElement('div');
+            newBtnWrap.className = 'rbw-deploy-wrap';
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'rbw-btn-deploy-row';
+            btn.innerHTML = `
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <span>Triển khai</span>
+            `;
+            btn.title = `Triển khai dự án ${contractName} (#${contractCode}) sang RBWManager`;
+
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                triggerDeployToRbw(contractName, contractCode);
+            });
+
+            newBtnWrap.appendChild(btn);
+            tdCode.appendChild(newBtnWrap);
+        });
+    }
+
+    function setupDeployButtonsObserver() {
+        // Lấy danh sách dự án hiện có trong tool ngay khi mở
+        fetchExistingRbwProjects(() => {
+            injectDeployButtons();
+        });
+
+        // Khi người dùng quay lại tab Nasani (sau khi đã sang tool triển khai xong), tự động cập nhật lại danh sách và ẩn nút
+        window.addEventListener('focus', () => {
+            fetchExistingRbwProjects(() => {
+                injectDeployButtons();
+            });
+        });
+
+        // Lắng nghe thay đổi của bảng (phân trang, tìm kiếm, lọc)
+        const table = document.querySelector('table');
+        if (table) {
+            const observer = new MutationObserver(() => {
+                injectDeployButtons();
+            });
+            observer.observe(table, { childList: true, subtree: true });
+        } else {
+            const bodyObserver = new MutationObserver(() => {
+                const tbl = document.querySelector('table');
+                if (tbl) {
+                    injectDeployButtons();
+                }
+            });
+            bodyObserver.observe(document.body, { childList: true, subtree: true });
+        }
+
+        // Định kỳ cập nhật lại danh sách dự án từ tool và làm mới nút
+        setInterval(() => {
+            fetchExistingRbwProjects(() => {
+                injectDeployButtons();
+            });
+        }, 4000);
+    }
+
+    // ==========================================
     // TỰ ĐỘNG BÁO CÁO HOÀN THÀNH CHO TRƯỞNG NHÓM
     // ==========================================
     function generateRandomPassword() {
@@ -331,38 +581,94 @@
         if (!btn) return false;
         try { btn.focus(); } catch (e) {}
 
+        // 1. Dispatch chuỗi sự kiện chuột hoàn chỉnh
+        ['mousedown', 'mouseup', 'click'].forEach(type => {
+            try {
+                const ev = new MouseEvent(type, {
+                    bubbles: true,
+                    cancelable: true,
+                    composed: true,
+                    view: window
+                });
+                btn.dispatchEvent(ev);
+            } catch (e) {}
+        });
+
+        // 2. Gọi native click
         if (typeof btn.click === 'function') {
-            btn.click();
-        } else {
-            btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+            try { btn.click(); } catch (e) {}
+        }
+
+        // 3. Nếu nút có phần tử con (icon, span), click vào phần tử con luôn
+        if (btn.firstElementChild) {
+            try {
+                btn.firstElementChild.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, view: window }));
+            } catch (e) {}
+        }
+
+        // 4. Nếu có onclick inline dạng code JS (ví dụ onclick="thong_bao(...)"), thực thi trực tiếp trên trang web
+        const onclickAttr = btn.getAttribute('onclick') || (btn.parentElement ? btn.parentElement.getAttribute('onclick') : null);
+        if (onclickAttr && typeof onclickAttr === 'string' && onclickAttr.trim()) {
+            try {
+                const s = document.createElement('script');
+                s.textContent = `(function() { try { ${onclickAttr} } catch(e) { console.warn('[NasaniSync] Inline onclick call:', e); } })();`;
+                (document.head || document.documentElement).appendChild(s);
+                s.remove();
+            } catch (e) {}
+        }
+
+        // 5. Nếu nút chứa data-target / data-bs-target modal Bootstrap
+        const modalTarget = btn.getAttribute('data-target') || btn.getAttribute('data-bs-target') || (btn.getAttribute('href') && btn.getAttribute('href').startsWith('#') ? btn.getAttribute('href') : null);
+        if (modalTarget && modalTarget.startsWith('#')) {
+            try {
+                const s = document.createElement('script');
+                s.textContent = `if (window.$ && typeof window.$.fn.modal === 'function') { $('${modalTarget}').modal('show'); }`;
+                (document.head || document.documentElement).appendChild(s);
+                s.remove();
+            } catch (e) {}
         }
 
         return true;
     }
 
     function findTbButton(tr) {
-        const tds = tr.querySelectorAll('td');
-        // 1. Kiểm tra trực tiếp cột Tình trạng (thường là td[13])
-        if (tds.length > 13) {
-            const tdNotice = tds[13];
-            const btnInTd = tdNotice.querySelector('a, button, .btn, [onclick], [data-toggle], [data-target]');
-            if (btnInTd) return btnInTd;
-            if (tdNotice.textContent.toLowerCase().includes('trưởng nhóm')) return tdNotice;
+        if (!tr) return null;
+
+        // 1. Tìm trong các thẻ tương tác có chữ 'trưởng nhóm'
+        const clickables = Array.from(tr.querySelectorAll('button, a, .btn, [role="button"], [onclick], [data-toggle], [data-target]'));
+        for (const el of clickables) {
+            const txt = (el.innerText || el.textContent || '').toLowerCase();
+            if (txt.includes('trưởng nhóm')) {
+                return el;
+            }
         }
 
-        // 2. Tìm trong tất cả thẻ a, button, .btn của dòng
-        const candidates = Array.from(tr.querySelectorAll('a, button, .btn, span, div[onclick]'));
-        const matched = candidates.find(el => {
-            const txt = (el.textContent || '').toLowerCase();
-            return (txt.includes('trưởng nhóm') || txt.includes('tb')) && (txt.includes('ngày dk') || txt.includes('hoàn thành') || txt.includes('tb'));
-        });
-        if (matched) return matched;
+        // 2. Tìm bất kỳ thẻ nào trong dòng có text 'trưởng nhóm' và lấy phần tử tương tác gần nhất
+        const allElements = Array.from(tr.querySelectorAll('*'));
+        for (const el of allElements) {
+            const txt = (el.innerText || el.textContent || '').toLowerCase();
+            if (txt.includes('trưởng nhóm')) {
+                const parentBtn = el.closest('button, a, .btn, [role="button"], [onclick], [data-toggle], [data-target]');
+                if (parentBtn) return parentBtn;
+                return el;
+            }
+        }
 
-        // 3. Fallback tìm bất kỳ element có text 'trưởng nhóm'
-        return candidates.find(el => (el.textContent || '').toLowerCase().includes('trưởng nhóm'));
+        // 3. Fallback theo cột Tình trạng
+        const tds = tr.querySelectorAll('td');
+        for (const td of tds) {
+            const tdTxt = (td.innerText || td.textContent || '').toLowerCase();
+            if (tdTxt.includes('trưởng nhóm') || (tdTxt.includes('tb') && tdTxt.includes('ngày dk'))) {
+                const btnInTd = td.querySelector('button, a, .btn, [onclick], [data-toggle], [role="button"]');
+                if (btnInTd) return btnInTd;
+                return td;
+            }
+        }
+
+        return null;
     }
 
-    function fillReportModal(adminUrl, adminUser, adminPass, autoCode) {
+    function fillReportModal(adminUrl, adminUser, adminPass, autoCode, btnTb) {
         let attempts = 0;
         const maxAttempts = 40; // 20s
         const timer = setInterval(() => {
@@ -379,12 +685,26 @@
                 return isVisible && (text.includes('trưởng nhóm') || text.includes('link quản trị') || text.includes('quản trị'));
             });
 
+            // Nếu sau 3 lần thử (1.5s) chưa thấy modal mở, thử click lại nút lần nữa
+            if (!activeModal && (attempts === 3 || attempts === 6) && btnTb) {
+                triggerButtonClick(btnTb);
+            }
+
             // Nếu chưa tìm thấy modal đang hiển thị, tìm modal có tiêu đề chứa text
             if (!activeModal) {
                 activeModal = allModals.find(m => {
                     const text = (m.innerText || '').toLowerCase();
                     return text.includes('thông báo hoàn thành cho trưởng nhóm') || text.includes('link quản trị');
                 });
+                // Nếu tìm thấy modal trong DOM nhưng chưa show, kích hoạt hiển thị
+                if (activeModal && attempts >= 4 && activeModal.id) {
+                    try {
+                        const s = document.createElement('script');
+                        s.textContent = `if (window.$ && typeof window.$.fn.modal === 'function') { $('#${activeModal.id}').modal('show'); }`;
+                        (document.head || document.documentElement).appendChild(s);
+                        s.remove();
+                    } catch (e) {}
+                }
             }
 
             if (activeModal) {
@@ -464,17 +784,23 @@
         });
     }
 
-    window._rbwHandledReports = window._rbwHandledReports || new Set();
+    window._rbwLastReportTrigger = window._rbwLastReportTrigger || {};
 
     function executeFindAndReport(autoCode, adminUrl, adminUser, adminPass) {
         if (!autoCode) return;
-        const lockKey = `${autoCode}_${adminUrl}`;
-        if (window._rbwHandledReports.has(lockKey)) {
-            console.log(`[NasaniSync] Báo cáo #${autoCode} đã được xử lý.`);
+        const cleanAutoCode = String(autoCode || '').trim().replace(/[^0-9]/g, '');
+        const lockKey = cleanAutoCode || String(autoCode);
+
+        // Debounce chống click đúp trong 2.5 giây (thay vì khóa vĩnh viễn)
+        const now = Date.now();
+        const lastTime = window._rbwLastReportTrigger[lockKey] || 0;
+        if (now - lastTime < 2500) {
+            console.log(`[NasaniSync] Báo cáo #${lockKey} đang được xử lý, bỏ qua trigger lặp.`);
             return;
         }
-        window._rbwHandledReports.add(lockKey);
-        showToastMessage(`⚡ Nhận lệnh từ RBWManager: Đang tìm dự án #${autoCode}...`, 'info');
+        window._rbwLastReportTrigger[lockKey] = now;
+
+        showToastMessage(`⚡ Nhận lệnh từ RBWManager: Đang tìm dự án #${lockKey}...`, 'info');
 
         let attempts = 0;
         const maxAttempts = 35; // ~17s
@@ -485,9 +811,17 @@
 
             for (const tr of rows) {
                 const text = tr.innerText || '';
-                if (text.includes(autoCode)) {
+                if ((cleanAutoCode && text.includes(cleanAutoCode)) || text.includes(autoCode)) {
                     targetTr = tr;
                     break;
+                }
+            }
+
+            // Nếu sau 3 lần thử (1.5s) chưa thấy dòng và có ô tìm kiếm DataTables, tự động điền tìm kiếm
+            if (!targetTr && attempts === 3 && cleanAutoCode) {
+                const searchInput = document.querySelector('input[type="search"], #table_filter input, .dataTables_filter input');
+                if (searchInput && searchInput.value !== cleanAutoCode) {
+                    setNativeValue(searchInput, cleanAutoCode);
                 }
             }
 
@@ -500,15 +834,15 @@
                 const btnTb = findTbButton(targetTr);
 
                 if (btnTb) {
-                    showToastMessage(`⚡ Đang tự động mở form báo cáo cho #${autoCode}...`, 'info');
+                    showToastMessage(`⚡ Đang tự động mở form báo cáo cho #${lockKey}...`, 'info');
                     triggerButtonClick(btnTb);
-                    fillReportModal(adminUrl, adminUser, adminPass, autoCode);
+                    fillReportModal(adminUrl, adminUser, adminPass, lockKey, btnTb);
                 } else {
-                    showToastMessage(`⚠️ Không tìm thấy nút "TB trưởng nhóm" ở dòng #${autoCode}.`, 'warning');
+                    showToastMessage(`⚠️ Không tìm thấy nút "TB trưởng nhóm" ở dòng #${lockKey}.`, 'warning');
                 }
             } else if (attempts >= maxAttempts) {
                 clearInterval(timer);
-                showToastMessage(`❌ Không tìm thấy mã hợp đồng #${autoCode} trên danh sách trang hiện tại.`, 'error');
+                showToastMessage(`❌ Không tìm thấy mã hợp đồng #${lockKey} trên danh sách trang hiện tại.`, 'error');
             }
         }, 500);
     }
@@ -556,11 +890,13 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             injectFloatingButton();
+            setupDeployButtonsObserver();
             checkPendingAutoReport();
             handleAutoReportParam();
         });
     } else {
         injectFloatingButton();
+        setupDeployButtonsObserver();
         checkPendingAutoReport();
         handleAutoReportParam();
     }

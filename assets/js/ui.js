@@ -788,17 +788,23 @@ const UI = {
 		const project = App.projects
 			? App.projects.find((p) => p.name === projectName)
 			: null;
-		if (
-			!project ||
-			!project.nasani_info ||
-			!project.nasani_info.contract_code
-		) {
+
+		let contractCode = project?.nasani_info?.contract_code || "";
+		if (!contractCode && projectName) {
+			const m =
+				projectName.match(/_(\d+)w?$/i) ||
+				projectName.match(/(\d{6,})/);
+			if (m) contractCode = m[1];
+		}
+
+		if (!contractCode) {
 			this.showToast(
-				"Không tìm thấy thông tin hợp đồng Nasani của dự án này!",
+				"Không tìm thấy mã hợp đồng của dự án này để báo cáo!",
 				"warning",
 			);
 			return;
 		}
+
 		if (
 			App.currentProjectName === projectName &&
 			!App.currentProjectConfig
@@ -813,10 +819,9 @@ const UI = {
 				}
 			} catch (e) {}
 		}
-		const ni = project.nasani_info;
 		const demoInfo = this.getProjectDemoInfo(projectName, category);
 		this.executeAutoReport(
-			ni.contract_code,
+			contractCode,
 			projectName,
 			category,
 			demoInfo.adminUrl,

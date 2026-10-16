@@ -57,4 +57,77 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         return true; // Giữ kênh kết nối async
     }
+
+    if (request.action === 'OPEN_OR_FOCUS_RBW_DEPLOY') {
+        const projectName = request.projectName || '';
+        const deployUrl = `http://localhost/RBWManager/?auto_deploy=${encodeURIComponent(projectName)}`;
+
+        chrome.tabs.query({ url: ["http://localhost/*", "http://127.0.0.1/*"] }, (tabs) => {
+            let rbwTab = null;
+            if (tabs && tabs.length > 0) {
+                rbwTab = tabs.find(t => t.url && t.url.toLowerCase().includes('rbwmanager'));
+                if (!rbwTab) rbwTab = tabs[0];
+            }
+
+            if (rbwTab) {
+                if (rbwTab.windowId) {
+                    chrome.windows.update(rbwTab.windowId, { focused: true });
+                }
+                chrome.tabs.update(rbwTab.id, { active: true }, () => {
+                    chrome.tabs.sendMessage(rbwTab.id, {
+                        action: 'TRIGGER_DEPLOY_MODAL',
+                        projectName: projectName
+                    }, (resp) => {
+                        if (chrome.runtime.lastError || !resp) {
+                            // Nếu tab chưa load content script hoặc phản hồi, điều hướng kèm param auto_deploy
+                            chrome.tabs.update(rbwTab.id, { url: deployUrl });
+                        }
+                    });
+                });
+                sendResponse({ status: 'focused', tabId: rbwTab.id });
+            } else {
+                chrome.tabs.create({ url: deployUrl, active: true }, (newTab) => {
+                    if (newTab.windowId) {
+                        chrome.windows.update(newTab.windowId, { focused: true });
+                    }
+                    sendResponse({ status: 'created', tabId: newTab.id });
+                });
+            }
+        });
+        return true;
+    }
+
+    if (request.action === 'GET_EXISTING_RBW_PROJECTS') {
+        const apiUrl = 'http://localhost/RBWManager/api.php?action=getExistingProjectsList';
+        fetch(apiUrl)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.status === 'success' && data.data) {
+                    sendResponse({ status: 'success', data: data.data });
+                } else {
+                    sendResponse({ status: 'error', data: { names: [], codes: [] } });
+                }
+            })
+            .catch(err => {
+                fetch('http://localhost/RBWManager/api.php?action=listProjects')
+                    .then(r => r.json())
+                    .then(d => {
+                        const names = [];
+                        const codes = [];
+                        (d.data || []).forEach(p => {
+                            const n = (p.name || '').toLowerCase();
+                            if (n) {
+                                names.push(n);
+                                const m = n.match(/_(\d+)w?$/i) || n.match(/(\d{5,})/i);
+                                if (m) codes.push(m[1]);
+                            }
+                        });
+                        sendResponse({ status: 'success', data: { names, codes } });
+                    })
+                    .catch(() => {
+                        sendResponse({ status: 'error', data: { names: [], codes: [] } });
+                    });
+            });
+        return true; // Giữ kết nối async
+    }
 });

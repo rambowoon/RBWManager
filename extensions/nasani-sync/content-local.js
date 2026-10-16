@@ -20,3 +20,18 @@ window.addEventListener('message', (event) => {
         }
     }
 });
+
+// Lắng nghe lệnh từ background worker chuyển tới web RBWManager
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.action === 'TRIGGER_DEPLOY_MODAL') {
+            window.postMessage({
+                type: 'RBW_TRIGGER_DEPLOY_MODAL',
+                projectName: request.projectName
+            }, '*');
+            sendResponse({ status: 'dispatched' });
+            return true;
+        }
+    });
+}
+

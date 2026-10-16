@@ -96,3 +96,46 @@
     color: #38bdf8;
     border: 1px solid rgba(56, 189, 248, 0.3);
 }
+
+/* Deploy Button in Nasani Table Row */
+.rbw-deploy-wrap {
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.rbw-btn-deploy-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2.5px 7px;
+    background: linear-gradient(135deg, #00d2d3, #0984e3);
+    color: #ffffff !important;
+    font-size: 10.5px;
+    font-weight: 700;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none !important;
+    box-shadow: 0 1px 4px rgba(0, 210, 211, 0.35);
+    transition: all 0.18s ease;
+    line-height: 1.2;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
+    font-family: inherit;
+}
+
+.rbw-btn-deploy-row:hover {
+    background: linear-gradient(135deg, #00e5e6, #0097e6);
+    box-shadow: 0 3px 8px rgba(0, 210, 211, 0.55);
+    transform: translateY(-1px);
+    color: #ffffff !important;
+}
+
+.rbw-btn-deploy-row:active {
+    transform: translateY(0);
+}
+
+.rbw-btn-deploy-row svg {
+    flex-shrink: 0;
+}

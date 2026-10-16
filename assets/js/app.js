@@ -50,6 +50,27 @@ const App = {
 		}
 
 		this.showDashboard();
+
+		// Kiểm tra tham số auto_deploy trên URL (khi mở tab mới từ Nasani)
+		const urlParams = new URLSearchParams(window.location.search);
+		const autoDeployName = urlParams.get("auto_deploy");
+		if (autoDeployName) {
+			try {
+				const cleanUrl = window.location.origin + window.location.pathname;
+				window.history.replaceState({}, document.title, cleanUrl);
+			} catch (e) {}
+			setTimeout(() => {
+				this.showDeployProjectModal(autoDeployName);
+			}, 300);
+		}
+
+		// Lắng nghe lệnh trực tiếp từ Extension Content Script (khi tab RBWManager đã mở sẵn)
+		window.addEventListener("message", (e) => {
+			if (e.data && e.data.type === "RBW_TRIGGER_DEPLOY_MODAL") {
+				const pName = e.data.projectName || "";
+				this.showDeployProjectModal(pName);
+			}
+		});
 	},
 
 	async showCategories() {
@@ -2126,7 +2147,7 @@ const App = {
 		}
 	},
 
-	showDeployProjectModal() {
+	showDeployProjectModal(prefilledName = "") {
 		const now = new Date();
 		const year = now.getFullYear();
 		const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -2151,7 +2172,12 @@ const App = {
 		if (displayMonth) displayMonth.innerText = this.currentCategory;
 
 		const projectNameInput = document.getElementById("dp-project-name");
-		if (projectNameInput) projectNameInput.value = "";
+		if (projectNameInput) {
+			projectNameInput.value = prefilledName || "";
+			if (prefilledName) {
+				setTimeout(() => projectNameInput.focus(), 150);
+			}
+		}
 
 		UI.showModal("deploy-project-modal");
 	},
