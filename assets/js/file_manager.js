@@ -2012,6 +2012,10 @@ const SyncCenter = {
         } else if (filter === 'conflict') {
             document.querySelector('.sc-pill-btn.pill-conflict')?.classList.add('active');
         }
+
+        // Tự động chọn lại danh sách file theo tab hướng hiện tại (bỏ chọn các file ngoài tab)
+        const visibleItems = this.getFilteredItems();
+        this.selectedPaths = new Set(visibleItems.map(i => i.path));
         
         this.renderTableOnly();
     },
@@ -2023,6 +2027,11 @@ const SyncCenter = {
         });
         const activeBtn = document.getElementById(`sc-scope-btn-${scope}`);
         if (activeBtn) activeBtn.classList.add('active');
+
+        // Tự động chọn lại danh sách file theo tab phân vùng hiện tại
+        const visibleItems = this.getFilteredItems();
+        this.selectedPaths = new Set(visibleItems.map(i => i.path));
+
         this.renderTableOnly();
     },
 
@@ -2109,16 +2118,16 @@ const SyncCenter = {
     },
 
     selectScopeOnly(scopeKey) {
-        const allItems = this.getAllItems();
+        const visibleItems = this.getFilteredItems();
         this.selectedPaths.clear();
         let count = 0;
-        allItems.forEach(item => {
+        const { duplicatesMap } = this.getDuplicateStats(this.getAllItems());
+        visibleItems.forEach(item => {
             const meta = this.getScopeMeta(item.path);
             if (scopeKey === 'all') {
                 this.selectedPaths.add(item.path);
                 count++;
             } else if (scopeKey === 'duplicates') {
-                const { duplicatesMap } = this.getDuplicateStats(allItems);
                 const fn = item.path.split('/').pop().toLowerCase();
                 if (duplicatesMap.has(fn)) {
                     this.selectedPaths.add(item.path);
@@ -2131,13 +2140,13 @@ const SyncCenter = {
         });
         this.renderTableOnly();
         const label = scopeKey === 'admin' ? '🛡️ ADMIN' : (scopeKey === 'web' ? '🌐 WEB / CLIENT' : (scopeKey === 'duplicates' ? '⚠️ FILE TRÙNG TÊN' : 'TẤT CẢ'));
-        UI.showToast(`Đã chỉ chọn ${count} file thuộc [${label}], các file khác đã bỏ chọn!`, 'info');
+        UI.showToast(`Đã chọn ${count} file [${label}] trong tab hiện tại!`, 'info');
     },
 
     deselectAll() {
         this.selectedPaths.clear();
         this.renderTableOnly();
-        UI.showToast('Đã bỏ chọn toàn bộ file', 'info');
+        UI.showToast('Đã bỏ chọn toàn bộ file trong tab hiện tại', 'info');
     },
 
     togglePathSelect(path, checked) {
@@ -2146,6 +2155,13 @@ const SyncCenter = {
         } else {
             this.selectedPaths.delete(path);
         }
+
+        // Cập nhật lại trạng thái checkbox header
+        const items = this.getFilteredItems();
+        const allFilteredChecked = items.length > 0 && items.every(i => this.selectedPaths.has(i.path));
+        const checkAllEl = document.getElementById('sync-check-all');
+        if (checkAllEl) checkAllEl.checked = allFilteredChecked;
+
         this.updateExecuteBtnCount();
     },
 
@@ -2868,10 +2884,31 @@ const SyncCenter = {
     },
 
     updateExecuteBtnCount() {
-        const checkedCount = this.selectedPaths.size;
+        const visibleItems = this.getFilteredItems();
+        const visibleSet = new Set(visibleItems.map(i => i.path));
+        let checkedCount = 0;
+        this.selectedPaths.forEach(p => {
+            if (visibleSet.has(p)) checkedCount++;
+        });
+
         const btnText = document.getElementById('sc-btn-execute-text');
         if (btnText) {
-            btnText.innerText = `THỰC THI (${checkedCount} FILE)`;
+            let actionLabel = `THỰC THI (${checkedCount} FILE)`;
+            if (this.currentFilter === 'upload') {
+                actionLabel = `ĐẨY LÊN (${checkedCount} FILE)`;
+            } else if (this.currentFilter === 'download') {
+                actionLabel = `KÉO VỀ (${checkedCount} FILE)`;
+            }
+            btnText.innerText = actionLabel;
+        }
+
+        const btnExecute = btnText?.closest('button');
+        if (btnExecute) {
+            if (checkedCount === 0) {
+                btnExecute.style.opacity = '0.55';
+            } else {
+                btnExecute.style.opacity = '1';
+            }
         }
     },
 
@@ -2991,39 +3028,38 @@ const SyncCenter = {
 
     async executeAll() {
         const envLabel = this.currentEnv === 'prod' ? 'Production' : 'Demo';
-        const allItems = this.getAllItems();
-        const itemMap = new Map();
-        allItems.forEach(i => itemMap.set(i.path, i));
+        const visibleItems = this.getFilteredItems();
+        const visibleMap = new Map();
+        visibleItems.forEach(i => visibleMap.set(i.path, i));
 
+        // CHỈ thực thi các file vừa nằm trong tab hiện tại VỪA được tích chọn
         const selectedItems = [];
         this.selectedPaths.forEach(p => {
-            if (itemMap.has(p)) {
-                selectedItems.push(itemMap.get(p));
+            if (visibleMap.has(p)) {
+                selectedItems.push(visibleMap.get(p));
             }
         });
 
         if (selectedItems.length === 0) {
-            UI.showToast('Chưa chọn file nào để đồng bộ. Vui lòng tích chọn ít nhất 1 file!', 'warning');
+            UI.showToast('Chưa chọn file nào để đồng bộ trong tab hiện tại. Vui lòng tích chọn ít nhất 1 file!', 'warning');
             return;
         }
 
-        // Rebuild actions based on final selectedPaths
+        // Rebuild actions chỉ cho các file selectedItems hợp lệ trong tab
         let actions = { upload: [], download: [] };
         const adminSelected = [];
         const webSelected = [];
         const otherSelected = [];
 
-        this.selectedPaths.forEach(p => {
-            const it = itemMap.get(p);
-            if (it) {
-                const act = this.customActions.get(p) || it.defaultAction;
-                if (actions[act]) actions[act].push(p);
+        selectedItems.forEach(it => {
+            const p = it.path;
+            const act = this.customActions.get(p) || it.defaultAction;
+            if (actions[act]) actions[act].push(p);
 
-                const scopeKey = this.getScopeMeta(p).key;
-                if (scopeKey === 'admin') adminSelected.push(p);
-                else if (scopeKey === 'web') webSelected.push(p);
-                else otherSelected.push(p);
-            }
+            const scopeKey = this.getScopeMeta(p).key;
+            if (scopeKey === 'admin') adminSelected.push(p);
+            else if (scopeKey === 'web') webSelected.push(p);
+            else otherSelected.push(p);
         });
 
         const totalSelected = actions.upload.length + actions.download.length;

@@ -2024,7 +2024,25 @@ switch ($action) {
                 'DB_USERNAME' => 'root',
                 'DB_PASSWORD' => ''
             ];
-            $projectDeployer->updateEnv($targetDir . '/.env', $envUpdates);
+            if (file_exists($targetDir . '/.env')) {
+                $projectDeployer->updateEnv($targetDir . '/.env', $envUpdates);
+            }
+
+            $targetConfigPhp = $targetDir . DIRECTORY_SEPARATOR . 'libraries' . DIRECTORY_SEPARATOR . 'config.php';
+            if (file_exists($targetConfigPhp)) {
+                writeJobLog($jobId, ['status' => 'info', 'log' => "Đang cấu hình libraries/config.php..."]);
+                $configUpdates = [
+                    'host' => 'localhost',
+                    'username' => 'root',
+                    'password' => '',
+                    'dbname' => $dbName,
+                    'url' => $sitePath,
+                    'port' => 3306,
+                    'debug-developer' => true,
+                    'ssl' => false
+                ];
+                $projectDeployer->updateConfigFile($targetConfigPhp, $configUpdates);
+            }
 
             // Cleanup SQL file
             @unlink($sqlFile);

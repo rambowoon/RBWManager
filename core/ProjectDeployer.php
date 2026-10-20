@@ -216,7 +216,7 @@ class ProjectDeployer
     }
 
     /**
-     * Update libraries/config.php file (database array and debug-developer toggle)
+     * Update libraries/config.php file (database array, debug-developer toggle, and reset arrayDomainSSL)
      */
     public function updateConfigFile($configPath, $updates)
     {
@@ -232,8 +232,13 @@ class ProjectDeployer
             $content = preg_replace("/(\\\$http\s*=\s*['\"])[^'\"]*(['\"];)/i", '${1}' . $httpVal . '${2}', $content);
         }
 
+        // Tự động làm rỗng arrayDomainSSL nếu có (tránh redirect SSL domain cũ trên localhost)
+        // Hỗ trợ cả cú pháp array(...) và [...]
+        $content = preg_replace("/(['\"]arrayDomainSSL['\"]\s*=>\s*)(?:array\s*\([\s\S]*?\)|\[[\s\S]*?\])/i", '${1}array()', $content);
+        $content = preg_replace("/(\\\$config\s*\[\s*['\"]arrayDomainSSL['\"]\s*\]\s*=\s*)(?:array\s*\([\s\S]*?\)|\[[\s\S]*?\])/i", '${1}array()', $content);
+
         foreach ($updates as $key => $value) {
-            if ($key === 'http' || $key === 'ssl') continue;
+            if ($key === 'http' || $key === 'ssl' || $key === 'arrayDomainSSL') continue;
 
             if ($key === 'debug-developer') {
                 $boolVal = ($value === false || $value === 'false' || $value === 0 || $value === '0') ? 'false' : 'true';
