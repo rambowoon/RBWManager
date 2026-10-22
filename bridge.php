@@ -1383,7 +1383,7 @@ class RamboWoonBridge
         $defaultExcludes = [
             'backup', 'backups', 'old', 'olds',
             'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', 'watermark', 'logs',
-            '.agents', '.git', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
+            '.agents', '.git', '.gitignore', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
             'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
             'assets/admin/json', 'libraries/config.php'
         ];
@@ -1443,7 +1443,7 @@ class RamboWoonBridge
                         if (stripos($rc, 'cleardata') !== false) continue;
                     }
                 }
-                $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat'];
+                $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat', '.gitignore'];
                 if (in_array(strtolower($item), $excludedFiles)) continue;
                 
                 if (is_dir($path)) {

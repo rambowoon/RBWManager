@@ -576,12 +576,21 @@ function compareDatabaseSchemas($sourceSchema, $targetSchema, $sourceName = 'Loc
                 $diffReasons = [];
 
                 // 1. So sánh Type & Length (ví dụ: varchar(100) vs varchar(255), int vs bigint...)
-                $srcTypeNorm = strtolower(trim($colDef['type'] ?? ''));
-                $tgtTypeNorm = strtolower(trim($targetCol['type'] ?? ''));
-                $stripDisplayWidth = function($t) {
-                    return preg_replace('/^(tinyint|smallint|mediumint|int|bigint)\(\d+\)/', '$1', $t);
+                $normalizeType = function($t) {
+                    $t = strtolower(trim($t ?? ''));
+                    // Bỏ qua display width của số nguyên: int(11) -> int, tinyint(1) -> tinyint, v.v.
+                    $t = preg_replace('/^(tinyint|smallint|mediumint|int|bigint)\(\d+\)/', '$1', $t);
+                    // Bỏ qua sự khác biệt giữa text và mediumtext (do MySQL trên Server tự động nâng cấp text -> mediumtext khi lưu trữ utf8mb4)
+                    if ($t === 'mediumtext') {
+                        $t = 'text';
+                    }
+                    return $t;
                 };
-                if ($srcTypeNorm !== $tgtTypeNorm && $stripDisplayWidth($srcTypeNorm) !== $stripDisplayWidth($tgtTypeNorm)) {
+
+                $srcTypeClean = $normalizeType($colDef['type'] ?? '');
+                $tgtTypeClean = $normalizeType($targetCol['type'] ?? '');
+
+                if ($srcTypeClean !== $tgtTypeClean) {
                     $diffReasons[] = "kiểu/chiều dài: {$targetCol['type']} ➔ {$colDef['type']}";
                 }
 
@@ -2687,10 +2696,12 @@ switch ($action) {
                 'logs',
                 '.agents',
                 '.git',
+                '.gitignore',
                 '.idea',
                 '.vscode',
                 'tools',
                 'tools.php',
+                'README.md',
                 'docs',
                 'graphify-out',
                 'assets/caches',
@@ -2900,7 +2911,7 @@ switch ($action) {
                     if ($isPathExcluded($relPath)) continue;
                     if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql' || substr(strtolower($relPath), -4) === '.sql') continue;
                     if (!$includeClearData && $isClearDataFile($relPath, $localRoot)) continue;
-                    $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat'];
+                    $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat', '.gitignore'];
                     if (in_array(strtolower($item), $excludedFiles)) continue;
                     if (is_dir($path)) {
                         $scanLocal($path, $relPath . '/');
@@ -3164,10 +3175,12 @@ switch ($action) {
                 'logs',
                 '.agents',
                 '.git',
+                '.gitignore',
                 '.idea',
                 '.vscode',
                 'tools',
                 'tools.php',
+                'README.md',
                 'docs',
                 'graphify-out',
                 'assets/caches',
