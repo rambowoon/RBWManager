@@ -27,12 +27,17 @@ class ProjectDeployer
         $srcPath = str_replace('/', DIRECTORY_SEPARATOR, $src);
         $dstPath = str_replace('/', DIRECTORY_SEPARATOR, $dst);
         
-        // Remove Windows Device Namespace prefix (\\.\) which breaks xcopy/tar
-        if (substr($srcPath, 0, 4) === '\\\\.\\') $srcPath = substr($srcPath, 4);
-        if (substr($dstPath, 0, 4) === '\\\\.\\') $dstPath = substr($dstPath, 4);
+        // Remove Windows Device Namespace prefix (\\.\ or \\?\) which breaks xcopy/tar/robocopy
+        if (substr($srcPath, 0, 4) === '\\\\.\\' || substr($srcPath, 0, 4) === '\\\\?\\') $srcPath = substr($srcPath, 4);
+        if (substr($dstPath, 0, 4) === '\\\\.\\' || substr($dstPath, 0, 4) === '\\\\?\\') $dstPath = substr($dstPath, 4);
         
         $srcPath = rtrim($srcPath, '\\/');
         $dstPath = rtrim($dstPath, '\\/');
+
+        $cwd = dirname(__DIR__);
+        if (substr($cwd, 0, 4) === '\\\\.\\' || substr($cwd, 0, 4) === '\\\\?\\') {
+            $cwd = substr($cwd, 4);
+        }
         
         // Use proc_open to explicitly pass standard handles to robocopy.
         // This completely bypasses the Windows bug where console apps instantly fail in detached headless environments.
@@ -44,7 +49,7 @@ class ProjectDeployer
            2 => ["pipe", "w"]   // stderr
         ];
         
-        $process = proc_open($cmd, $descriptorspec, $pipes);
+        $process = proc_open($cmd, $descriptorspec, $pipes, $cwd);
         
         if (is_resource($process)) {
             fclose($pipes[0]); // close stdin immediately
@@ -57,8 +62,14 @@ class ProjectDeployer
             
             $returnVar = proc_close($process);
             
-            // robocopy exit codes < 8 mean success
-            if ($returnVar >= 8 || $returnVar === 0) {
+            // In Robocopy, exit codes < 8 mean success:
+            // 0 = No files copied (in sync)
+            // 1 = Files copied successfully
+            // 2 = Extra files detected
+            // 3 = Files copied + extra files
+            // 4..7 = Mismatches / variants (non-fatal)
+            // >= 8 = Real failure / fatal error
+            if ($returnVar >= 8) {
                 throw new \Exception("Lỗi robocopy (Code $returnVar). Lệnh: $cmd\nLog: $stdout\nErr: $stderr");
             }
         } else {

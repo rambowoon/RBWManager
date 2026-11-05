@@ -250,27 +250,34 @@ class DeploymentService
 
     public function exportDb($projectPath, $sqlFile)
     {
-        $dbLocal = ['host' => 'localhost', 'name' => '', 'user' => 'root', 'pass' => ''];
+        $dbLocal = ['host' => 'localhost', 'name' => '', 'user' => 'root', 'pass' => '', 'port' => 3306];
         $envPath = $projectPath . '/.env';
         $configPhpPath = $projectPath . '/libraries/config.php';
 
         if (file_exists($envPath)) {
-            $lines = file($envPath);
+            $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
             foreach ($lines as $line) {
-                if (strpos($line, 'DB_DATABASE=') === 0) $dbLocal['name'] = trim(substr($line, 12));
-                if (strpos($line, 'DB_USERNAME=') === 0) $dbLocal['user'] = trim(substr($line, 12));
-                if (strpos($line, 'DB_PASSWORD=') === 0) $dbLocal['pass'] = trim(substr($line, 12));
-                if (strpos($line, 'DB_HOST=') === 0) $dbLocal['host'] = trim(substr($line, 8));
+                $trimmedLine = trim($line);
+                if ($trimmedLine === '' || str_starts_with($trimmedLine, '#') || strpos($trimmedLine, '=') === false) continue;
+                [$k, $v] = explode('=', $trimmedLine, 2);
+                $k = trim($k);
+                $v = trim(trim($v), " \t\n\r\0\x0B\"'");
+                if ($k === 'DB_DATABASE') $dbLocal['name'] = $v;
+                elseif ($k === 'DB_USERNAME') $dbLocal['user'] = $v;
+                elseif ($k === 'DB_PASSWORD') $dbLocal['pass'] = $v;
+                elseif ($k === 'DB_HOST') $dbLocal['host'] = $v;
+                elseif ($k === 'DB_PORT') $dbLocal['port'] = (int)$v;
             }
         } elseif (file_exists($configPhpPath)) {
             $content = file_get_contents($configPhpPath);
-            if (preg_match("/['\"]host['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['host'] = $m[1];
-            if (preg_match("/['\"]dbname['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['name'] = $m[1];
-            if (preg_match("/['\"]username['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['user'] = $m[1];
-            if (preg_match("/['\"]password['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['pass'] = $m[1];
+            if (preg_match("/['\"]host['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['host'] = trim($m[1], " \t\n\r\0\x0B\"'");
+            if (preg_match("/['\"]dbname['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['name'] = trim($m[1], " \t\n\r\0\x0B\"'");
+            if (preg_match("/['\"]username['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['user'] = trim($m[1], " \t\n\r\0\x0B\"'");
+            if (preg_match("/['\"]password['\"]\s*=>\s*['\"]([^'\"]*)['\"]/", $content, $m)) $dbLocal['pass'] = trim($m[1], " \t\n\r\0\x0B\"'");
+            if (preg_match("/['\"]port['\"]\s*=>\s*['\"]?(\d+)['\"]?/", $content, $m)) $dbLocal['port'] = (int)$m[1];
         }
 
-        if (!$dbLocal['name']) return "Khong tim thay DB_DATABASE trong file .env hoac libraries/config.php";
+        if (!$dbLocal['name']) return "Không tìm thấy DB_DATABASE trong file .env hoặc libraries/config.php";
 
         // Override mysqldump with the robust native PDO exporter to avoid PATH issues
         $res = $this->exportLocalDatabase($dbLocal, $sqlFile);
@@ -586,15 +593,17 @@ class DeploymentService
     public function exportLocalDatabase($dbConfig, $outputFile)
     {
         $host = $dbConfig['host'] ?? 'localhost';
-        $dbname = $dbConfig['name'] ?? '';
-        $user = $dbConfig['user'] ?? 'root';
-        $pass = $dbConfig['pass'] ?? '';
+        $dbname = trim($dbConfig['name'] ?? '', " \t\n\r\0\x0B\"'");
+        $user = trim($dbConfig['user'] ?? 'root', " \t\n\r\0\x0B\"'");
+        $pass = trim($dbConfig['pass'] ?? '', " \t\n\r\0\x0B\"'");
+        $port = !empty($dbConfig['port']) ? (int)$dbConfig['port'] : 3306;
 
         if (empty($dbname)) return "No database name provided";
 
         // Method 1: Try system mysqldump (Highest integrity, like phpMyAdmin)
         $passPart = !empty($pass) ? "-p\"$pass\"" : "";
-        $cmd = "mysqldump --host={$host} --user={$user} {$passPart} --default-character-set=utf8mb4 --result-file=\"{$outputFile}\" {$dbname} 2>&1";
+        $portPart = !empty($port) ? "--port={$port}" : "";
+        $cmd = "mysqldump --host={$host} {$portPart} --user={$user} {$passPart} --default-character-set=utf8mb4 --result-file=\"{$outputFile}\" {$dbname} 2>&1";
 
         exec($cmd, $output, $returnVar);
 
@@ -604,12 +613,12 @@ class DeploymentService
 
         // Method 2: Fallback to PHP-based export if mysqldump fails
         try {
-            $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+            $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
             $options = [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-                \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'"
             ];
             $pdo = new \PDO($dsn, $user, $pass, $options);
+            $pdo->exec("SET NAMES 'utf8mb4'");
 
             $outputSql = "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n";
             $tables = $pdo->query("SHOW TABLES")->fetchAll(\PDO::FETCH_COLUMN);
@@ -874,6 +883,13 @@ class DeploymentService
             ]);
             
             $decoded = json_decode($res, true);
+            if (!$decoded && is_string($res)) {
+                $jsonStart = strpos($res, '{');
+                $jsonEnd = strrpos($res, '}');
+                if ($jsonStart !== false && $jsonEnd !== false && $jsonEnd > $jsonStart) {
+                    $decoded = json_decode(substr($res, $jsonStart, $jsonEnd - $jsonStart + 1), true);
+                }
+            }
             if ($decoded && isset($decoded['status'])) return $decoded;
         }
         return ['status' => 'error', 'message' => 'Không thể kết nối tới Bridge hoặc phản hồi không hợp lệ: ' . strip_tags((string)$res)];

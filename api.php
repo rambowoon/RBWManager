@@ -3775,16 +3775,26 @@ switch ($action) {
             $dbPass = $targetPass;
         }
 
-        // Kiểm tra xem dự án có tồn tại trên Demo trước khi upload bridge để kiểm tra Database
-        if ($isDemo && !$indexExists && !$deployService->remoteDirExists($config, $relPath)) {
-            echo json_encode(['status' => 'error', 'message' => "Dự án chưa tồn tại trên Demo Server (chưa có '{$relPath}/index.php'). Vui lòng Deploy Demo trước!"]);
-            break;
-        }
+        $dirExistedBefore = false;
+        try {
+            $dirExistedBefore = $deployService->remoteDirExists($config, $relPath);
+        } catch (\Exception $e) {}
 
-        // Tải bridge.php lên trước để kiểm tra kết nối localhost
+        // Tải bridge.php lên trước để kiểm tra kết nối localhost (upload tự tạo thư mục nếu chưa có)
         try {
             $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $relPath);
         } catch (\Exception $e) {
+            // Nếu không thể upload bridge nhưng dự án chưa từng được triển khai thư mục trên demo, cho phép tiếp tục
+            if (!$dirExistedBefore && !$indexExists) {
+                echo json_encode([
+                    'status' => 'success',
+                    'action' => 'proceed',
+                    'db_pass' => $dbPass,
+                    'message' => 'Dự án mới, tiếp tục triển khai.',
+                    'debug' => ['bridge_upload_error' => $e->getMessage()]
+                ]);
+                break;
+            }
             echo json_encode(['status' => 'error', 'message' => 'Không thể upload Bridge để kiểm tra Database: ' . $e->getMessage()]);
             break;
         }
@@ -3808,6 +3818,17 @@ switch ($action) {
                         $passwordUpdated = true;
                     }
                 } catch (\Exception $e) {
+                    // Nếu đổi mật khẩu lỗi nhưng dự án chưa từng triển khai trên demo, cho phép tiếp tục luồng tạo mới
+                    if (!$dirExistedBefore && !$indexExists) {
+                        echo json_encode([
+                            'status' => 'success',
+                            'action' => 'proceed',
+                            'db_pass' => $dbPass,
+                            'message' => 'Database đã có trên DirectAdmin, tiếp tục triển khai.',
+                            'debug' => ['change_pass_error' => $e->getMessage()]
+                        ]);
+                        break;
+                    }
                     echo json_encode(['status' => 'error', 'message' => 'Đổi mật khẩu Database thất bại: ' . $e->getMessage()]);
                     break;
                 }
@@ -3815,6 +3836,17 @@ switch ($action) {
         }
 
         if (!$connected) {
+            // Nếu không kết nối được qua bridge nhưng dự án chưa từng có mã nguồn trên demo, tiếp tục tiến trình deploy
+            if (!$dirExistedBefore && !$indexExists) {
+                echo json_encode([
+                    'status' => 'success',
+                    'action' => 'proceed',
+                    'db_pass' => $dbPass,
+                    'message' => 'Database đã tồn tại trên DirectAdmin và dự án chưa được triển khai mã nguồn, tiếp tục triển khai.',
+                    'debug' => ['check_res' => $checkRes]
+                ]);
+                break;
+            }
             echo json_encode(['status' => 'error', 'message' => 'Database đã tồn tại nhưng không thể kết nối hoặc cập nhật mật khẩu mới: ' . ($checkRes['message'] ?? 'Lỗi không xác định')]);
             break;
         }
@@ -4028,8 +4060,10 @@ switch ($action) {
 
         if ($exportUpload) {
             writeJobLog($jobId, ['status' => 'info', 'log' => '🗄️ Đang xuất SQL...']);
-            if ($deployService->exportDb($project['path'], $sqlFile) !== true) {
-                writeJobLog($jobId, ['status' => 'error', 'message' => 'Export SQL lỗi']);
+            $exportRes = $deployService->exportDb($project['path'], $sqlFile);
+            if ($exportRes !== true) {
+                $errMsg = is_string($exportRes) ? $exportRes : 'Lỗi không xác định khi xuất CSDL';
+                writeJobLog($jobId, ['status' => 'error', 'message' => 'Export SQL lỗi: ' . $errMsg]);
                 exit;
             }
         } else {
