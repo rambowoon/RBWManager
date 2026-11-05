@@ -221,10 +221,12 @@ function clearProjectCompiledCache($localRoot, $config = [], $currentEnv = 'demo
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $bUrl);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 4);
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
             $resB = curl_exec($ch);
             $httpCodeB = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
@@ -2702,6 +2704,9 @@ switch ($action) {
                 'tools',
                 'tools.php',
                 'README.md',
+                'composer.json',
+                'package-lock.json',
+                'package.json',
                 'docs',
                 'graphify-out',
                 'assets/caches',
@@ -2846,6 +2851,7 @@ switch ($action) {
                     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
                     $res = curl_exec($ch);
                     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
@@ -2889,6 +2895,7 @@ switch ($action) {
                 // Người dùng đã xác nhận đồng ý -> tiến hành tải bridge.php lên host
                 try {
                     $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
+                        usleep(500000);
                 } catch (\Exception $e) {
                     echo json_encode([
                         'status' => 'error',
@@ -2911,7 +2918,7 @@ switch ($action) {
                     if ($isPathExcluded($relPath)) continue;
                     if ($relPath === 'bridge.php' || $relPath === 'dist.zip' || $relPath === 'dist.sql' || substr(strtolower($relPath), -4) === '.sql') continue;
                     if (!$includeClearData && $isClearDataFile($relPath, $localRoot)) continue;
-                    $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat', '.gitignore'];
+                    $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat', '.gitignore', 'composer.json', 'package-lock.json', 'package.json'];
                     if (in_array(strtolower($item), $excludedFiles)) continue;
                     if (is_dir($path)) {
                         $scanLocal($path, $relPath . '/');
@@ -2931,11 +2938,14 @@ switch ($action) {
             $callBridge = function ($targetUrl = null) use (&$bridgeUrls, $defaultExcludes, $includeClearData) {
                 $urls = $targetUrl ? [$targetUrl] : $bridgeUrls;
                 $lastRes = null;
+                $b64Payload = base64_encode(json_encode(['excludes' => $defaultExcludes, 'include_cleardata' => $includeClearData]));
                 foreach ($urls as $url) {
                     $ch = curl_init();
                     curl_setopt($ch, CURLOPT_URL, $url);
                     curl_setopt($ch, CURLOPT_POST, true);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['excludes' => $defaultExcludes, 'include_cleardata' => $includeClearData]));
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['payload_b64' => $b64Payload, 'excludes' => $defaultExcludes, 'include_cleardata' => $includeClearData]));
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'Accept: application/json']);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
                     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -2946,6 +2956,25 @@ switch ($action) {
                     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     $curlErr = curl_error($ch);
                     curl_close($ch);
+
+                    if (in_array($httpCode, [403, 503], true)) {
+                        if ($httpCode === 503) usleep(400000);
+                        $ch = curl_init();
+                        curl_setopt($ch, CURLOPT_URL, $url);
+                        curl_setopt($ch, CURLOPT_POST, true);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query(['payload_b64' => $b64Payload]));
+                        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+                        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                        curl_setopt($ch, CURLOPT_POSTREDIR, 3);
+                        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                        $res = curl_exec($ch);
+                        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        $curlErr = curl_error($ch);
+                        curl_close($ch);
+                    }
 
                     $data = json_decode($res, true);
                     if (is_array($data) && ($data['status'] ?? '') === 'success') {
@@ -2969,6 +2998,7 @@ switch ($action) {
                 if ($allowUploadBridge) {
                     try {
                         $deployService->upload($config, ['bridge.php' => __DIR__ . '/bridge.php'], $deploySubPath);
+                        usleep(500000);
                         $remoteData = $callBridge();
                     } catch (\Exception $e) {
                     }
@@ -2983,7 +3013,8 @@ switch ($action) {
 
             $remoteFiles = $remoteData['files'] ?? [];
             foreach ($remoteFiles as $rPath => $rVal) {
-                if ($isPathExcluded($rPath) || substr(strtolower($rPath), -4) === '.sql') {
+                $rBase = strtolower(basename(str_replace('\\', '/', $rPath)));
+                if ($isPathExcluded($rPath) || substr(strtolower($rPath), -4) === '.sql' || in_array($rBase, ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat', '.gitignore', 'composer.json', 'package-lock.json', 'package.json'])) {
                     unset($remoteFiles[$rPath]);
                     continue;
                 }
@@ -3073,9 +3104,11 @@ switch ($action) {
                 $ch = curl_init();
                 curl_setopt($ch, CURLOPT_URL, $sUrl);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
                 curl_setopt($ch, CURLOPT_TIMEOUT, 10);
                 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
                 $sRes = curl_exec($ch);
                 curl_close($ch);
 
@@ -3181,6 +3214,9 @@ switch ($action) {
                 'tools',
                 'tools.php',
                 'README.md',
+                'composer.json',
+                'package-lock.json',
+                'package.json',
                 'docs',
                 'graphify-out',
                 'assets/caches',
@@ -3438,9 +3474,11 @@ switch ($action) {
                     $ch = curl_init();
                     curl_setopt($ch, CURLOPT_URL, $sUrl);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
                     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
                     $sRes = curl_exec($ch);
                     curl_close($ch);
                     $sDecoded = json_decode($sRes, true);
@@ -3481,17 +3519,41 @@ switch ($action) {
                 }
 
                 $syncRes = null;
+                $b64SyncPayload = base64_encode(json_encode(['queries' => $queries]));
                 foreach ($bridgeSyncUrls as $url) {
                     $ch = curl_init();
                     curl_setopt($ch, CURLOPT_URL, $url);
                     curl_setopt($ch, CURLOPT_POST, true);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['queries' => $queries]));
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['payload_b64' => $b64SyncPayload, 'queries' => $queries]));
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'Accept: application/json']);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($ch, CURLOPT_POSTREDIR, 3);
                     curl_setopt($ch, CURLOPT_TIMEOUT, 60);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
                     $res = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
+
+                    if (in_array($httpCode, [403, 503], true)) {
+                        if ($httpCode === 503) usleep(400000);
+                        $ch = curl_init();
+                        curl_setopt($ch, CURLOPT_URL, $url);
+                        curl_setopt($ch, CURLOPT_POST, true);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query(['payload_b64' => $b64SyncPayload]));
+                        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                        curl_setopt($ch, CURLOPT_POSTREDIR, 3);
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+                        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                        $res = curl_exec($ch);
+                        curl_close($ch);
+                    }
+
                     $dataRes = json_decode($res, true);
                     if (is_array($dataRes) && ($dataRes['status'] ?? '') === 'success') {
                         $syncRes = $dataRes;

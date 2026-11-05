@@ -1412,21 +1412,24 @@ var FileManager = {
                     </div>
 
                     <!-- Body / Textarea with Floating VSCode-style Find Widget -->
-                    <div class="modal-body" style="flex:1; display:flex; flex-direction:column; padding: 0; position:relative; overflow:hidden;">
+                    <div class="modal-body" style="flex:1; display:flex; flex-direction:column; padding: 0; position:relative; overflow:hidden; background:#121215;">
                         
                         <!-- Floating Find Widget -->
                         <div id="fm-editor-find-widget" style="position: absolute; top: 12px; right: 24px; z-index: 100; background: rgba(24, 24, 30, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.65); padding: 5px 8px; display: flex; align-items: center; gap: 6px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
                             <div style="position:relative; display:flex; align-items:center;">
-                                <input type="text" id="fm-editor-find-input" placeholder="Tìm kiếm..." style="width: 200px; padding: 5px 28px 5px 10px; font-size: 12.5px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.15); background: #121216; color: #fff; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#00d2d3'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'" oninput="FileManager.findInEditor(false)" onkeydown="if(event.key==='Enter') FileManager.findInEditor(event.shiftKey ? 'prev' : 'next')">
+                                <input type="text" id="fm-editor-find-input" placeholder="Tìm kiếm..." style="width: 210px; padding: 5px 46px 5px 10px; font-size: 12.5px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.15); background: #121216; color: #fff; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#00d2d3'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'" oninput="FileManager.findInEditor('input')">
                                 <span id="fm-editor-find-status" style="position:absolute; right:8px; font-size:11px; color:#71717a; pointer-events:none; white-space:nowrap;"></span>
                             </div>
-                            <button type="button" class="btn btn-ghost btn-sm" onclick="FileManager.findInEditor('prev')" title="Trước đó (Shift + Enter)" style="padding: 4px 7px; font-size: 12px; border-radius: 4px; line-height: 1; border: 1px solid rgba(255,255,255,0.1); color:#ccc;">↑</button>
-                            <button type="button" class="btn btn-ghost btn-sm" onclick="FileManager.findInEditor('next')" title="Tiếp theo (Enter)" style="padding: 4px 7px; font-size: 12px; border-radius: 4px; line-height: 1; border: 1px solid rgba(255,255,255,0.1); color:#ccc;">↓</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onmousedown="event.preventDefault()" onclick="FileManager.findInEditor('prev')" title="Trước đó (Shift + Enter)" style="padding: 4px 7px; font-size: 12px; border-radius: 4px; line-height: 1; border: 1px solid rgba(255,255,255,0.1); color:#ccc;">↑</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onmousedown="event.preventDefault()" onclick="FileManager.findInEditor('next')" title="Tiếp theo (Enter)" style="padding: 4px 7px; font-size: 12px; border-radius: 4px; line-height: 1; border: 1px solid rgba(255,255,255,0.1); color:#ccc;">↓</button>
                             <button type="button" onclick="FileManager.toggleFindWidget(false)" title="Đóng tìm kiếm (Escape)" style="background:none; border:none; color:#71717a; font-size:16px; cursor:pointer; line-height:1; padding:2px 5px; margin-left:2px; border-radius:4px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#71717a'">×</button>
                         </div>
 
-                        <!-- Editor Textarea -->
-                        <textarea id="fm-editor-textarea" spellcheck="false" style="flex:1; width:100%; height:100%; resize:none; padding:18px 24px; font-family:'Fira Code', Consolas, Menlo, Monaco, monospace; background:#121215; color:#f4f4f5; border:none; outline:none; font-size:13.5px; line-height:1.65; white-space:pre; overflow:auto; tab-size:4;">${this.escapeHtml(content)}</textarea>
+                        <!-- Highlight Backdrop + Editor Textarea -->
+                        <div style="flex:1; position:relative; overflow:hidden; width:100%; height:100%;">
+                            <pre id="fm-editor-backdrop" aria-hidden="true" style="position:absolute; inset:0; margin:0; padding:18px 24px; font-family:'Fira Code', Consolas, Menlo, Monaco, monospace; font-size:13.5px; line-height:1.65; white-space:pre; overflow:hidden; tab-size:4; color:transparent; pointer-events:none; z-index:1; box-sizing:border-box; border:none;"></pre>
+                            <textarea id="fm-editor-textarea" spellcheck="false" style="position:relative; z-index:2; width:100%; height:100%; resize:none; padding:18px 24px; font-family:'Fira Code', Consolas, Menlo, Monaco, monospace; background:transparent; color:#f4f4f5; caret-color:#00d2d3; border:none; outline:none; font-size:13.5px; line-height:1.65; white-space:pre; overflow:auto; tab-size:4; box-sizing:border-box;">${this.escapeHtml(content)}</textarea>
+                        </div>
                     </div>
 
                     <!-- Footer -->
@@ -1445,22 +1448,58 @@ var FileManager = {
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-        // Bind hotkeys Ctrl+S, Ctrl+F, Escape in textarea
+        // Bind hotkeys Ctrl+S, Ctrl+F, Escape in textarea & findInput
         const textarea = document.getElementById('fm-editor-textarea');
+        const backdrop = document.getElementById('fm-editor-backdrop');
         const findInput = document.getElementById('fm-editor-find-input');
+        this.findAnchorPos = 0;
+
+        if (textarea && backdrop) {
+            textarea.addEventListener('scroll', () => {
+                backdrop.scrollTop = textarea.scrollTop;
+                backdrop.scrollLeft = textarea.scrollLeft;
+            });
+            textarea.addEventListener('input', () => {
+                if (findInput && findInput.value) {
+                    FileManager.renderFindBackdrop(textarea.value, findInput.value, FileManager.lastFindIndex);
+                } else {
+                    backdrop.innerHTML = '';
+                }
+            });
+            textarea.addEventListener('click', () => {
+                FileManager.findAnchorPos = textarea.selectionStart || 0;
+            });
+        }
+
+        if (findInput) {
+            findInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    FileManager.findInEditor(e.shiftKey ? 'prev' : 'next');
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    FileManager.toggleFindWidget(false);
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                    e.preventDefault();
+                    FileManager.saveFile(path);
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+                    e.preventDefault();
+                    findInput.select();
+                }
+            });
+        }
         
         textarea.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
                 e.preventDefault();
                 FileManager.saveFile(path);
             }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
                 e.preventDefault();
+                FileManager.findAnchorPos = textarea.selectionStart || 0;
                 FileManager.toggleFindWidget(true);
-                if (findInput) {
-                    findInput.focus();
-                    findInput.select();
-                }
             }
             if (e.key === 'Escape') {
                 FileManager.toggleFindWidget(false);
@@ -1470,6 +1509,8 @@ var FileManager = {
 
     toggleFindWidget(show) {
         const widget = document.getElementById('fm-editor-find-widget');
+        const backdrop = document.getElementById('fm-editor-backdrop');
+        const textarea = document.getElementById('fm-editor-textarea');
         if (!widget) return;
         if (show === undefined) {
             widget.style.display = widget.style.display === 'none' ? 'flex' : 'none';
@@ -1478,19 +1519,68 @@ var FileManager = {
         }
         if (widget.style.display !== 'none') {
             const input = document.getElementById('fm-editor-find-input');
-            if (input) { input.focus(); input.select(); }
+            if (input) {
+                input.focus();
+                input.select();
+                if (input.value) {
+                    this.findInEditor('input');
+                }
+            }
+        } else {
+            if (backdrop) backdrop.innerHTML = '';
+            if (textarea) textarea.focus();
         }
+    },
+
+    renderFindBackdrop(text, term, activePos) {
+        const backdrop = document.getElementById('fm-editor-backdrop');
+        const textarea = document.getElementById('fm-editor-textarea');
+        if (!backdrop || !textarea || !term) {
+            if (backdrop) backdrop.innerHTML = '';
+            return null;
+        }
+        const lowerText = text.toLowerCase();
+        const lowerTerm = term.toLowerCase();
+        const termLen = term.length;
+        let html = '';
+        let lastIdx = 0;
+        let pos = lowerText.indexOf(lowerTerm);
+        while (pos !== -1) {
+            if (pos > lastIdx) {
+                html += this.escapeHtml(text.substring(lastIdx, pos));
+            }
+            const matchedStr = this.escapeHtml(text.substring(pos, pos + termLen));
+            if (pos === activePos) {
+                html += `<mark id="fm-find-active-mark" style="background:rgba(0, 210, 211, 0.42); color:transparent; outline:1.5px solid #00d2d3; border-radius:3px;">${matchedStr}</mark>`;
+            } else {
+                html += `<mark style="background:rgba(250, 204, 21, 0.22); color:transparent; border-radius:2px;">${matchedStr}</mark>`;
+            }
+            lastIdx = pos + termLen;
+            pos = lowerText.indexOf(lowerTerm, lastIdx);
+        }
+        if (lastIdx < text.length) {
+            html += this.escapeHtml(text.substring(lastIdx));
+        }
+        // Extra newline to preserve trailing line height
+        html += '\n';
+        backdrop.innerHTML = html;
+        backdrop.scrollTop = textarea.scrollTop;
+        backdrop.scrollLeft = textarea.scrollLeft;
+        return document.getElementById('fm-find-active-mark');
     },
 
     findInEditor(direction = 'next') {
         const input = document.getElementById('fm-editor-find-input');
         const textarea = document.getElementById('fm-editor-textarea');
+        const backdrop = document.getElementById('fm-editor-backdrop');
         const status = document.getElementById('fm-editor-find-status');
         if (!input || !textarea) return;
         
         const term = input.value;
         if (!term) {
             if (status) status.innerText = '';
+            if (backdrop) backdrop.innerHTML = '';
+            this.lastFindIndex = -1;
             return;
         }
         
@@ -1498,7 +1588,7 @@ var FileManager = {
         const lowerText = text.toLowerCase();
         const lowerTerm = term.toLowerCase();
         
-        // Count total matches
+        // Collect all match positions
         let pos = lowerText.indexOf(lowerTerm);
         const matches = [];
         while (pos !== -1) {
@@ -1508,33 +1598,54 @@ var FileManager = {
         
         const count = matches.length;
         if (count === 0) {
-            if (status) status.innerText = '0/0';
+            if (status) {
+                status.innerText = '0/0';
+                status.style.color = '#f87171';
+            }
+            if (backdrop) backdrop.innerHTML = '';
+            this.lastFindIndex = -1;
             return;
         }
+        if (status) status.style.color = '#71717a';
         
         let targetPos = matches[0];
-        const cursor = textarea.selectionStart || 0;
+        const currentPos = (typeof this.lastFindIndex === 'number' && this.lastFindIndex >= 0)
+            ? this.lastFindIndex
+            : (this.findAnchorPos || textarea.selectionStart || 0);
         
         if (direction === 'prev') {
-            // Find previous match before current cursor
-            const prevMatches = matches.filter(p => p < cursor);
+            const prevMatches = matches.filter(p => p < currentPos);
             targetPos = prevMatches.length > 0 ? prevMatches[prevMatches.length - 1] : matches[matches.length - 1];
+            this.findAnchorPos = targetPos;
         } else if (direction === 'next') {
-            // Find next match after current cursor
-            const nextMatches = matches.filter(p => p > (textarea.selectionStart || 0));
+            const nextMatches = matches.filter(p => p > currentPos);
             targetPos = nextMatches.length > 0 ? nextMatches[0] : matches[0];
+            this.findAnchorPos = targetPos;
         } else {
-            // Live typing, find match at or after cursor
-            targetPos = matches.find(p => p >= cursor) ?? matches[0];
+            // Live typing in search box: keep anchor at current match if possible, without stealing focus!
+            const anchor = this.findAnchorPos ?? 0;
+            targetPos = matches.find(p => p >= anchor) ?? matches[0];
         }
         
-        textarea.focus();
+        this.lastFindIndex = targetPos;
         textarea.setSelectionRange(targetPos, targetPos + term.length);
         
-        // Smooth scroll to selection
-        const linesBefore = text.substring(0, targetPos).split('\n').length;
-        const lineHeight = 22.2; // approx 13.5px * 1.65
-        textarea.scrollTop = Math.max(0, (linesBefore - 5) * lineHeight);
+        // Render visual highlight in backdrop & scroll both vertically and horizontally
+        const activeMark = this.renderFindBackdrop(text, term, targetPos);
+        if (activeMark) {
+            const topTarget = activeMark.offsetTop - Math.max(60, Math.floor(textarea.clientHeight * 0.3));
+            const leftTarget = activeMark.offsetLeft - Math.max(40, Math.floor(textarea.clientWidth * 0.25));
+            textarea.scrollTop = Math.max(0, topTarget);
+            textarea.scrollLeft = Math.max(0, leftTarget);
+            if (backdrop) {
+                backdrop.scrollTop = textarea.scrollTop;
+                backdrop.scrollLeft = textarea.scrollLeft;
+            }
+        } else {
+            const linesBefore = text.substring(0, targetPos).split('\n').length;
+            const lineHeight = 22.2;
+            textarea.scrollTop = Math.max(0, (linesBefore - 5) * lineHeight);
+        }
         
         const matchIdx = matches.indexOf(targetPos) + 1;
         if (status) status.innerText = `${matchIdx}/${count}`;

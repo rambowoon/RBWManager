@@ -1521,6 +1521,7 @@ const SchemaBuilder = {
 			content_brand_cke: 95,
 			options2: 96,
 			hienthi: 1000,
+			is_show: 1000,
 		};
 
 		const sorted = {};

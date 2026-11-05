@@ -840,10 +840,10 @@ const App = {
 		const demoId = document.getElementById(
 			"demo_quick_paste_target_id",
 		).value;
-		const text = document
+		const rawText = document
 			.getElementById("demo_quick_paste_text")
 			.value.trim();
-		if (!text) {
+		if (!rawText) {
 			UI.hideModal("demo-quick-paste-modal");
 			return;
 		}
@@ -851,8 +851,56 @@ const App = {
 		const demo = this.globalData.demo_list.find((d) => d.id === demoId);
 		if (!demo) return;
 
-		const cleanHost = (s) => {
-			return (s || "")
+		let text = rawText
+			.replace(/[\u200B-\u200D\uFEFF]/g, "")
+			.replace(/\u00A0/g, " ")
+			.replace(/\[([^\]]+)\]\((?:mailto:)?([^)]+)\)/g, "$1")
+			.trim();
+
+		const extractIp = (str) => {
+			if (!str) return "";
+			const m = String(str).match(/\b(\d{1,3}(?:\.\d{1,3}){3})\b/);
+			return m ? m[1] : "";
+		};
+
+		const extractDomains = (str) => {
+			if (!str) return [];
+			const withoutIps = String(str).replace(
+				/\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g,
+				" ",
+			);
+			const matches =
+				withoutIps.match(
+					/(?:https?:\/\/|ftp:\/\/)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})/gi,
+				) || [];
+			return matches
+				.map((m) =>
+					m
+						.replace(/^(?:https?:\/\/|ftp:\/\/)/i, "")
+						.replace(/\/.*$/, "")
+						.split(":")[0]
+						.trim(),
+				)
+				.filter(
+					(d) =>
+						d &&
+						!/^(hoặc|hay|or|and|http|https|ftp|mailto)$/i.test(d),
+				);
+		};
+
+		const cleanHost = (str, preferIp = false) => {
+			if (!str) return "";
+			const s = String(str).trim();
+			if (preferIp) {
+				const ip = extractIp(s);
+				if (ip) return ip;
+			}
+			const domains = extractDomains(s);
+			if (domains.length > 0) return domains[0];
+			const ipFallback = extractIp(s);
+			if (ipFallback) return ipFallback;
+			return s
+				.split(/\s+(?:hoặc|hay|or)\s+|[,;\s]+/i)[0]
 				.replace(/^https?:\/\//i, "")
 				.replace(/^ftp:\/\//i, "")
 				.replace(/\/.*$/, "")
@@ -860,11 +908,22 @@ const App = {
 				.trim();
 		};
 
+		const cleanWebDomain = (str) => {
+			const d = cleanHost(str, false);
+			return d.replace(/^(?:ftp\.|www\.)/i, "").trim();
+		};
+
 		const cleanPassword = (str) => {
 			if (!str) return "";
 			return str
-				.replace(/\s*[-–—|]\s*(ngày\s*hết\s*hạn|hết\s*hạn|exp|expired).*$/i, "")
-				.replace(/\s*\((ngày\s*hết\s*hạn|hết\s*hạn|exp|expired).*?\)/i, "")
+				.replace(
+					/\s*(?:[-–—|]\s*)?(?:ngày\s*hết\s*hạn|hết\s*hạn|exp(?:ired|iry)?\b).*$/i,
+					"",
+				)
+				.replace(
+					/\s*\((?:ngày\s*hết\s*hạn|hết\s*hạn|exp(?:ired|iry)?\b).*?\)/i,
+					"",
+				)
 				.trim();
 		};
 
@@ -875,110 +934,214 @@ const App = {
 
 		const pairs = [];
 		let currentSection = "";
+		let explicitWebDomain = false;
+		let panelDomainCandidate = "";
+
+		const isPanelOnlyDomain = (d) => {
+			if (!d) return true;
+			return /(?:^|\.)(?:ninamailservice\.com|directadmin\.com|cpanel\.net|secureserver\.net)$/i.test(
+				d,
+			);
+		};
+
+		const normalizeKey = (str) =>
+			String(str || "")
+				.toLowerCase()
+				.replace(/[:：\t]+/g, " ")
+				.replace(/\s+/g, " ")
+				.trim();
 
 		const isKeyLabel = (str) => {
-			const s = str.toLowerCase().replace(/[:：]/g, "").trim();
-			return /^(domain|tên\s*miền|web\s*domain|website|control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị|host\s*name|host|ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|host\s*ip|ip\s*host|username|user|tài\s*khoản|tên\s*đăng\s*nhập|tài\s*khoản\s*ftp|ftp\s*user|ftp\s*username|panel\s*user|da\s*user|hosting\s*user|password|pass|mật\s*khẩu|ftp\s*pass|ftp\s*password|panel\s*pass|da\s*pass|mật\s*khẩu\s*ftp|hết\s*hạn|ngày\s*hết\s*hạn)$/i.test(
+			const s = normalizeKey(str);
+			return /^(domain|tên miền|web domain|website|control panel|cpanel|directadmin|hosting url|link quản trị|link đăng nhập|link login|url đăng nhập|link hosting|link server|host name|hostname|host|ftp host|ftp server|ftp ip|server ip|ip server|host ip|ip host|ip|username|user name|user|tài khoản|tên đăng nhập|tài khoản ftp|ftp user|ftp username|user ftp|username ftp|panel user|da user|user da|directadmin user|cpanel user|hosting user|user hosting|user server|server user|password|pass|mật khẩu|ftp pass|ftp password|pass ftp|password ftp|mật khẩu ftp|panel pass|da pass|pass da|password da|directadmin pass|cpanel pass|hosting pass|pass hosting|password server|pass server|server pass|server password|mật khẩu server|hết hạn.*|ngày hết hạn.*)$/i.test(
 				s,
 			);
 		};
 
+		const inlineKeyValueRegex =
+			/^(thông\s*tin\s*tài\s*khoản\s*ftp|tài\s*khoản\s*ftp|ftp\s*username|username\s*ftp|ftp\s*user|user\s*ftp|directadmin\s*user|cpanel\s*user|hosting\s*user|user\s*hosting|panel\s*user|user\s*server|server\s*user|da\s*user|user\s*da|tên\s*đăng\s*nhập|tài\s*khoản|user\s*name|username|user|mật\s*khẩu\s*server|server\s*password|password\s*server|server\s*pass|pass\s*server|mật\s*khẩu\s*ftp|ftp\s*password|password\s*ftp|ftp\s*pass|pass\s*ftp|directadmin\s*pass|cpanel\s*pass|hosting\s*pass|pass\s*hosting|panel\s*pass|password\s*da|da\s*pass|pass\s*da|mật\s*khẩu|password|pass|link\s*đăng\s*nhập|url\s*đăng\s*nhập|link\s*quản\s*trị|link\s*hosting|link\s*server|hosting\s*url|control\s*panel|directadmin|cpanel|link\s*login|ftp\s*server|ftp\s*host|host\s*name|hostname|server\s*ip|ip\s*server|host\s*ip|ip\s*host|ftp\s*ip|host|ip|web\s*domain|tên\s*miền|website|domain|ngày\s*hết\s*hạn(?:\s+\S+)?|hết\s*hạn(?:\s+\S+)?)(?:\s*[:：]\s*|\t+|\s+)(.+)$/i;
+
 		for (let i = 0; i < rawLines.length; i++) {
 			const line = rawLines[i];
+			const cleanHeaderLine = normalizeKey(line.replace(/[=_\-\[\]]/g, ""));
 
 			if (
-				/^(thông\s*tin\s*tài\s*khoản\s*ftp|tài\s*khoản\s*ftp|thông\s*tin\s*ftp|ftp\s*account|ftp\s*information|ftp)$/i.test(
-					line.replace(/[:：=_\-\[\]]/g, "").trim(),
+				/^(thông tin tài khoản ftp|thông tin ftp|ftp account|ftp information|ftp)$/i.test(
+					cleanHeaderLine,
 				)
 			) {
 				currentSection = "FTP";
 				continue;
 			}
+			if (/^tài khoản ftp$/i.test(cleanHeaderLine)) {
+				currentSection = "FTP";
+				const nextLine = rawLines[i + 1];
+				if (!nextLine || isKeyLabel(nextLine)) {
+					continue;
+				}
+			}
+			if (/hosting\s+cho\s+tên\s+miền/i.test(line)) {
+				currentSection = "DA";
+				const afterTitle = line.split(/hosting\s+cho\s+tên\s+miền/i)[1] || line;
+				const d = cleanWebDomain(afterTitle);
+				if (d && !isPanelOnlyDomain(d)) {
+					demo.web_domain = d;
+					explicitWebDomain = true;
+				}
+				continue;
+			}
 			if (
-				/^(hosting|thông\s*tin\s*hosting|control\s*panel|directadmin|cpanel|thông\s*tin\s*quản\s*trị)$/i.test(
-					line.replace(/[:：=_\-\[\]]/g, "").trim(),
-				) ||
-				/^hosting\s+cho\s+tên\s+miền/i.test(line)
+				/^(hosting|thông tin hosting|thông tin quản trị)$/i.test(
+					cleanHeaderLine,
+				)
 			) {
 				currentSection = "DA";
-				const domainM = line.match(
-					/tên\s+miền\s+([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
-				);
-				if (domainM && !demo.web_domain) {
-					demo.web_domain = cleanHost(domainM[1]);
+				continue;
+			}
+			if (
+				/^(control panel|directadmin|cpanel|link đăng nhập|link quản trị|link login|url đăng nhập)\b/i.test(
+					cleanHeaderLine,
+				)
+			) {
+				currentSection = "DA";
+			}
+
+			if (isKeyLabel(line)) {
+				const nextLine = rawLines[i + 1];
+				if (nextLine && !isKeyLabel(nextLine)) {
+					pairs.push({
+						key: normalizeKey(line),
+						val: nextLine.trim(),
+						section: currentSection,
+					});
+					i++;
 				}
 				continue;
 			}
 
-			const colonIdx = line.indexOf(":");
-			const isUrl = /^https?:\/\//i.test(line);
-
-			if (colonIdx > 0 && !isUrl && isKeyLabel(line.substring(0, colonIdx))) {
-				const k = line.substring(0, colonIdx).trim();
-				const v = line.substring(colonIdx + 1).trim();
-				pairs.push({ key: k, val: v, section: currentSection });
-			} else if (isKeyLabel(line)) {
-				const nextLine = rawLines[i + 1];
-				if (nextLine && !isKeyLabel(nextLine)) {
-					pairs.push({ key: line, val: nextLine, section: currentSection });
-					i++;
+			const inlineMatch = line.match(inlineKeyValueRegex);
+			if (inlineMatch) {
+				const kPart = normalizeKey(inlineMatch[1]);
+				const vPart = inlineMatch[2].trim();
+				if (
+					vPart &&
+					!isKeyLabel(vPart) &&
+					!/^(ftp|server|da|panel|hosting|key)$/i.test(vPart)
+				) {
+					pairs.push({
+						key: kPart,
+						val: vPart,
+						section: currentSection,
+					});
 				}
 			}
 		}
 
 		pairs.forEach(({ key, val, section }) => {
-			const k = key.toLowerCase().replace(/[:：]/g, "").trim();
+			const k = normalizeKey(key);
 
 			if (/^(domain|tên\s*miền|web\s*domain|website)$/i.test(k)) {
-				demo.web_domain = cleanHost(val);
+				const d = cleanWebDomain(val);
+				if (d && !isPanelOnlyDomain(d)) {
+					demo.web_domain = d;
+					explicitWebDomain = true;
+				}
 			} else if (
-				/^(control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị)$/i.test(
+				/^(control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị|link\s*đăng\s*nhập|link\s*login|url\s*đăng\s*nhập|link\s*hosting|link\s*server)$/i.test(
 					k,
 				)
 			) {
 				const portMatch = val.match(/:(\d{2,5})/);
 				if (portMatch) demo.da_port = portMatch[1];
-				const hostMatches =
-					val.match(
-						/(?:https?:\/\/)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\d{1,3}(?:\.\d{1,3}){3})/gi,
-					) || [];
-				if (hostMatches.length > 0 && !demo.ftp_host) {
-					demo.ftp_host = cleanHost(hostMatches[0]);
+				const ip = extractIp(val);
+				if (ip) {
+					demo.ftp_host = ip;
+				} else if (!demo.ftp_host) {
+					demo.ftp_host = cleanHost(val, true);
+				}
+				const domains = extractDomains(val);
+				for (const dom of domains) {
+					const cleanDom = dom.replace(/^(?:ftp\.|www\.)/i, "");
+					if (cleanDom && !isPanelOnlyDomain(cleanDom) && !panelDomainCandidate) {
+						panelDomainCandidate = cleanDom;
+					}
 				}
 			} else if (
-				/^(host\s*name|host|ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|host\s*ip|ip\s*host)$/i.test(
+				/^(host\s*name|hostname|host|ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|ip\s*server|host\s*ip|ip\s*host|ip)$/i.test(
 					k,
 				)
 			) {
-				demo.ftp_host = cleanHost(val);
-			} else if (/^(ftp\s*user|ftp\s*username|tài\s*khoản\s*ftp)$/i.test(k)) {
-				demo.ftp_user = val.trim();
+				const ip = extractIp(val);
+				if (ip) {
+					demo.ftp_host = ip;
+				} else if (
+					!demo.ftp_host ||
+					!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(demo.ftp_host)
+				) {
+					demo.ftp_host = cleanHost(val, true);
+				}
+				if (!demo.web_domain) {
+					const domains = extractDomains(val);
+					for (const dom of domains) {
+						const cleanDom = dom.replace(/^(?:ftp\.|www\.)/i, "");
+						if (cleanDom && !isPanelOnlyDomain(cleanDom)) {
+							demo.web_domain = cleanDom;
+							break;
+						}
+					}
+				}
 			} else if (
-				/^(panel\s*user|da\s*user|directadmin\s*user|cpanel\s*user|hosting\s*user)$/i.test(
+				/^(ftp\s*user|ftp\s*username|user\s*ftp|username\s*ftp|tài\s*khoản\s*ftp)$/i.test(
+					k,
+				)
+			) {
+				demo.ftp_user = val.trim();
+				if (demo.ftp_user.includes("@") && !explicitWebDomain) {
+					const ftpDom = cleanWebDomain(demo.ftp_user.split("@")[1]);
+					if (ftpDom && !isPanelOnlyDomain(ftpDom)) {
+						demo.web_domain = ftpDom;
+					}
+				}
+			} else if (
+				/^(panel\s*user|da\s*user|user\s*da|directadmin\s*user|cpanel\s*user|hosting\s*user|user\s*hosting|user\s*server|server\s*user)$/i.test(
 					k,
 				)
 			) {
 				if (!demo.ftp_user) demo.ftp_user = val.trim();
 			} else if (
-				/^(username|user|tài\s*khoản|tên\s*đăng\s*nhập)$/i.test(k)
+				/^(username|user\s*name|user|tài\s*khoản|tên\s*đăng\s*nhập)$/i.test(k)
 			) {
 				const v = val.trim();
 				if (section === "FTP" || v.includes("@")) {
 					demo.ftp_user = v;
+					if (v.includes("@") && !explicitWebDomain) {
+						const ftpDom = cleanWebDomain(v.split("@")[1]);
+						if (ftpDom && !isPanelOnlyDomain(ftpDom)) {
+							demo.web_domain = ftpDom;
+						}
+					}
 				} else if (!demo.ftp_user) {
 					demo.ftp_user = v;
 				}
 			} else if (
-				/^(ftp\s*pass|ftp\s*password|mật\s*khẩu\s*ftp|panel\s*pass|da\s*pass|password|pass|mật\s*khẩu)$/i.test(
+				/^(ftp\s*pass|ftp\s*password|pass\s*ftp|password\s*ftp|mật\s*khẩu\s*ftp|panel\s*pass|da\s*pass|pass\s*da|password\s*da|hosting\s*pass|pass\s*hosting|password\s*server|pass\s*server|server\s*pass|server\s*password|mật\s*khẩu\s*server|password|pass|mật\s*khẩu)$/i.test(
 					k,
 				)
 			) {
 				const p = cleanPassword(val);
-				if (!demo.ftp_pass || section === "FTP") {
+				if (
+					!demo.ftp_pass ||
+					section === "FTP" ||
+					/ftp/i.test(k)
+				) {
 					demo.ftp_pass = p;
 				}
 			}
 		});
+
+		if (!demo.web_domain && panelDomainCandidate) {
+			demo.web_domain = panelDomainCandidate;
+		}
 
 		this.renderDemoServersGrid();
 		UI.hideModal("demo-quick-paste-modal");
@@ -1923,19 +2086,12 @@ const App = {
 							});
 
 							if (item.url) {
-								const downloadLink =
-									document.createElement("a");
-								downloadLink.href = item.url;
-								downloadLink.download = item.url
-									.split("/")
-									.pop();
-								document.body.appendChild(downloadLink);
-								downloadLink.click();
-								document.body.removeChild(downloadLink);
+								const fileName = item.url.split("/").pop();
 								UI.updateDeployStatus(
 									"Thành công!",
 									100,
-									`> 📥 Đã tự động kích hoạt tải xuống: <a href="${item.url}" target="_blank" style="color:var(--primary); text-decoration:underline;">Tải thủ công tại đây</a>`,
+									`> 📦 Gói mã nguồn đã được lưu an toàn trong thư mục download của dự án.<br>` +
+									`> 📥 Nếu cần tải thêm về máy: <a href="${item.url}" download="${fileName}" style="color:var(--primary); font-weight:600; text-decoration:underline;">Bấm vào đây để tải file</a>`,
 								);
 							}
 

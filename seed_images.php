@@ -229,7 +229,7 @@ try {
         $seedCatCount = max(1, min(50, (int)($payload['seed_cat_count'] ?? 3)));
         $useAiText   = !empty($payload['use_ai']);
         $aiPromptExtra = trim($payload['ai_prompt'] ?? '');
-        $aiModel     = trim($payload['ai_model'] ?? 'gemini-3.5-flash');
+        $aiModel     = trim($payload['ai_model'] ?? 'gemini-3.6-flash');
 
         if ($projectName === '' || $mainKey === '') throw new Exception('Thiếu project_name hoặc main_key');
         if (empty($selectedSubs)) throw new Exception('Chưa chọn sub-type và ảnh');
@@ -299,10 +299,51 @@ try {
 
         $designImage = $payload['design_image'] ?? null; // ['data' => base64, 'mime' => 'image/png']
 
+        // Helper gọi Gemini API kèm cơ chế tự động fallback qua các model mới nhất đang hoạt động ổn định
+        $callGeminiWithFallback = function(string $apiKey, string $primaryModel, string $payload): array {
+            $executeCurl = function(string $targetModel) use ($apiKey, $payload): array {
+                $url = "https://generativelanguage.googleapis.com/v1beta/models/$targetModel:generateContent?key=" . urlencode($apiKey);
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 45);
+
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $err = curl_error($ch);
+                curl_close($ch);
+
+                return ['code' => $httpCode, 'body' => $response, 'error' => $err, 'model' => $targetModel];
+            };
+
+            $res = $executeCurl($primaryModel);
+            if ($res['code'] === 200 && !$res['error']) {
+                return $res;
+            }
+
+            $fallbackModels = [
+                'gemini-3.6-flash',
+                'gemini-3.5-flash-lite',
+                'gemini-3-flash-preview',
+                'gemini-2.5-flash',
+                'gemini-2.5-flash-lite',
+            ];
+            foreach ($fallbackModels as $fbModel) {
+                if ($fbModel === $primaryModel) continue;
+                $fbRes = $executeCurl($fbModel);
+                if ($fbRes['code'] === 200 && !$fbRes['error']) {
+                    return $fbRes;
+                }
+            }
+
+            return $res;
+        };
+
         // Helper function to fetch from Gemini (Supports Vision Multimodal & Design Context Expansion)
-        $getAiContentFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, int $count, bool $needsContent = false, ?array $designImg = null) {
-            $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . urlencode($apiKey);
-            
+        $getAiContentFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, int $count, bool $needsContent = false, ?array $designImg = null) use ($callGeminiWithFallback) {
             $contentRequirement = $needsContent ? "\n- 'content': bài viết chi tiết, dài khoảng 2-3 đoạn văn, mô tả đầy đủ thông tin. Có thể dùng thẻ HTML cơ bản (ví dụ <br>, <strong>)." : "";
 
             if (!empty($designImg['data']) && !empty($designImg['mime'])) {
@@ -350,32 +391,7 @@ YÊU CẦU QUAN TRỌNG:
                 ]
             ]);
 
-            $executeGeminiCurl = function(string $targetModel) use ($apiKey, $payload): array {
-                $url = "https://generativelanguage.googleapis.com/v1beta/models/$targetModel:generateContent?key=" . urlencode($apiKey);
-                $ch = curl_init($url);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 45);
-                
-                $response = curl_exec($ch);
-                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                $err = curl_error($ch);
-                curl_close($ch);
-
-                return ['code' => $httpCode, 'body' => $response, 'error' => $err];
-            };
-
-            $res = $executeGeminiCurl($model);
-            // Auto Fallback nếu model được chọn trả về lỗi (ví dụ preview endpoint chưa mở)
-            if ($res['code'] !== 200 && ($model === 'gemini-3.5-flash' || $model === 'gemini-3.1-flash-lite')) {
-                $res = $executeGeminiCurl('gemini-2.5-flash');
-                if ($res['code'] !== 200) {
-                    $res = $executeGeminiCurl('gemini-1.5-flash');
-                }
-            }
+            $res = $callGeminiWithFallback($apiKey, $model, $payload);
 
             if ($res['error']) {
                 throw new Exception("Lỗi kết nối cURL tới Gemini: " . $res['error']);
@@ -407,9 +423,7 @@ YÊU CẦU QUAN TRỌNG:
         };
 
         // Helper function to fetch category names from Gemini
-        $getAiCategoriesFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, string $level, int $count, array $excludeNames = [], ?array $designImg = null) {
-            $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . urlencode($apiKey);
-            
+        $getAiCategoriesFromGemini = function(string $apiKey, string $model, string $prompt, string $subTypeTitle, string $level, int $count, array $excludeNames = [], ?array $designImg = null) use ($callGeminiWithFallback) {
             $excludeStr = '';
             if (!empty($excludeNames)) {
                 $excludeStr = "\n5. TUYỆT ĐỐI KHÔNG sử dụng các tên sau (vì đã bị trùng): " . implode(', ', array_slice($excludeNames, 0, 50));
@@ -443,30 +457,19 @@ Yêu cầu:
                 ]
             ]);
 
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 45);
-            
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $err = curl_error($ch);
-            curl_close($ch);
+            $res = $callGeminiWithFallback($apiKey, $model, $payload);
 
-            if ($err) {
-                throw new Exception("Lỗi kết nối cURL tới Gemini: " . $err);
+            if ($res['error']) {
+                throw new Exception("Lỗi kết nối cURL tới Gemini: " . $res['error']);
             }
 
-            if ($httpCode !== 200) {
-                $resObj = json_decode($response, true);
-                $errMsg = $resObj['error']['message'] ?? "HTTP Code $httpCode";
+            if ($res['code'] !== 200) {
+                $resObj = json_decode($res['body'], true);
+                $errMsg = $resObj['error']['message'] ?? "HTTP Code " . $res['code'];
                 throw new Exception("Lỗi từ Gemini API khi tạo danh mục ($model): " . $errMsg);
             }
 
-            $resObj = json_decode($response, true);
+            $resObj = json_decode($res['body'], true);
             $text = $resObj['candidates'][0]['content']['parts'][0]['text'] ?? '';
             $text = trim($text);
             
@@ -597,11 +600,46 @@ Yêu cầu:
                     }
 
                     $catColumns = array_column($pdo->query("SHOW COLUMNS FROM `$catTable`")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+                    $catStatusCfgKeys = is_array($categoriesConfig[$level]['status_categories'] ?? null)
+                        ? array_keys($categoriesConfig[$level]['status_categories'])
+                        : [];
+                    $catStatusPivotTable = $catTable . '_status';
+                    $hasCatStatusPivot = ($pdo->query("SHOW TABLES LIKE '$catStatusPivotTable'")->rowCount() > 0);
+                    $catStatusPivotFk = '';
+                    if ($hasCatStatusPivot) {
+                        $catPivotCols = array_column($pdo->query("SHOW COLUMNS FROM `$catStatusPivotTable`")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+                        $rawCatTableName = preg_replace('/^table_/', '', $catTable);
+                        if (in_array('id_' . $rawCatTableName, $catPivotCols, true)) {
+                            $catStatusPivotFk = 'id_' . $rawCatTableName;
+                        } else {
+                            foreach ($catPivotCols as $cpc) {
+                                if (str_starts_with($cpc, 'id_')) {
+                                    $catStatusPivotFk = $cpc;
+                                    break;
+                                }
+                            }
+                        }
+                    }
 
                     // Lấy danh sách ID đã có hoặc tạo mới
                     $stExist = $pdo->prepare("SELECT id FROM `$catTable` WHERE `$typeCol` = ?");
                     $stExist->execute([$typeVal]);
                     $existingIds = $stExist->fetchAll(PDO::FETCH_COLUMN);
+
+                    // Đảm bảo các danh mục đã có cũng được bật trạng thái hiển thị / nổi bật trên source mới
+                    if (!empty($existingIds)) {
+                        $catBoolColsToEnable = [];
+                        foreach (array_unique(array_merge(['is_show', 'is_featured'], $catStatusCfgKeys)) as $stCol) {
+                            if ($stCol !== 'status' && in_array($stCol, $catColumns, true)) {
+                                $catBoolColsToEnable[] = "`$stCol` = 1";
+                            }
+                        }
+                        if (!empty($catBoolColsToEnable)) {
+                            $phExist = implode(',', array_fill(0, count($existingIds), '?'));
+                            $stUpdCatSt = $pdo->prepare("UPDATE `$catTable` SET " . implode(', ', $catBoolColsToEnable) . " WHERE id IN ($phExist)");
+                            $stUpdCatSt->execute($existingIds);
+                        }
+                    }
 
                     // Xác định cột ảnh cho danh mục (ưu tiên photo, icon hoặc các key trong config images)
                     $catImgCols = [];
@@ -776,7 +814,22 @@ Yêu cầu:
                             if (in_array('slugvi', $catColumns)) { $cols[] = 'slugvi'; $vals[] = $slugVal; }
                             if (in_array('slugen', $catColumns)) { $cols[] = 'slugen'; $vals[] = $slugVal; }
 
-                            if (in_array('status', $catColumns)) { $cols[] = 'status'; $vals[] = 'hienthi'; }
+                            if (in_array('status', $catColumns)) {
+                                $legacyCatSt = ['hienthi'];
+                                foreach ($catStatusCfgKeys as $csk) {
+                                    if ($csk === 'is_show') $legacyCatSt[] = 'hienthi';
+                                    elseif ($csk === 'is_featured') $legacyCatSt[] = 'noibat';
+                                    elseif (is_string($csk) && $csk !== '') $legacyCatSt[] = $csk;
+                                }
+                                $cols[] = 'status';
+                                $vals[] = implode(',', array_values(array_unique($legacyCatSt)));
+                            }
+                            foreach (array_unique(array_merge(['is_show', 'is_featured'], $catStatusCfgKeys)) as $stCol) {
+                                if ($stCol !== 'status' && in_array($stCol, $catColumns, true) && !in_array($stCol, $cols, true)) {
+                                    $cols[] = $stCol;
+                                    $vals[] = 1;
+                                }
+                            }
                             if (in_array('numb', $catColumns)) { $cols[] = 'numb'; $vals[] = $cIdx + 1; }
                             if (in_array('date_created', $catColumns)) { $cols[] = 'date_created'; $vals[] = time(); }
                             if (in_array('created_at', $catColumns)) { $cols[] = 'created_at'; $vals[] = date('Y-m-d H:i:s'); }
@@ -821,6 +874,16 @@ Yêu cầu:
                             $newId = $pdo->lastInsertId();
                             $newIds[] = $newId;
 
+                            if ($hasCatStatusPivot && $catStatusPivotFk !== '' && $newId) {
+                                $catPivotStatuses = array_values(array_unique(array_filter(array_merge(['is_show'], $catStatusCfgKeys))));
+                                $stDelCatSt = $pdo->prepare("DELETE FROM `$catStatusPivotTable` WHERE `$catStatusPivotFk` = ?");
+                                $stDelCatSt->execute([$newId]);
+                                $stInsCatSt = $pdo->prepare("INSERT INTO `$catStatusPivotTable` (`$catStatusPivotFk`, `status`) VALUES (?, ?)");
+                                foreach ($catPivotStatuses as $csVal) {
+                                    $stInsCatSt->execute([$newId, $csVal]);
+                                }
+                            }
+
                             if (in_array('slugvi', $catColumns) && $newId && !empty($slugVal)) {
                                 if ($hasSlugTable) {
                                     $controller = '\\NASANICORE\\Controllers\\Web\\NewsController';
@@ -863,6 +926,36 @@ Yêu cầu:
                     $stCount->execute([$typeVal]);
                     $existingCount = (int)$stCount->fetchColumn();
                 } catch (\Throwable $e) {}
+
+                // Kiểm tra bảng phụ lưu status (source mới: table_product_status, table_news_status, table_photo_status)
+                $rawStatusKeys = is_array($raw['status'] ?? null) ? array_keys($raw['status']) : [];
+                $statusPivotTable = $table . '_status';
+                $hasStatusPivot = ($pdo->query("SHOW TABLES LIKE '$statusPivotTable'")->rowCount() > 0);
+                $statusPivotFk = '';
+                if ($hasStatusPivot) {
+                    $pivotCols = array_column($pdo->query("SHOW COLUMNS FROM `$statusPivotTable`")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+                    $rawTableName = preg_replace('/^table_/', '', $table);
+                    $candFk = 'id_' . $rawTableName;
+                    if (in_array($candFk, $pivotCols, true)) {
+                        $statusPivotFk = $candFk;
+                    } else {
+                        foreach ($pivotCols as $pc) {
+                            if (str_starts_with($pc, 'id_')) {
+                                $statusPivotFk = $pc;
+                                break;
+                            }
+                        }
+                    }
+                }
+                $pivotStatuses = array_merge(['is_show'], $rawStatusKeys);
+                if ($table === 'table_product' && $typeVal === 'san-pham') {
+                    $pivotStatuses[] = 'noibat';
+                    $pivotStatuses[] = 'moi';
+                }
+                $pivotStatuses = array_values(array_unique(array_filter($pivotStatuses, fn($s) => is_string($s) && trim($s) !== '')));
+
+                // Kiểm tra bảng phụ lưu danh mục sản phẩm (source mới: table_product_category_pivot)
+                $hasProductCatPivot = ($table === 'table_product') && ($pdo->query("SHOW TABLES LIKE 'table_product_category_pivot'")->rowCount() > 0);
 
                 $inserted = 0;
                 for ($i = 0; $i < $count; $i++) {
@@ -1087,7 +1180,21 @@ Yêu cầu:
                     }
 
                     if (in_array('status', $columns)) {
-                        $cols[] = 'status'; $vals[] = 'hienthi';
+                        $legacyStatuses = ['hienthi'];
+                        foreach ($rawStatusKeys as $sk) {
+                            if ($sk === 'is_show') $legacyStatuses[] = 'hienthi';
+                            elseif ($sk === 'is_featured') $legacyStatuses[] = 'noibat';
+                            elseif (is_string($sk) && $sk !== '') $legacyStatuses[] = $sk;
+                        }
+                        $cols[] = 'status';
+                        $vals[] = implode(',', array_values(array_unique($legacyStatuses)));
+                    }
+
+                    foreach (array_unique(array_merge(['is_show'], $rawStatusKeys)) as $stCol) {
+                        if ($stCol !== 'status' && in_array($stCol, $columns, true) && !in_array($stCol, $cols, true)) {
+                            $cols[] = $stCol;
+                            $vals[] = 1;
+                        }
                     }
 
                     if (in_array('stt', $columns)) {
@@ -1138,6 +1245,34 @@ Yêu cầu:
                         $lastId = $pdo->lastInsertId();
                     }
 
+                    // Lưu status vào bảng phụ (table_product_status, table_news_status, table_photo_status) nếu là source mới
+                    if ($hasStatusPivot && $statusPivotFk !== '' && $lastId) {
+                        $stDelStatus = $pdo->prepare("DELETE FROM `$statusPivotTable` WHERE `$statusPivotFk` = ?");
+                        $stDelStatus->execute([$lastId]);
+                        $stInsStatus = $pdo->prepare("INSERT INTO `$statusPivotTable` (`$statusPivotFk`, `status`) VALUES (?, ?)");
+                        foreach ($pivotStatuses as $stVal) {
+                            $stInsStatus->execute([$lastId, $stVal]);
+                        }
+                    }
+
+                    // Lưu quan hệ danh mục vào table_product_category_pivot nếu là source mới
+                    if ($hasProductCatPivot && $lastId) {
+                        $stDelCatPivot = $pdo->prepare("DELETE FROM `table_product_category_pivot` WHERE `id_product` = ?");
+                        $stDelCatPivot->execute([$lastId]);
+                        $catPivotLevels = [
+                            'list' => $idListVal,
+                            'cat'  => $idCatVal,
+                            'item' => $idItemVal,
+                            'sub'  => $idSubVal,
+                        ];
+                        $stInsCatPivot = $pdo->prepare("INSERT INTO `table_product_category_pivot` (`id_product`, `id_category`, `level`, `is_primary`) VALUES (?, ?, ?, 1)");
+                        foreach ($catPivotLevels as $cpLvl => $cpId) {
+                            if ($cpId > 0) {
+                                $stInsCatPivot->execute([$lastId, $cpId, $cpLvl]);
+                            }
+                        }
+                    }
+
                     // Insert to table_slug if slugs are enabled and generated
                     if ($hasSlug && $lastId && !empty($slugViVal)) {
                         $stSlugCheck = $pdo->query("SHOW TABLES LIKE 'table_slug'");
@@ -1186,6 +1321,26 @@ Yêu cầu:
                 ];
             }
             $pdo->commit();
+
+            // Xóa file cache trong thư mục caches của dự án (source mới dùng Symfony FilesystemAdapter cache cho trang chủ & sản phẩm)
+            $projectCacheDir = $laravelBase . DIRECTORY_SEPARATOR . 'caches';
+            if (is_dir($projectCacheDir)) {
+                $clearCacheDir = function(string $dir) use (&$clearCacheDir) {
+                    $items = @scandir($dir);
+                    if (!$items) return;
+                    foreach ($items as $item) {
+                        if ($item === '.' || $item === '..' || $item === '.gitignore') continue;
+                        $p = $dir . DIRECTORY_SEPARATOR . $item;
+                        if (is_dir($p)) {
+                            $clearCacheDir($p);
+                            @rmdir($p);
+                        } else {
+                            @unlink($p);
+                        }
+                    }
+                };
+                $clearCacheDir($projectCacheDir);
+            }
         } catch (\Throwable $e) {
             $pdo->rollBack();
             throw $e;

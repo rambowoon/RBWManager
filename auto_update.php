@@ -206,6 +206,27 @@ try {
             }
             $titleMain = $configData[$subType]['title_main'] ?? $subType;
 
+            $tableColumns = array_column($pdo->query("SHOW COLUMNS FROM `{$table}`")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+            $rawStatusKeys = is_array($configData[$subType]['status'] ?? null) ? array_keys($configData[$subType]['status']) : [];
+            $statusPivotTable = $table . '_status';
+            $hasStatusPivot = ($pdo->query("SHOW TABLES LIKE '{$statusPivotTable}'")->rowCount() > 0);
+            $statusPivotFk = '';
+            if ($hasStatusPivot) {
+                $pivotCols = array_column($pdo->query("SHOW COLUMNS FROM `{$statusPivotTable}`")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+                $rawTableName = preg_replace('/^table_/', '', $table);
+                if (in_array('id_' . $rawTableName, $pivotCols, true)) {
+                    $statusPivotFk = 'id_' . $rawTableName;
+                } else {
+                    foreach ($pivotCols as $pc) {
+                        if (str_starts_with($pc, 'id_')) {
+                            $statusPivotFk = $pc;
+                            break;
+                        }
+                    }
+                }
+            }
+            $pivotStatuses = array_values(array_unique(array_filter(array_merge(['is_show'], $rawStatusKeys))));
+
             for ($i = 0; $i < $loopCount; $i++) {
                 $isUpdate = ($i < $numRows);
                 if ($isUpdate) {
@@ -320,6 +341,17 @@ try {
                         ':img' => $newRel,
                         ':id' => (int)$row['id'],
                     ]);
+                    if ($hasStatusPivot && $statusPivotFk !== '') {
+                        $rowId = (int)$row['id'];
+                        $stChkSt = $pdo->prepare("SELECT COUNT(*) FROM `{$statusPivotTable}` WHERE `{$statusPivotFk}` = ?");
+                        $stChkSt->execute([$rowId]);
+                        if ((int)$stChkSt->fetchColumn() === 0) {
+                            $stInsSt = $pdo->prepare("INSERT INTO `{$statusPivotTable}` (`{$statusPivotFk}`, `status`) VALUES (?, ?)");
+                            foreach ($pivotStatuses as $stVal) {
+                                $stInsSt->execute([$rowId, $stVal]);
+                            }
+                        }
+                    }
                     $updated++;
                 } else {
                     if ($mainKey === 'type-photo') {
@@ -327,17 +359,28 @@ try {
                         $comVal = ($kind === 'album') ? 'photo-album' : 'photo-static';
                         $nameVi = $titleMain . ' ' . ($i + 1);
 
-                        $st = $pdo->prepare("INSERT INTO `{$table}` (`{$column}`, `{$typeColumn}`, `com`, `namevi`, `status`, `numb`, `date_created`, `created_at`, `updated_at`) VALUES (:img, :type_val, :com, :namevi, 'hienthi', :numb, :date_created, :created_at, :updated_at)");
-                        $st->execute([
-                            ':img' => $newRel,
-                            ':type_val' => $typeValue,
-                            ':com' => $comVal,
-                            ':namevi' => $nameVi,
-                            ':numb' => $i + 1,
-                            ':date_created' => time(),
-                            ':created_at' => date('Y-m-d H:i:s'),
-                            ':updated_at' => date('Y-m-d H:i:s'),
-                        ]);
+                        $insCols = [$column, $typeColumn, 'com', 'namevi', 'numb', 'date_created', 'created_at', 'updated_at'];
+                        $insVals = [$newRel, $typeValue, $comVal, $nameVi, $i + 1, time(), date('Y-m-d H:i:s'), date('Y-m-d H:i:s')];
+                        if (in_array('status', $tableColumns, true)) {
+                            $insCols[] = 'status';
+                            $insVals[] = 'hienthi';
+                        }
+                        foreach (array_unique(array_merge(['is_show'], $rawStatusKeys)) as $stCol) {
+                            if ($stCol !== 'status' && in_array($stCol, $tableColumns, true) && !in_array($stCol, $insCols, true)) {
+                                $insCols[] = $stCol;
+                                $insVals[] = 1;
+                            }
+                        }
+                        $ph = implode(', ', array_fill(0, count($insCols), '?'));
+                        $st = $pdo->prepare("INSERT INTO `{$table}` (`" . implode('`, `', $insCols) . "`) VALUES ({$ph})");
+                        $st->execute($insVals);
+                        $newPhotoId = (int)$pdo->lastInsertId();
+                        if ($hasStatusPivot && $statusPivotFk !== '' && $newPhotoId > 0) {
+                            $stInsSt = $pdo->prepare("INSERT INTO `{$statusPivotTable}` (`{$statusPivotFk}`, `status`) VALUES (?, ?)");
+                            foreach ($pivotStatuses as $stVal) {
+                                $stInsSt->execute([$newPhotoId, $stVal]);
+                            }
+                        }
                         $inserted++;
                     } else if ($mainKey === 'type-news') {
                         $nameVi = $titleMain . ' ' . ($i + 1);
@@ -345,19 +388,32 @@ try {
                         $hasSlug = !empty($configData[$subType]['slug']);
                         $slugVi = $hasSlug ? changeTitleSlug($nameVi) : null;
 
-                        $st = $pdo->prepare("INSERT INTO `{$table}` (`{$column}`, `{$typeColumn}`, `namevi`, `descvi`, `slugvi`, `id_parent`, `status`, `numb`, `date_created`, `created_at`, `updated_at`) VALUES (:img, :type_val, :namevi, :descvi, :slugvi, 0, 'hienthi', :numb, :date_created, :created_at, :updated_at)");
-                        $st->execute([
-                            ':img' => $newRel,
-                            ':type_val' => $typeValue,
-                            ':namevi' => $nameVi,
-                            ':descvi' => $descVi,
-                            ':slugvi' => $slugVi,
-                            ':numb' => $i + 1,
-                            ':date_created' => time(),
-                            ':created_at' => date('Y-m-d H:i:s'),
-                            ':updated_at' => date('Y-m-d H:i:s'),
-                        ]);
-                        $newId = $pdo->lastInsertId();
+                        $insCols = [$column, $typeColumn, 'namevi', 'descvi', 'slugvi', 'numb', 'date_created', 'created_at', 'updated_at'];
+                        $insVals = [$newRel, $typeValue, $nameVi, $descVi, $slugVi, $i + 1, time(), date('Y-m-d H:i:s'), date('Y-m-d H:i:s')];
+                        if (in_array('id_parent', $tableColumns, true)) {
+                            $insCols[] = 'id_parent';
+                            $insVals[] = 0;
+                        }
+                        if (in_array('status', $tableColumns, true)) {
+                            $insCols[] = 'status';
+                            $insVals[] = 'hienthi';
+                        }
+                        foreach (array_unique(array_merge(['is_show'], $rawStatusKeys)) as $stCol) {
+                            if ($stCol !== 'status' && in_array($stCol, $tableColumns, true) && !in_array($stCol, $insCols, true)) {
+                                $insCols[] = $stCol;
+                                $insVals[] = 1;
+                            }
+                        }
+                        $ph = implode(', ', array_fill(0, count($insCols), '?'));
+                        $st = $pdo->prepare("INSERT INTO `{$table}` (`" . implode('`, `', $insCols) . "`) VALUES ({$ph})");
+                        $st->execute($insVals);
+                        $newId = (int)$pdo->lastInsertId();
+                        if ($hasStatusPivot && $statusPivotFk !== '' && $newId > 0) {
+                            $stInsSt = $pdo->prepare("INSERT INTO `{$statusPivotTable}` (`{$statusPivotFk}`, `status`) VALUES (?, ?)");
+                            foreach ($pivotStatuses as $stVal) {
+                                $stInsSt->execute([$newId, $stVal]);
+                            }
+                        }
 
                         if ($hasSlug) {
                             // Insert into table_slug

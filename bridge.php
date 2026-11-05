@@ -61,6 +61,9 @@ class RamboWoonBridge
             case 'downloadTemp':
                 $this->downloadTemp();
                 break;
+            case 'cleanupTemp':
+                $this->cleanupTemp();
+                break;
             case 'getDbSchema':
                 $this->getDbSchema();
                 break;
@@ -1063,72 +1066,95 @@ class RamboWoonBridge
 
     private function exportDatabase($dbConfig, $outputFile, $clean = false)
     {
-        $host = $dbConfig['host'] ?? 'localhost';
-        $dbname = $dbConfig['name'] ?? '';
-        $user = $dbConfig['user'] ?? '';
-        $pass = $dbConfig['pass'] ?? '';
+        // Nếu không có dbConfig hoặc rỗng tên db, tự đọc từ server
+        if (empty($dbConfig) || empty($dbConfig['name'])) {
+            $dbConfig = $this->getDbConfig();
+        }
 
-        if (empty($dbname)) return false;
+        $exportAttempt = function ($cfg) use ($outputFile, $clean) {
+            $host = $cfg['host'] ?? 'localhost';
+            $dbname = $cfg['name'] ?? '';
+            $user = $cfg['user'] ?? '';
+            $pass = $cfg['pass'] ?? '';
 
-        if (!$clean && function_exists('exec')) {
-            $passPart = !empty($pass) ? "-p\"$pass\"" : "";
-            $cmd = "mysqldump --host={$host} --user={$user} {$passPart} --default-character-set=utf8mb4 --result-file=\"{$outputFile}\" {$dbname} 2>&1";
-            $output = [];
-            $returnVar = -1;
-            @exec($cmd, $output, $returnVar);
-            if ($returnVar === 0) {
+            if (empty($dbname)) return false;
+
+            if (!$clean && function_exists('exec')) {
+                $passPart = !empty($pass) ? "-p\"$pass\"" : "";
+                $cmd = "mysqldump --host={$host} --user={$user} {$passPart} --default-character-set=utf8mb4 --result-file=\"{$outputFile}\" {$dbname} 2>&1";
+                $output = [];
+                $returnVar = -1;
+                @exec($cmd, $output, $returnVar);
+                if ($returnVar === 0 && file_exists($outputFile) && filesize($outputFile) > 0) {
+                    return true;
+                }
+            }
+
+            try {
+                $pdo = $this->getPdoConnection($cfg);
+                $outputSql = "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n";
+                $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+
+                foreach ($tables as $table) {
+                    $outputSql .= "DROP TABLE IF EXISTS `$table`;\n";
+                    $create = $pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_ASSOC);
+                    $outputSql .= ($create['Create Table'] ?? '') . ";\n\n";
+
+                    if (!$clean || $this->isSystemTable($table)) {
+                        $rows = $pdo->query("SELECT * FROM `$table`")->fetchAll(PDO::FETCH_ASSOC);
+                        foreach ($rows as $row) {
+                            $outputSql .= "INSERT INTO `$table` VALUES (";
+                            $vals = array_map(function ($v) use ($pdo) {
+                                return is_null($v) ? "NULL" : $pdo->quote($v);
+                            }, array_values($row));
+                            $outputSql .= implode(', ', $vals) . ");\n";
+                        }
+                        $outputSql .= "\n";
+                    }
+                }
+                $outputSql .= "SET FOREIGN_KEY_CHECKS=1;\n";
+                file_put_contents($outputFile, $outputSql);
+                return file_exists($outputFile) && filesize($outputFile) > 0;
+            } catch (\Exception $e) {
+                return false;
+            }
+        };
+
+        // Lần 1: Thử với config hiện tại
+        if (!empty($dbConfig['name']) && $exportAttempt($dbConfig)) {
+            return true;
+        }
+
+        // Lần 2: Nếu thất bại và config hiện tại khác với server config, fallback tự đọc từ server
+        $serverCfg = $this->getDbConfig();
+        if (!empty($serverCfg['name']) && $serverCfg !== $dbConfig) {
+            if ($exportAttempt($serverCfg)) {
                 return true;
             }
         }
 
-        try {
-            $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
-            $pdo = new PDO($dsn, $user, $pass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'"
-            ]);
-
-            $outputSql = "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n";
-            $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-
-            foreach ($tables as $table) {
-                $outputSql .= "DROP TABLE IF EXISTS `$table`;\n";
-                $create = $pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_ASSOC);
-                $outputSql .= $create['Create Table'] . ";\n\n";
-
-                if (!$clean || $this->isSystemTable($table)) {
-                    $rows = $pdo->query("SELECT * FROM `$table`")->fetchAll(PDO::FETCH_ASSOC);
-                    foreach ($rows as $row) {
-                        $outputSql .= "INSERT INTO `$table` VALUES (";
-                        $vals = array_map(function ($v) use ($pdo) {
-                            return is_null($v) ? "NULL" : $pdo->quote($v);
-                        }, array_values($row));
-                        $outputSql .= implode(', ', $vals) . ");\n";
-                    }
-                    $outputSql .= "\n";
-                }
-            }
-            $outputSql .= "SET FOREIGN_KEY_CHECKS=1;\n";
-            file_put_contents($outputFile, $outputSql);
-            return true;
-        } catch (\Exception $e) {
-            return false;
-        }
+        return false;
     }
 
     private function packageSource($zipFile, $clean = false)
     {
-        $excludes = ['.agents', 'dist.zip', 'vite.config.js', 'README.md', '.gitignore', 'package_temp.zip', basename($zipFile)];
+        $excludes = ['.agents', 'bridge.php', 'dist.zip', 'vite.config.js', 'README.md', '.gitignore', 'package_temp.zip', 'backups', basename($zipFile)];
         $mediaExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'pdf', 'zip', 'rar', 'docx', 'xlsx'];
         $alwaysEmptyFolders = ['thumbs', 'watermarks', 'caches', 'compiled'];
         
-        if (!$clean && function_exists('exec')) {
+        if (function_exists('exec')) {
             $excludeStr = '';
             foreach ($excludes as $ex) {
                 $excludeStr .= " -x \"$ex*\" -x \"*/$ex*\"";
             }
             foreach ($alwaysEmptyFolders as $f) {
                 $excludeStr .= " -x \"$f/*\" -x \"*/$f/*\"";
+            }
+            $excludeStr .= " -x \"*.zip\" -x \"*/*.zip\" -x \"*.rar\" -x \"backups/*\" -x \"*/backups/*\"";
+            if ($clean) {
+                foreach ($mediaExtensions as $ext) {
+                    $excludeStr .= " -x \"upload/*.$ext\" -x \"uploads/*.$ext\" -x \"*/upload/*.$ext\" -x \"*/uploads/*.$ext\"";
+                }
             }
             $cmd = "zip -r $zipFile . $excludeStr";
             @exec($cmd, $output, $returnVar);
@@ -1214,7 +1240,7 @@ class RamboWoonBridge
         }
         $dbConfig = json_decode($dbRaw ?? '', true);
         if (empty($dbConfig) || empty($dbConfig['name'])) {
-            $dbConfig = $this->getDbConfigFromEnv();
+            $dbConfig = $this->getDbConfig();
         }
 
         $sqlFile = 'dist.sql';
@@ -1241,11 +1267,15 @@ class RamboWoonBridge
         $baseUri = substr($uri, 0, $pos);
         $demoBaseUrl = $scheme . $host . $baseUri;
 
-        $downloadUrl = $demoBaseUrl . 'bridge.php?action=downloadTemp&file=' . urlencode($zipFile);
+        // Trả về URL file tĩnh tải trực tiếp qua Web Server (tránh hoàn toàn PHP execution timeout và 503)
+        $downloadUrl = $demoBaseUrl . urlencode($zipFile);
+        $fallbackUrl = $demoBaseUrl . 'bridge.php?action=downloadTemp&file=' . urlencode($zipFile);
 
         echo json_encode([
             'status' => 'success',
-            'url' => $downloadUrl
+            'url' => $downloadUrl,
+            'fallback_url' => $fallbackUrl,
+            'file' => $zipFile
         ]);
         exit;
     }
@@ -1255,22 +1285,41 @@ class RamboWoonBridge
         $file = $_GET['file'] ?? '';
         $file = basename($file);
         if (preg_match('/^[a-zA-Z0-9_-]+_\d+\.zip$/', $file) && file_exists($file)) {
+            @set_time_limit(0);
+            @ini_set('memory_limit', '512M');
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+
             header('Content-Type: application/zip');
             header('Content-Disposition: attachment; filename="' . $file . '"');
             header('Content-Length: ' . filesize($file));
-            readfile($file);
-            @unlink($file);
 
-            // Lock the project directory after successful download
-            $currentDir = __DIR__;
-            $dirName = basename($currentDir);
-            if (strpos($dirName, '_old') === false) {
-                @rename($currentDir, $currentDir . '_old');
+            $fp = fopen($file, 'rb');
+            if ($fp) {
+                while (!feof($fp)) {
+                    echo fread($fp, 1024 * 1024);
+                    flush();
+                }
+                fclose($fp);
             }
+            @unlink($file);
             exit;
         }
         http_response_code(404);
         echo "File not found";
+        exit;
+    }
+
+    public function cleanupTemp()
+    {
+        header('Content-Type: application/json');
+        $file = $_POST['file'] ?? ($_GET['file'] ?? '');
+        $file = basename($file);
+        if (preg_match('/^[a-zA-Z0-9_-]+_\d+\.zip$/', $file) && file_exists($file)) {
+            @unlink($file);
+        }
+        echo json_encode(['status' => 'success']);
         exit;
     }
 
@@ -1295,7 +1344,7 @@ class RamboWoonBridge
             exit;
         }
 
-        $dbConfig = $this->getDbConfigFromEnv();
+        $dbConfig = $this->getDbConfig();
 
         $sqlFile = 'dist.sql';
         if (!$this->exportDatabase($dbConfig, $sqlFile, false)) {
@@ -1377,13 +1426,18 @@ class RamboWoonBridge
     public function scanFiles()
     {
         $input = json_decode(file_get_contents('php://input'), true);
+        if (!$input) $input = $_POST;
+        if (!empty($input['payload_b64'])) {
+            $decodedB64 = json_decode(base64_decode($input['payload_b64']), true);
+            if (is_array($decodedB64)) $input = $decodedB64;
+        }
         $customExcludes = $input['excludes'] ?? [];
         $includeClearData = !empty($input['include_cleardata']);
         
         $defaultExcludes = [
             'backup', 'backups', 'old', 'olds',
             'bootstrap', 'caches', 'compiled', 'config_contents', 'thumbs', 'upload', 'vendor', 'watermarks', 'watermark', 'logs',
-            '.agents', '.git', '.gitignore', '.idea', '.vscode', 'tools', 'docs', 'graphify-out',
+            '.agents', '.git', '.gitignore', '.idea', '.vscode', 'tools', 'docs', 'graphify-out', 'composer.json', 'package-lock.json', 'package.json',
             'assets/caches', 'assets/images/images', 'src/views/templates/layout/backup', 'assets/css/backup',
             'assets/admin/json', 'libraries/config.php'
         ];
@@ -1443,7 +1497,7 @@ class RamboWoonBridge
                         if (stripos($rc, 'cleardata') !== false) continue;
                     }
                 }
-                $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat', '.gitignore'];
+                $excludedFiles = ['readme.md', 'vite.config.js', '.env', '.htaccess', 'data.dat', '.gitignore', 'composer.json', 'package-lock.json', 'package.json'];
                 if (in_array(strtolower($item), $excludedFiles)) continue;
                 
                 if (is_dir($path)) {
@@ -1562,6 +1616,10 @@ class RamboWoonBridge
         $rawInput = file_get_contents('php://input');
         $data = json_decode($rawInput, true);
         if (!$data) $data = $_POST;
+        if (!empty($data['payload_b64'])) {
+            $decodedB64 = json_decode(base64_decode($data['payload_b64']), true);
+            if (is_array($decodedB64)) $data = $decodedB64;
+        }
 
         $queries = $data['queries'] ?? [];
         if (empty($queries) || !is_array($queries)) {

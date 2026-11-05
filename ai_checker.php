@@ -60,7 +60,7 @@ if ($action === 'check_gemini') {
 if ($action === 'test_model_gemini') {
     $data = json_decode(file_get_contents('php://input'), true);
     $apiKey = $data['api_key'] ?? '';
-    $model = $data['model'] ?? 'gemini-1.5-flash';
+    $model = $data['model'] ?? 'gemini-2.5-flash';
     
     $url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=" . urlencode($apiKey);
     $payload = json_encode(["contents" => [["parts" => [["text" => "hi"]]]]]);

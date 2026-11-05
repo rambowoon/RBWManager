@@ -371,7 +371,7 @@ const SeedManager = {
 
 		const seedCount = parseInt(document.getElementById('seed-count-input')?.value || '5', 10);
 		const seedCatCount = parseInt(document.getElementById('seed-cat-count-input')?.value || '3', 10);
-		const aiModel = document.getElementById('seed-ai-model')?.value || 'gemini-1.5-flash';
+		const aiModel = document.getElementById('seed-ai-model')?.value || 'gemini-3.6-flash';
 		const aiPrompt = document.getElementById('seed-ai-prompt')?.value || '';
 
 		let btn = document.getElementById('btn-seed-run');

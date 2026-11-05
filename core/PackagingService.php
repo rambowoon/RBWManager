@@ -54,32 +54,26 @@ class PackagingService {
         }
 
         // Use ConfigManager to get the actual deployed DB credentials
-        $projectConfig = $this->configManager->getForProject($projectName);
+        $projectConfig = $this->configManager->getForProject($projectName, $category);
         $demoDeployed = $projectConfig['deployed']['demo'] ?? null;
         
-        if ($demoDeployed && !empty($demoDeployed['db_name'])) {
-            $dbConfig = [
+        $postData = [
+            'project_name' => $projectName
+        ];
+
+        // Nếu có thông tin DB triển khai đầy đủ và có mật khẩu thật thì gửi, nếu không thì để Bridge tự động lấy từ server (.env / config.php)
+        if ($demoDeployed && !empty($demoDeployed['db_name']) && !empty($demoDeployed['db_pass'])) {
+            $postData['db_config'] = json_encode([
                 'host' => 'localhost',
                 'name' => $demoDeployed['db_name'],
-                'user' => $demoDeployed['db_user'],
+                'user' => $demoDeployed['db_user'] ?? $demoDeployed['db_name'],
                 'pass' => $demoDeployed['db_pass']
-            ];
-        } else {
-            // Fallback
-            $dbName = $this->deploymentService->generateDemoDbName($category, $projectName);
-            $dbConfig = [
-                'host' => 'localhost',
-                'name' => $demoConfig['ftp_user'] . '_' . $dbName,
-                'user' => $demoConfig['ftp_user'] . '_' . $dbName,
-                'pass' => $demoConfig['ftp_pass']
-            ];
+            ]);
         }
 
-        writeJobLog($jobId, ['status' => 'info', 'log' => '☁️ Đang yêu cầu Demo đóng gói Source + Database...']);
-        $res = RemoteClient::post($demoBridgeUrl, [
-            'db_config' => json_encode($dbConfig),
-            'project_name' => $projectName
-        ]);
+        writeJobLog($jobId, ['status' => 'info', 'log' => '☁️ Đang yêu cầu Demo đóng gói Source + Database... (Vui lòng đợi trong giây lát)']);
+        $res = RemoteClient::post($demoBridgeUrl, $postData);
+        writeJobLog($jobId, ['status' => 'info', 'log' => '⚡ Demo đã đóng gói thành công! Bắt đầu tải tệp về Local...']);
 
         $decoded = json_decode($res, true);
         if (!$decoded) {
@@ -102,25 +96,42 @@ class PackagingService {
             }
 
             $zipUrl = $decoded['url'];
+            $fallbackUrl = $decoded['fallback_url'] ?? '';
+            $zipName = $decoded['file'] ?? '';
             
-            // Extract the original ZIP name from URL query parameter
-            $parsedUrl = parse_url($zipUrl);
-            $queryParams = [];
-            if (isset($parsedUrl['query'])) {
-                parse_str($parsedUrl['query'], $queryParams);
+            if (empty($zipName)) {
+                $parsedUrl = parse_url($zipUrl);
+                $zipName = basename($parsedUrl['path'] ?? '');
+                if (empty($zipName) || strpos($zipName, '.zip') === false) {
+                    $queryParams = [];
+                    if (isset($parsedUrl['query'])) {
+                        parse_str($parsedUrl['query'], $queryParams);
+                    }
+                    $zipName = $queryParams['file'] ?? ($projectName . '_' . time() . '.zip');
+                }
             }
-            $zipName = $queryParams['file'] ?? ($projectName . '_' . time() . '.zip');
             
             $localFilePath = $downloadDir . DIRECTORY_SEPARATOR . $zipName;
 
-            // Sử dụng Curl để tải package
+            // Sử dụng Curl để tải package (ưu tiên tải trực tiếp file tĩnh của Web Server)
             $zipRes = RemoteClient::downloadFile($zipUrl, $localFilePath);
+
+            // Fallback: nếu URL tĩnh bị chặn (ví dụ do .htaccess), thử qua downloadTemp của bridge
+            if ($zipRes !== true && !empty($fallbackUrl)) {
+                $zipRes = RemoteClient::downloadFile($fallbackUrl, $localFilePath);
+            }
 
             if ($zipRes !== true) {
                 $msg = "Lỗi tải file: " . (is_string($zipRes) ? $zipRes : 'Không rõ nguyên nhân');
                 writeJobLog($jobId, ['status' => 'error', 'message' => $msg]);
                 return ['status' => 'error', 'message' => $msg];
             }
+
+            // Dọn dẹp file zip tạm trên Demo server sau khi đã tải thành công về Local
+            try {
+                $cleanupUrl = $scheme . $demoDomain . "/" . ltrim($fullSubPath, '/') . "/bridge.php?action=cleanupTemp";
+                RemoteClient::post($cleanupUrl, ['file' => $zipName]);
+            } catch (\Exception $e) {}
 
             $webPath = '../' . ($category ? str_replace('\\', '/', $category) . '/' : '') . 'download/' . $zipName;
             writeJobLog($jobId, ['status' => 'info', 'log' => '🚚 Đã tải xong Package về Local: ' . realpath($localFilePath)]);

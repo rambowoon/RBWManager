@@ -1956,16 +1956,59 @@ const UI = {
 			return;
 		}
 
-		// 0. Làm sạch markdown link [text](url) -> text
+		// 0. Làm sạch markdown link [text](url) -> text & ký tự ẩn
 		let text = rawText
+			.replace(/[\u200B-\u200D\uFEFF]/g, "")
+			.replace(/\u00A0/g, " ")
 			.replace(/\[([^\]]+)\]\((?:mailto:)?([^)]+)\)/g, "$1")
 			.trim();
 
 		const config = { da_port: "1111" };
 
-		const cleanHost = (str) => {
+		const extractIp = (str) => {
 			if (!str) return "";
-			return str
+			const m = String(str).match(/\b(\d{1,3}(?:\.\d{1,3}){3})\b/);
+			return m ? m[1] : "";
+		};
+
+		const extractDomains = (str) => {
+			if (!str) return [];
+			const withoutIps = String(str).replace(
+				/\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g,
+				" ",
+			);
+			const matches =
+				withoutIps.match(
+					/(?:https?:\/\/|ftp:\/\/)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})/gi,
+				) || [];
+			return matches
+				.map((m) =>
+					m
+						.replace(/^(?:https?:\/\/|ftp:\/\/)/i, "")
+						.replace(/\/.*$/, "")
+						.split(":")[0]
+						.trim(),
+				)
+				.filter(
+					(d) =>
+						d &&
+						!/^(hoặc|hay|or|and|http|https|ftp|mailto)$/i.test(d),
+				);
+		};
+
+		const cleanHost = (str, preferIp = false) => {
+			if (!str) return "";
+			const s = String(str).trim();
+			if (preferIp) {
+				const ip = extractIp(s);
+				if (ip) return ip;
+			}
+			const domains = extractDomains(s);
+			if (domains.length > 0) return domains[0];
+			const ipFallback = extractIp(s);
+			if (ipFallback) return ipFallback;
+			return s
+				.split(/\s+(?:hoặc|hay|or)\s+|[,;\s]+/i)[0]
 				.replace(/^https?:\/\//i, "")
 				.replace(/^ftp:\/\//i, "")
 				.replace(/\/.*$/, "")
@@ -1973,26 +2016,48 @@ const UI = {
 				.trim();
 		};
 
+		const cleanWebDomain = (str) => {
+			const d = cleanHost(str, false);
+			return d.replace(/^(?:ftp\.|www\.)/i, "").trim();
+		};
+
 		const cleanPassword = (str) => {
 			if (!str) return "";
 			return str
 				.replace(
-					/\s*[-–—|]\s*(ngày\s*hết\s*hạn|hết\s*hạn|exp|expired).*$/i,
+					/\s*(?:[-–—|]\s*)?(?:ngày\s*hết\s*hạn|hết\s*hạn|exp(?:ired|iry)?\b).*$/i,
 					"",
 				)
 				.replace(
-					/\s*\((ngày\s*hết\s*hạn|hết\s*hạn|exp|expired).*?\)/i,
+					/\s*\((?:ngày\s*hết\s*hạn|hết\s*hạn|exp(?:ired|iry)?\b).*?\)/i,
 					"",
 				)
 				.trim();
 		};
 
+		const isPanelOnlyDomain = (d) => {
+			if (!d) return true;
+			return /(?:^|\.)(?:ninamailservice\.com|directadmin\.com|cpanel\.net|secureserver\.net)$/i.test(
+				d,
+			);
+		};
+
+		const normalizeKey = (str) =>
+			String(str || "")
+				.toLowerCase()
+				.replace(/[:：\t]+/g, " ")
+				.replace(/\s+/g, " ")
+				.trim();
+
 		const isKeyLabel = (str) => {
-			const s = str.toLowerCase().replace(/[:：]/g, "").trim();
-			return /^(domain|tên\s*miền|web\s*domain|website|control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị|host\s*name|host|ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|host\s*ip|ip\s*host|username|user|tài\s*khoản|tên\s*đăng\s*nhập|tài\s*khoản\s*ftp|ftp\s*user|ftp\s*username|panel\s*user|da\s*user|hosting\s*user|password|pass|mật\s*khẩu|ftp\s*pass|ftp\s*password|panel\s*pass|da\s*pass|mật\s*khẩu\s*ftp|hết\s*hạn|ngày\s*hết\s*hạn)$/i.test(
+			const s = normalizeKey(str);
+			return /^(domain|tên miền|web domain|website|control panel|cpanel|directadmin|hosting url|link quản trị|link đăng nhập|link login|url đăng nhập|link hosting|link server|host name|hostname|host|ftp host|ftp server|ftp ip|server ip|ip server|host ip|ip host|ip|username|user name|user|tài khoản|tên đăng nhập|tài khoản ftp|ftp user|ftp username|user ftp|username ftp|panel user|da user|user da|directadmin user|cpanel user|hosting user|user hosting|user server|server user|password|pass|mật khẩu|ftp pass|ftp password|pass ftp|password ftp|mật khẩu ftp|panel pass|da pass|pass da|password da|directadmin pass|cpanel pass|hosting pass|pass hosting|password server|pass server|server pass|server password|mật khẩu server|hết hạn.*|ngày hết hạn.*)$/i.test(
 				s,
 			);
 		};
+
+		const inlineKeyValueRegex =
+			/^(thông\s*tin\s*tài\s*khoản\s*ftp|tài\s*khoản\s*ftp|ftp\s*username|username\s*ftp|ftp\s*user|user\s*ftp|directadmin\s*user|cpanel\s*user|hosting\s*user|user\s*hosting|panel\s*user|user\s*server|server\s*user|da\s*user|user\s*da|tên\s*đăng\s*nhập|tài\s*khoản|user\s*name|username|user|mật\s*khẩu\s*server|server\s*password|password\s*server|server\s*pass|pass\s*server|mật\s*khẩu\s*ftp|ftp\s*password|password\s*ftp|ftp\s*pass|pass\s*ftp|directadmin\s*pass|cpanel\s*pass|hosting\s*pass|pass\s*hosting|panel\s*pass|password\s*da|da\s*pass|pass\s*da|mật\s*khẩu|password|pass|link\s*đăng\s*nhập|url\s*đăng\s*nhập|link\s*quản\s*trị|link\s*hosting|link\s*server|hosting\s*url|control\s*panel|directadmin|cpanel|link\s*login|ftp\s*server|ftp\s*host|host\s*name|hostname|server\s*ip|ip\s*server|host\s*ip|ip\s*host|ftp\s*ip|host|ip|web\s*domain|tên\s*miền|website|domain|ngày\s*hết\s*hạn(?:\s+\S+)?|hết\s*hạn(?:\s+\S+)?)(?:\s*[:：]\s*|\t+|\s+)(.+)$/i;
 
 		const rawLines = text
 			.split(/\r?\n/)
@@ -2001,150 +2066,217 @@ const UI = {
 
 		const pairs = [];
 		let currentSection = "";
+		let explicitWebDomain = false;
+		let panelDomainCandidate = "";
 
 		for (let i = 0; i < rawLines.length; i++) {
 			const line = rawLines[i];
+			const cleanHeaderLine = normalizeKey(line.replace(/[=_\-\[\]]/g, ""));
 
-			// Nhận diện chuyển section
+			// Nhận diện chuyển sang section FTP (tiêu đề thuần túy)
 			if (
-				/^(thông\s*tin\s*tài\s*khoản\s*ftp|tài\s*khoản\s*ftp|thông\s*tin\s*ftp|ftp\s*account|ftp\s*information|ftp)$/i.test(
-					line.replace(/[:：=_\-\[\]]/g, "").trim(),
+				/^(thông tin tài khoản ftp|thông tin ftp|ftp account|ftp information|ftp)$/i.test(
+					cleanHeaderLine,
 				)
 			) {
 				currentSection = "FTP";
 				continue;
 			}
-			if (
-				/^(hosting|thông\s*tin\s*hosting|control\s*panel|directadmin|cpanel|thông\s*tin\s*quản\s*trị)$/i.test(
-					line.replace(/[:：=_\-\[\]]/g, "").trim(),
-				) ||
-				/^hosting\s+cho\s+tên\s+miền/i.test(line)
-			) {
+
+			// "Tài khoản FTP": nếu dòng kế tiếp là một nhãn (như Host name / Username) thì là tiêu đề section, ngược lại là nhãn của giá trị FTP user ở dòng dưới
+			if (/^tài khoản ftp$/i.test(cleanHeaderLine)) {
+				currentSection = "FTP";
+				const nextLine = rawLines[i + 1];
+				if (!nextLine || isKeyLabel(nextLine)) {
+					continue;
+				}
+			}
+
+			// Nhận diện dòng tiêu đề "Hosting cho tên miền ..."
+			if (/hosting\s+cho\s+tên\s+miền/i.test(line)) {
 				currentSection = "DA";
-				const domainM = line.match(
-					/tên\s+miền\s+([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
-				);
-				if (domainM && !config.web_domain) {
-					config.web_domain = cleanHost(domainM[1]);
+				const afterTitle = line.split(/hosting\s+cho\s+tên\s+miền/i)[1] || line;
+				const d = cleanWebDomain(afterTitle);
+				if (d && !isPanelOnlyDomain(d)) {
+					config.web_domain = d;
+					explicitWebDomain = true;
 				}
 				continue;
 			}
 
-			// Trường hợp A: Phân cách bởi dấu Tab (\t) hoặc 2 khoảng trắng trở lên
-			const tabParts = line.split(/\t+|\s{2,}/);
-			if (tabParts.length >= 2 && isKeyLabel(tabParts[0])) {
-				pairs.push({
-					key: tabParts[0].trim(),
-					val: tabParts.slice(1).join(" ").trim(),
-					section: currentSection,
-				});
-				continue;
-			}
-
-			// Trường hợp B: Phân cách bởi dấu hai chấm ":"
-			const colonIdx = line.indexOf(":");
-			const isUrl = /^https?:\/\//i.test(line);
-
+			// Nhận diện tiêu đề section Hosting / Quản trị thuần túy
 			if (
-				colonIdx > 0 &&
-				!isUrl &&
-				isKeyLabel(line.substring(0, colonIdx))
+				/^(hosting|thông tin hosting|thông tin quản trị)$/i.test(
+					cleanHeaderLine,
+				)
 			) {
-				const k = line.substring(0, colonIdx).trim();
-				const v = line.substring(colonIdx + 1).trim();
-				pairs.push({ key: k, val: v, section: currentSection });
+				currentSection = "DA";
 				continue;
 			}
 
-			// Trường hợp C: Key ở dòng hiện tại, Value ở dòng kế tiếp
+			// Nếu dòng bắt đầu bằng Control panel / DirectAdmin / cPanel / Link đăng nhập -> đánh dấu section DA nhưng KHÔNG continue để lấy URL ở cùng dòng hoặc dòng kế tiếp
+			if (
+				/^(control panel|directadmin|cpanel|link đăng nhập|link quản trị|link login|url đăng nhập)\b/i.test(
+					cleanHeaderLine,
+				)
+			) {
+				currentSection = "DA";
+			}
+
+			// ƯU TIÊN SỐ 1: Toàn bộ dòng hiện tại là một Key Label (kể cả có nhiều từ như "Password FTP", "User server", "Password\tFTP") -> ghép với dòng kế tiếp
 			if (isKeyLabel(line)) {
 				const nextLine = rawLines[i + 1];
 				if (nextLine && !isKeyLabel(nextLine)) {
 					pairs.push({
-						key: line,
-						val: nextLine,
+						key: normalizeKey(line),
+						val: nextLine.trim(),
 						section: currentSection,
 					});
 					i++;
+					continue;
+				}
+				continue;
+			}
+
+			// ƯU TIÊN SỐ 2: Key và Value nằm trên cùng 1 dòng (ưu tiên khớp nhãn dài nhất trước như "Password FTP" trước "Password")
+			const inlineMatch = line.match(inlineKeyValueRegex);
+			if (inlineMatch) {
+				const kPart = normalizeKey(inlineMatch[1]);
+				const vPart = inlineMatch[2].trim();
+				if (
+					vPart &&
+					!isKeyLabel(vPart) &&
+					!/^(ftp|server|da|panel|hosting|key)$/i.test(vPart)
+				) {
+					pairs.push({
+						key: kPart,
+						val: vPart,
+						section: currentSection,
+					});
 					continue;
 				}
 			}
 		}
 
 		pairs.forEach(({ key, val, section }) => {
-			const k = key.toLowerCase().replace(/[:：]/g, "").trim();
+			const k = normalizeKey(key);
 
 			// 1. Tên miền / Domain
 			if (/^(domain|tên\s*miền|web\s*domain|website)$/i.test(k)) {
-				config.web_domain = cleanHost(val);
+				const d = cleanWebDomain(val);
+				if (d && !isPanelOnlyDomain(d)) {
+					config.web_domain = d;
+					explicitWebDomain = true;
+				}
 			}
-			// 2. Control Panel
+			// 2. Control Panel / Link đăng nhập
 			else if (
-				/^(control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị)$/i.test(
+				/^(control\s*panel|cpanel|directadmin|hosting\s*url|link\s*quản\s*trị|link\s*đăng\s*nhập|link\s*login|url\s*đăng\s*nhập|link\s*hosting|link\s*server)$/i.test(
 					k,
 				)
 			) {
 				const portMatch = val.match(/:(\d{2,5})/);
 				if (portMatch) config.da_port = portMatch[1];
-				const hostMatches =
-					val.match(
-						/(?:https?:\/\/)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\d{1,3}(?:\.\d{1,3}){3})/gi,
-					) || [];
-				if (hostMatches.length > 0 && !config.ftp_host) {
-					config.ftp_host = cleanHost(hostMatches[0]);
+				const ip = extractIp(val);
+				if (ip) {
+					config.ftp_host = ip;
+				} else if (!config.ftp_host) {
+					config.ftp_host = cleanHost(val, true);
+				}
+				const domains = extractDomains(val);
+				for (const dom of domains) {
+					const cleanDom = dom.replace(/^(?:ftp\.|www\.)/i, "");
+					if (cleanDom && !isPanelOnlyDomain(cleanDom) && !panelDomainCandidate) {
+						panelDomainCandidate = cleanDom;
+					}
 				}
 			}
-			// 3. Host name / FTP Host
+			// 3. Host name / FTP Host / IP server
 			else if (
-				/^(host\s*name|host|ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|host\s*ip|ip\s*host)$/i.test(
+				/^(host\s*name|hostname|host|ftp\s*host|ftp\s*server|ftp\s*ip|server\s*ip|ip\s*server|host\s*ip|ip\s*host|ip)$/i.test(
 					k,
 				)
 			) {
-				config.ftp_host = cleanHost(val);
+				const ip = extractIp(val);
+				if (ip) {
+					config.ftp_host = ip;
+				} else if (
+					!config.ftp_host ||
+					!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(config.ftp_host)
+				) {
+					config.ftp_host = cleanHost(val, true);
+				}
+				if (!config.web_domain) {
+					const domains = extractDomains(val);
+					for (const dom of domains) {
+						const cleanDom = dom.replace(/^(?:ftp\.|www\.)/i, "");
+						if (cleanDom && !isPanelOnlyDomain(cleanDom)) {
+							config.web_domain = cleanDom;
+							break;
+						}
+					}
+				}
 			}
 			// 4. Username
 			else if (
-				/^(ftp\s*user|ftp\s*username|tài\s*khoản\s*ftp)$/i.test(k)
+				/^(ftp\s*user|ftp\s*username|user\s*ftp|username\s*ftp|tài\s*khoản\s*ftp)$/i.test(
+					k,
+				)
 			) {
 				config.ftp_user = val.trim();
+				if (config.ftp_user.includes("@") && !explicitWebDomain) {
+					const ftpDom = cleanWebDomain(config.ftp_user.split("@")[1]);
+					if (ftpDom && !isPanelOnlyDomain(ftpDom)) {
+						config.web_domain = ftpDom;
+					}
+				}
 			} else if (
-				/^(panel\s*user|da\s*user|directadmin\s*user|cpanel\s*user|hosting\s*user)$/i.test(
+				/^(panel\s*user|da\s*user|user\s*da|directadmin\s*user|cpanel\s*user|hosting\s*user|user\s*hosting|user\s*server|server\s*user)$/i.test(
 					k,
 				)
 			) {
 				config.da_user = val.trim();
 				if (!config.ftp_user) config.ftp_user = config.da_user;
 			} else if (
-				/^(username|user|tài\s*khoản|tên\s*đăng\s*nhập)$/i.test(k)
+				/^(username|user\s*name|user|tài\s*khoản|tên\s*đăng\s*nhập)$/i.test(
+					k,
+				)
 			) {
 				const v = val.trim();
-				if (section === "DA") {
+				if (v.includes("@")) {
+					config.ftp_user = v;
+					if (!config.da_user) config.da_user = v.split("@")[0];
+					if (!explicitWebDomain) {
+						const ftpDom = cleanWebDomain(v.split("@")[1]);
+						if (ftpDom && !isPanelOnlyDomain(ftpDom)) {
+							config.web_domain = ftpDom;
+						}
+					}
+				} else if (section === "DA") {
 					config.da_user = v;
 					if (!config.ftp_user) config.ftp_user = v;
 				} else if (section === "FTP") {
 					config.ftp_user = v;
 					if (!config.da_user) config.da_user = v;
 				} else {
-					if (v.includes("@")) {
-						config.ftp_user = v;
-						if (!config.da_user) config.da_user = v.split("@")[0];
-					} else {
-						if (!config.da_user) config.da_user = v;
-						if (!config.ftp_user) config.ftp_user = v;
-					}
+					if (!config.da_user) config.da_user = v;
+					if (!config.ftp_user) config.ftp_user = v;
 				}
 			}
 			// 5. Password
 			else if (
-				/^(ftp\s*pass|ftp\s*password|mật\s*khẩu\s*ftp)$/i.test(k)
+				/^(ftp\s*pass|ftp\s*password|pass\s*ftp|password\s*ftp|mật\s*khẩu\s*ftp)$/i.test(
+					k,
+				)
 			) {
 				config.ftp_pass = cleanPassword(val);
 			} else if (
-				/^(panel\s*pass|da\s*pass|directadmin\s*pass|cpanel\s*pass|hosting\s*pass)$/i.test(
+				/^(panel\s*pass|da\s*pass|pass\s*da|password\s*da|directadmin\s*pass|cpanel\s*pass|hosting\s*pass|pass\s*hosting|password\s*server|pass\s*server|server\s*pass|server\s*password|mật\s*khẩu\s*server)$/i.test(
 					k,
 				)
 			) {
 				const p = cleanPassword(val);
+				config.da_pass = p;
 				if (!config.ftp_pass) config.ftp_pass = p;
 			} else if (/^(password|pass|mật\s*khẩu)$/i.test(k)) {
 				const p = cleanPassword(val);
@@ -2154,18 +2286,27 @@ const UI = {
 			}
 		});
 
+		if (!config.web_domain && panelDomainCandidate) {
+			config.web_domain = panelDomainCandidate;
+		}
+
 		// Fallback thông minh
 		if (!config.web_domain) {
 			const m = text.match(
-				/(?:domain|tên\s*miền)\s*[:\t]?\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
+				/(?:domain|tên\s*miền)\s*[:\t]?\s*(?:https?:\/\/)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
 			);
-			if (m) config.web_domain = cleanHost(m[1]);
+			if (m) config.web_domain = cleanWebDomain(m[1]);
 		}
 		if (!config.ftp_host) {
-			const m = text.match(
-				/(?:host\s*name|host|ftp\s*host|server\s*ip|ip)\s*[:\t]?\s*(\d{1,3}(?:\.\d{1,3}){3}|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
-			);
-			if (m) config.ftp_host = cleanHost(m[1]);
+			const ip = extractIp(text);
+			if (ip) {
+				config.ftp_host = ip;
+			} else {
+				const m = text.match(
+					/(?:host\s*name|host|ftp\s*host|server\s*ip|ip)\s*[:\t]?\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
+				);
+				if (m) config.ftp_host = cleanHost(m[1], true);
+			}
 		}
 
 		// Đổ dữ liệu vào tất cả các form tương ứng
