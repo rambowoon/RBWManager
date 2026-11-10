@@ -649,6 +649,7 @@ if (PHP_SAPI === 'cli') {
     if (!empty($cliArgs['payload']) && is_file($cliArgs['payload'])) {
         $payloadRaw = file_get_contents($cliArgs['payload']);
         $cliInputData = json_decode($payloadRaw, true) ?: [];
+        $cliInputData['_background'] = true;
         @file_put_contents($debugLogFile, "[$timestamp] Payload JSON decoded successfully (Keys: " . implode(', ', array_keys($cliInputData)) . ")\n", FILE_APPEND);
         if (!empty($cliInputData['jobId'])) {
             $jobId = $cliInputData['jobId'];
@@ -796,7 +797,7 @@ function startApiBackgroundJob($action, array $data, $jobId)
     $cmdOutLog = $logDir . DIRECTORY_SEPARATOR . $safeJobId . '_cmd_exec.log';
     if (substr($cmdOutLog, 0, 4) === '\\\\.\\') $cmdOutLog = substr($cmdOutLog, 4);
 
-    if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
+    if (stripos(PHP_OS_FAMILY, 'Windows') !== false && PHP_SAPI !== 'cli-server') {
         $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}";
         @file_put_contents($debugLogFile, "[$timestamp] Gọi curl nội bộ tới: $url\n", FILE_APPEND);
 
@@ -816,6 +817,10 @@ function startApiBackgroundJob($action, array $data, $jobId)
         curl_close($ch);
 
         @file_put_contents($debugLogFile, "[$timestamp] ✅ Đã đẩy luồng qua HTTP cURL (Err: $err)\n", FILE_APPEND);
+    } elseif (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
+        $cmd = 'start "" /B "' . $php . '" "' . $scriptFile . '" --action=' . $action . ' --payload="' . $payloadFile . '"';
+        @file_put_contents($debugLogFile, "[$timestamp] Lệnh cmd Windows CLI sẽ chạy: $cmd\n", FILE_APPEND);
+        @pclose(@popen($cmd, 'r'));
     } else {
         $cmd = escapeshellarg($php)
             . ' ' . escapeshellarg($scriptFile)

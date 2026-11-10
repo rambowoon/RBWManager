@@ -3070,8 +3070,9 @@ const App = {
 						const card = document.querySelector(
 							`.item-card[data-project="${safeName}"][data-category="${safeCat}"]`,
 						);
-						if (card && res.url) {
-							const freshUrl = res.url + "?v=" + Date.now();
+						const shotUrl = res.url || res.screenshot;
+						if (card && shotUrl) {
+							const freshUrl = shotUrl.split("?")[0] + "?v=" + Date.now();
 							const thumbWrap = card.querySelector(
 								".item-card-thumb-wrap",
 							);

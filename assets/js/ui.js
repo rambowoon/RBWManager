@@ -134,6 +134,7 @@ const UI = {
 					.querySelectorAll(".category-item")
 					.forEach((i) => i.classList.remove("active"));
 				item.classList.add("active");
+				App.showDashboard();
 				App.loadProjects(cat);
 			};
 
@@ -1058,10 +1059,6 @@ const UI = {
                 <span class="menu-icon mi-cyan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></span>
                 Sync Tools
             </button>
-            <button class="action-menu-item ${!isConfigured || isLockedProd ? "disabled" : ""}" onclick="UI.closePortalMenu(); App.publishToProduction('${safeName}','${safeCat}')">
-                <span class="menu-icon mi-blue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 16 12 12 16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>
-                Publish Production ${isLockedProd ? "🔒" : ""}
-            </button>
             <div class="menu-divider"></div>
             <button class="action-menu-item" onclick="UI.closePortalMenu(); App.installSSL('${safeName}')">
                 <span class="menu-icon mi-purple"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
@@ -1682,10 +1679,6 @@ const UI = {
 					<button type="button" class="pd-action-btn" onclick="UI.showModal('${prefix ? "detail-config-modal" : "config-modal"}')">
 						<span class="pd-btn-icon">⚙</span>
 						<span class="pd-btn-text">Cấu hình Hosting</span>
-					</button>
-					<button type="button" class="pd-action-btn ${isLockedProd ? "is-disabled" : ""}" onclick="${isLockedProd ? "UI.notify('Production đang bị KHÓA!', 'error')" : `App.publishToProduction('${safeName}','${safeCat}')`}">
-						<span class="pd-btn-icon">◉</span>
-						<span class="pd-btn-text">Publish Production</span>
 					</button>
 					<button type="button" class="pd-action-btn" onclick="App.installSSL('${safeName}', '${safeCat}')">
 						<span class="pd-btn-icon">🔒</span>
@@ -2445,11 +2438,16 @@ const UI = {
 			ImageTrimManager.init();
 		} else if (tabId === "d_tab-auto-media") {
 			const projectName =
-				document.getElementById("d_current-project")?.value || "";
+				document.getElementById("d_current-project")?.value ||
+				document.getElementById("detail-project-name")?.innerText?.trim() ||
+				"";
 			AutoMediaManager.init(projectName);
 		} else if (tabId === "d_tab-seed") {
 			const projectName =
-				document.getElementById("d_current-project")?.value || "";
+				document.getElementById("d_current-project")?.value ||
+				document.getElementById("detail-project-name")?.innerText?.trim() ||
+				(typeof App !== "undefined" && App.currentProject ? App.currentProject : "") ||
+				"";
 			SeedManager.init(projectName);
 		} else if (tabId === "d_tab-synccenter") {
 			if (typeof SyncCenter !== "undefined") SyncCenter.init();
@@ -2474,8 +2472,34 @@ const UI = {
 	},
 
 	initTheme() {
-		const currentTheme = localStorage.getItem("rbw_theme") || "mint";
+		let currentTheme = localStorage.getItem("rbw_pro_accent") || "indigo";
+		if (!this.themeLabels[currentTheme]) currentTheme = "indigo";
 		this.applyThemeUI(currentTheme);
+
+		let parentMode = "dark";
+		try {
+			if (window.parent && window.parent !== window && window.parent.document) {
+				parentMode = window.parent.document.documentElement.getAttribute("data-theme") || localStorage.getItem("rbw_theme") || "dark";
+			} else {
+				parentMode = localStorage.getItem("rbw_theme") || "dark";
+			}
+		} catch (_) {
+			parentMode = localStorage.getItem("rbw_theme") || "dark";
+		}
+		if (parentMode !== "light" && parentMode !== "dark") parentMode = "dark";
+		document.documentElement.setAttribute("data-mode", parentMode);
+
+		window.addEventListener("message", (e) => {
+			if (e.data && e.data.type === "rbw-theme-sync" && e.data.mode) {
+				document.documentElement.setAttribute("data-mode", e.data.mode);
+			}
+		});
+
+		window.addEventListener("storage", (e) => {
+			if (e.key === "rbw_theme" && (e.newValue === "light" || e.newValue === "dark")) {
+				document.documentElement.setAttribute("data-mode", e.newValue);
+			}
+		});
 
 		// Global click listener to close theme dropdown when clicking outside
 		document.addEventListener("click", (e) => {
@@ -2496,8 +2520,8 @@ const UI = {
 	},
 
 	setTheme(themeName) {
-		if (!this.themeLabels[themeName]) themeName = "mint";
-		localStorage.setItem("rbw_theme", themeName);
+		if (!this.themeLabels[themeName]) themeName = "indigo";
+		localStorage.setItem("rbw_pro_accent", themeName);
 		document.documentElement.setAttribute("data-theme", themeName);
 		this.applyThemeUI(themeName);
 
@@ -2505,7 +2529,7 @@ const UI = {
 		if (dropdown) dropdown.classList.remove("show");
 
 		this.showToast(
-			`Đã chuyển sang giao diện ${this.themeLabels[themeName]}`,
+			`Đã chuyển sang tông màu ${this.themeLabels[themeName]}`,
 			"success",
 		);
 	},

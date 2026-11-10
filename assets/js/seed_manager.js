@@ -9,8 +9,9 @@ const SeedManager = {
 	designImage: null,   // { data: base64, mime: 'image/png', name: '...' }
 
 	async init(projectName) {
-		if (!projectName) return;
-		this.currentProject = projectName;
+		const proj = projectName || (typeof App !== 'undefined' ? App.currentProject : '') || document.getElementById('d_current-project')?.value || document.getElementById('detail-project-name')?.innerText?.trim() || '';
+		if (!proj) return;
+		this.currentProject = proj;
 		this.selectedImages = {};
 		this.subTypes = {};
 		this.allImages = [];
@@ -150,9 +151,10 @@ const SeedManager = {
 		this._renderSubTypesLoading();
 
 		try {
-			const res = await fetch(`seed_images.php?action=load_types&project_name=${encodeURIComponent(this.currentProject)}&main_key=${encodeURIComponent(mainKey)}`).then((r) => r.json());
+			const cat = (typeof App !== 'undefined' && App.currentCategory) ? App.currentCategory : '';
+			const res = await fetch(`seed_images.php?action=load_types&project_name=${encodeURIComponent(this.currentProject)}&category=${encodeURIComponent(cat)}&main_key=${encodeURIComponent(mainKey)}`).then((r) => r.json());
 			if (res.status !== 'success') throw new Error(res.message);
-			this.subTypes = res.sub_types || {};
+			this.subTypes = res.sub_types || res.types || {};
 			this._renderSubTypes();
 			// Auto-load ảnh mặc định
 			await this.scanFolder();
@@ -170,7 +172,8 @@ const SeedManager = {
 		if (totalEl) totalEl.textContent = '...';
 
 		try {
-			const url = `seed_images.php?action=scan_folder&project_name=${encodeURIComponent(this.currentProject)}&folder=${encodeURIComponent(this.currentFolder)}&subdir=${encodeURIComponent(subdir)}`;
+			const cat = (typeof App !== 'undefined' && App.currentCategory) ? App.currentCategory : '';
+			const url = `seed_images.php?action=scan_folder&project_name=${encodeURIComponent(this.currentProject)}&category=${encodeURIComponent(cat)}&folder=${encodeURIComponent(this.currentFolder)}&subdir=${encodeURIComponent(subdir)}`;
 			const res = await fetch(url).then((r) => r.json());
 			if (res.status !== 'success') throw new Error(res.message);
 
@@ -197,12 +200,13 @@ const SeedManager = {
 		}
 
 		box.innerHTML = keys.map((k) => {
-			const st = this.subTypes[k];
-			const ratio = st.ratio ? `${st.ratio.width}×${st.ratio.height}` : '—';
+			const st = this.subTypes[k] || {};
+			const title = typeof st.title === 'string' && st.title ? st.title : (st.title_main || k);
+			const ratio = st.ratio ? `${st.ratio.width}×${st.ratio.height}` : (st.width && st.height ? `${st.width}×${st.height}` : '—');
 			const kindBadge = st.kind === 'static'
 				? '<span class="seed-badge static">static</span>'
 				: '<span class="seed-badge album">album</span>';
-			const count = st.number !== null ? st.number : '∞';
+			const count = (st.number !== null && st.number !== undefined) ? st.number : '∞';
 			const selectedCount = (this.selectedImages[k] || []).length;
 
 			return `
@@ -210,13 +214,13 @@ const SeedManager = {
 					<div class="seed-subtype-head">
 						<div class="seed-subtype-dot"></div>
 						<div>
-							<div class="seed-subtype-name">${st.title}</div>
+							<div class="seed-subtype-name">${title}</div>
 							<div class="seed-subtype-meta">${ratio} · ${count} bản ghi</div>
 						</div>
 						${kindBadge}
 					</div>
 					<div class="seed-subtype-stats">
-						<span class="seed-subtype-table">${st.table}</span>
+						<span class="seed-subtype-table">${st.table || ''}</span>
 						<span class="seed-img-count-badge" id="seed-img-count-${k}">${selectedCount > 0 ? selectedCount + ' ảnh' : 'Chưa chọn'}</span>
 					</div>
 				</div>`;
@@ -273,16 +277,18 @@ const SeedManager = {
 
 		const selected = this.selectedImages[subKey] || [];
 		grid.innerHTML = this.allImages.map((img) => {
-			const isChecked = selected.includes(img.file);
+			const fileName = img.file || img.name || '';
+			const isChecked = selected.includes(fileName);
 			const dim = img.width && img.height ? `${img.width}×${img.height}` : '—';
+			const previewSrc = img.preview || img.preview_url || '';
 			return `
-				<label class="seed-img-item ${isChecked ? 'checked' : ''}" data-file="${img.file}" data-sub="${subKey}">
+				<label class="seed-img-item ${isChecked ? 'checked' : ''}" data-file="${fileName}" data-sub="${subKey}">
 					<input type="checkbox" class="seed-img-check" ${isChecked ? 'checked' : ''}>
 					<div class="seed-img-thumb">
-						<img src="${img.preview}" alt="${img.name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'seed-img-ph\\'><svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/></svg></div>'">
+						${previewSrc ? `<img src="${previewSrc}" alt="${img.name}" loading="lazy">` : `<div class="seed-img-ph"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/></svg></div>`}
 					</div>
 					<div class="seed-img-meta">
-						<div class="seed-img-name" title="${img.file}">${img.name}</div>
+						<div class="seed-img-name" title="${fileName}">${img.name}</div>
 						<div class="seed-img-info">${dim} · ${this._formatSize(img.size)}</div>
 					</div>
 				</label>`;
@@ -389,8 +395,11 @@ const SeedManager = {
 			document.head.appendChild(s);
 		}
 
+		const cat = (typeof App !== 'undefined' && App.currentCategory) ? App.currentCategory : '';
 		const payload = {
+			project: this.currentProject,
 			project_name: this.currentProject,
+			category: cat,
 			main_key: this.currentMainKey,
 			folder: this.currentFolder,
 			seed_count: seedCount,

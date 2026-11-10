@@ -10,12 +10,30 @@
         (function() {
             var savedTheme = localStorage.getItem('rbw_theme') || 'mint';
             document.documentElement.setAttribute('data-theme', savedTheme);
+            if (window.parent && window.parent !== window) {
+                var origOpen = window.open;
+                window.open = function(url, target, features) {
+                    if (url && typeof url === 'string') {
+                        window.parent.postMessage({ type: 'rbw-open-url', url: url }, '*');
+                        return null;
+                    }
+                    return origOpen ? origOpen.call(window, url, target, features) : null;
+                };
+            }
         })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= time(); ?>">
+    <?php if (!empty($_GET['embed'])): ?>
+    <style>
+        :root, [data-theme] { --sidebar-w: 210px !important; }
+        .sidebar-header, .sidebar-footer { display: none !important; }
+        header { height: 52px !important; padding: 0 20px !important; }
+        .content-body { padding: 18px 20px !important; }
+    </style>
+    <?php endif; ?>
 </head>
 
 <body>

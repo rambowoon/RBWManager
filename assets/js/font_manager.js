@@ -84,7 +84,7 @@ const FontManager = {
                 card.innerHTML = `
                     <div class="font-card-header">
                         <div class="font-card-header-left">
-                            <div class="font-family-title" style="font-family: '${displayFamily}', sans-serif;">${displayFamily}</div>
+                            <div class="font-family-title" style="font-family: '${displayFamily}', sans-serif; color: #0F172A !important; font-weight: 800; font-size: 1.25rem;">${displayFamily}</div>
                             <div class="font-path-badge">${isGoogle ? '☁️ Google Web Fonts' : '📁 ' + font.family}</div>
                         </div>
                         <div class="font-source-tag ${isGoogle ? 'google' : 'local'}">
@@ -96,11 +96,11 @@ const FontManager = {
                     <div class="font-variants-wrap">
                         <div class="font-variants-header">
                             <span class="font-variants-title">BIẾN THỂ WEIGHT & STYLE (${(font.variants || []).length})</span>
-                            <button class="btn btn-ghost" style="font-size:0.68rem; padding:2px 8px; height:auto; color:#22d3ee;" onclick="FontManager.toggleAll('${font.id}')">Chọn tất cả</button>
+                            <button class="btn btn-ghost" style="font-size:0.68rem; padding:3px 10px; height:auto; color:#4f46e5; background:#eef2ff; border:1px solid #c7d2fe; border-radius:6px; font-weight:600; cursor:pointer;" onclick="FontManager.toggleAll('${font.id}')">Chọn tất cả</button>
                         </div>
-                        <div class="font-variants-box" id="vars-${font.id.replace(/[^a-z0-9]/gi, '')}">
+                        <div class="font-variants-box" id="vars-${font.id.replace(/[^a-z0-9]/gi, '')}" style="background:#F8FAFC !important; border:1px solid #E2E8F0 !important;">
                             ${(font.variants || []).map(v => `
-                                <label class="font-variant-chip">
+                                <label class="font-variant-chip" style="background:#FFFFFF !important; color:#1E293B !important; border:1px solid #CBD5E1 !important;">
                                     <input type="checkbox" class="font-variant-checkbox" data-font="${font.id}" data-variant="${v}">
                                     <span>${String(v).replace(/italic/gi, 'I').replace(/i$/i, 'I').replace(/\s+/g, '')}</span>
                                 </label>
@@ -111,15 +111,15 @@ const FontManager = {
                     <div class="font-variants-wrap">
                         <div class="font-variants-header">
                             <span class="font-variants-title">CHỌN BIẾN THỂ CẦN DÙNG (${(font.variants || []).length})</span>
-                            <button class="btn btn-ghost" style="font-size:0.68rem; padding:2px 8px; height:auto; color:#22d3ee;" onclick="FontManager.toggleAllGoogle('${font.family}')">Chọn tất cả</button>
+                            <button class="btn btn-ghost" style="font-size:0.68rem; padding:3px 10px; height:auto; color:#4f46e5; background:#eef2ff; border:1px solid #c7d2fe; border-radius:6px; font-weight:600; cursor:pointer;" onclick="FontManager.toggleAllGoogle('${font.family}')">Chọn tất cả</button>
                         </div>
-                        <div class="font-variants-box" id="gvars-${font.family.replace(/[^a-z0-9]/gi, '')}">
+                        <div class="font-variants-box" id="gvars-${font.family.replace(/[^a-z0-9]/gi, '')}" style="background:#F8FAFC !important; border:1px solid #E2E8F0 !important;">
                             ${(font.variants || []).map(v => {
                                 const vStr = String(v);
                                 const isDefault = ['400', '700', 'regular'].includes(vStr.toLowerCase());
                                 const label = vStr.toLowerCase() === 'regular' ? '400' : (vStr.toLowerCase() === 'italic' ? '400I' : vStr.replace(/italic/gi, 'I').replace(/i$/i, 'I').replace(/\s+/g, ''));
                                 return `
-                                <label class="font-variant-chip">
+                                <label class="font-variant-chip" style="background:#FFFFFF !important; color:#1E293B !important; border:1px solid #CBD5E1 !important;">
                                     <input type="checkbox" class="font-google-variant-checkbox" data-family="${font.family}" data-variant="${vStr}" ${isDefault ? 'checked' : ''}>
                                     <span>${label}</span>
                                 </label>
@@ -172,7 +172,7 @@ const FontManager = {
                 card.innerHTML = `
                     <div class="font-card-header">
                         <div class="font-card-header-left">
-                            <div class="font-family-title" style="font-family: '${displayFamily}', sans-serif;">${displayFamily}</div>
+                            <div class="font-family-title" style="font-family: '${displayFamily}', sans-serif; color: #0F172A !important; font-weight: 800; font-size: 1.25rem;">${displayFamily}</div>
                             <div class="font-path-badge">📁 ${font.family}</div>
                         </div>
                         <div class="font-source-tag convertible">
@@ -183,11 +183,11 @@ const FontManager = {
                     <div class="font-variants-wrap">
                         <div class="font-variants-header">
                             <span class="font-variants-title">BIẾN THỂ CẦN CONVERT (${(font.convert_variants || []).length})</span>
-                            <button class="btn btn-ghost" style="font-size:0.68rem; padding:2px 8px; height:auto; color:#fbbf24;" onclick="FontManager.toggleAllConvert('${font.id}')">Chọn tất cả</button>
+                            <button class="btn btn-ghost" style="font-size:0.68rem; padding:3px 10px; height:auto; color:#b45309; background:#fef3c7; border:1px solid #fde68a; border-radius:6px; font-weight:600; cursor:pointer;" onclick="FontManager.toggleAllConvert('${font.id}')">Chọn tất cả</button>
                         </div>
-                        <div class="font-variants-box" id="conv-vars-${font.id.replace(/[^a-z0-9]/gi, '')}">
+                        <div class="font-variants-box" id="conv-vars-${font.id.replace(/[^a-z0-9]/gi, '')}" style="background:#F8FAFC !important; border:1px solid #E2E8F0 !important;">
                             ${(font.convert_variants || []).map(cv => `
-                                <label class="font-variant-chip">
+                                <label class="font-variant-chip" style="background:#FFFFFF !important; color:#1E293B !important; border:1px solid #CBD5E1 !important;">
                                     <input type="checkbox" class="font-convert-checkbox" data-font="${font.id}" data-variant="${cv.variant}" data-ext="${cv.ext}" data-filename="${cv.filename}">
                                     <span>${String(cv.variant).replace(/italic/gi, 'I').replace(/i$/i, 'I').replace(/\s+/g, '')} (${cv.ext.toUpperCase()})</span>
                                 </label>
@@ -407,7 +407,21 @@ const FontManager = {
         try {
             const res = await (await fetch(`api.php?action=getFontsCss&name=${encodeURIComponent(projectName)}&category=${encodeURIComponent(App.currentCategory || '')}`)).json();
             if (res.status === 'success') {
-                const content = res.data || '/* Chưa có font nào được thêm */';
+                let content = '';
+                if (res.data) {
+                    if (typeof res.data === 'string') {
+                        content = res.data;
+                    } else if (typeof res.data.css === 'string') {
+                        content = res.data.css;
+                    } else if (res.data.css) {
+                        content = JSON.stringify(res.data.css, null, 2);
+                    } else {
+                        content = typeof res.data === 'object' ? JSON.stringify(res.data, null, 2) : String(res.data);
+                    }
+                }
+                if (typeof content !== 'string' || !content.trim()) {
+                    content = '/* Chưa có font nào được thêm */';
+                }
                 previewContainer.innerText = content;
                 this.renderInstalledFonts(content);
             }
